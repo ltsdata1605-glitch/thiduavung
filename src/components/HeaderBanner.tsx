@@ -319,6 +319,8 @@ interface HeaderBannerProps {
   setShowSummarySection?: (show: boolean) => void;
   valueDisplayMode?: 'percent' | 'value';
   setValueDisplayMode?: (mode: 'percent' | 'value') => void;
+  // Only Super Admin / Admin may switch to the DT Luỹ Kế/Realtime value view.
+  canViewDtQdTb?: boolean;
   systemName?: string;
   subTitle?: string;
 }
@@ -353,6 +355,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   setShowSummarySection,
   valueDisplayMode = 'percent',
   setValueDisplayMode,
+  canViewDtQdTb = true,
 }) => {
   const allChannels: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
 
@@ -635,8 +638,8 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             />
           </div>
 
-          {/* View Mode Segmented Toggle: % vs Doanh Thu / Thực Đạt */}
-          {setValueDisplayMode && entityScope !== 'nhom' && (
+          {/* View Mode Segmented Toggle: % vs Doanh Thu / Thực Đạt — Super Admin / Admin only */}
+          {setValueDisplayMode && entityScope !== 'nhom' && canViewDtQdTb && (
             <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-xl shrink-0 shadow-2xs">
               <button
                 type="button"

@@ -893,10 +893,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   // Cumulative left offsets (px) for the frozen info columns — must match the
   // <colgroup> widths below exactly, since sticky positioning needs a fixed
-  // pixel left value per column, not a relative one.
+  // pixel left value per column, not a relative one. `total` (where the
+  // first scrollable column starts) shrinks by the DTQĐ TB column's own
+  // width (80px) when that column isn't rendered at all for this account.
   const FROZEN_LEFT = isProvinceView
-    ? { stt: 0, tinh: 40, dat: 120, tyLe: 180, dtQdTb: 234, total: 314 }
-    : { stt: 0, tinh: 56, boss: 136, kenh: 236, sieuthi: 290, dat: 570, tyLe: 630, dtQdTb: 684, total: 764 };
+    ? { stt: 0, tinh: 40, dat: 120, tyLe: 180, dtQdTb: 234, total: canViewDtQdTb ? 314 : 234 }
+    : { stt: 0, tinh: 56, boss: 136, kenh: 236, sieuthi: 290, dat: 570, tyLe: 630, dtQdTb: 684, total: canViewDtQdTb ? 764 : 684 };
 
   // Map store metrics if a specific category or category group is selected.
   // A Nhóm selection takes precedence over a single Ngành hàng selection —
@@ -1622,15 +1624,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   TỶ LỆ % {sortField === 'rate' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                 </th>
 
-                <th
-                  rowSpan={2}
-                  onClick={() => handleSort('dtQdTb')}
-                  style={{ left: FROZEN_LEFT.dtQdTb, top: 0 }}
-                  className={`export-hide sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] font-extrabold select-none text-[10px]`}
-                  title="Click để sắp xếp theo DTQĐ TB 5T2026"
-                >
-                  DTQĐ TB 5T2026 {sortField === 'dtQdTb' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
-                </th>
+                {canViewDtQdTb && (
+                  <th
+                    rowSpan={2}
+                    onClick={() => handleSort('dtQdTb')}
+                    style={{ left: FROZEN_LEFT.dtQdTb, top: 0 }}
+                    className={`export-hide sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] font-extrabold select-none text-[10px]`}
+                    title="Click để sắp xếp theo DTQĐ TB 5T2026"
+                  >
+                    DTQĐ TB 5T2026 {sortField === 'dtQdTb' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                  </th>
+                )}
 
                 {groupBandRuns.length > 0 ? (
                   groupBandRuns.map((run, i) => (
@@ -1854,15 +1858,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       {Math.round(store.rate)}%
                     </td>
 
-                    {/* Cột phụ: DTQĐ TB 5T2026 — đặt phía sau Tỷ lệ %, lấy từ File BOSS; KHÔNG XUẤT ẢNH (export-hide) */}
-                    <td
-                      style={{ left: FROZEN_LEFT.dtQdTb }}
-                      className={`export-hide sticky z-10 py-2 px-1.5 text-center border-r border-b border-slate-200 font-sans font-extrabold text-[11px] text-slate-700 whitespace-nowrap ${rowBgClass}`}
-                    >
-                      {isProvinceView
-                        ? formatDtQdTb((store as any).dtQdTbVal || 0)
-                        : formatDtQdTb(parseDtQdTbNum(resolveDtQd(store.sieuthi)))}
-                    </td>
+                    {/* Cột phụ: DTQĐ TB 5T2026 — đặt phía sau Tỷ lệ %, lấy từ File BOSS; KHÔNG XUẤT ẢNH (export-hide); Super Admin/Admin only */}
+                    {canViewDtQdTb && (
+                      <td
+                        style={{ left: FROZEN_LEFT.dtQdTb }}
+                        className={`export-hide sticky z-10 py-2 px-1.5 text-center border-r border-b border-slate-200 font-sans font-extrabold text-[11px] text-slate-700 whitespace-nowrap ${rowBgClass}`}
+                      >
+                        {isProvinceView
+                          ? formatDtQdTb((store as any).dtQdTbVal || 0)
+                          : formatDtQdTb(parseDtQdTbNum(resolveDtQd(store.sieuthi)))}
+                      </td>
+                    )}
 
                     {displayedCategoryNames.length > 0 ? (
                       displayedCategoryNames.map((cat) => {
@@ -1892,9 +1898,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <td style={{ left: FROZEN_LEFT.tyLe }} className="sticky z-20 py-3 px-2.5 text-center border-r border-slate-700 bg-slate-950 text-amber-300 font-extrabold">
                   {overallRate}%
                 </td>
-                <td style={{ left: FROZEN_LEFT.dtQdTb }} className="export-hide sticky z-20 py-3 px-1 text-center border-r border-slate-700 bg-slate-950 text-amber-200 font-extrabold text-xs whitespace-nowrap">
-                  {formatDtQdTb(totalDtQdTb)}
-                </td>
+                {canViewDtQdTb && (
+                  <td style={{ left: FROZEN_LEFT.dtQdTb }} className="export-hide sticky z-20 py-3 px-1 text-center border-r border-slate-700 bg-slate-950 text-amber-200 font-extrabold text-xs whitespace-nowrap">
+                    {formatDtQdTb(totalDtQdTb)}
+                  </td>
+                )}
 
                 {/* Overall Category Averages */}
                 {categoryAverages.length === 0 ? (

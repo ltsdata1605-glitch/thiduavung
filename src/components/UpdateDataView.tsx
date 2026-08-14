@@ -51,6 +51,8 @@ interface UpdateDataViewProps {
   currentBossAssignments: BossAssignmentRecord[];
   lastUpdateRealtime?: string;
   lastUpdateLuyKe?: string;
+  // Only Super Admin / Admin may see the DT QĐ TB column in the BOSS list.
+  canViewDtQdTb?: boolean;
 }
 
 interface MultiSelectFilterProps {
@@ -210,6 +212,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   currentBossAssignments,
   lastUpdateRealtime,
   lastUpdateLuyKe,
+  canViewDtQdTb = true,
 }) => {
   // Lock / Unlock states for Realtime & Luỹ Kế inputs (Tỉnh & Vùng)
   const [isRealtimeLockedTinh, setIsRealtimeLockedTinh] = useState(true);
@@ -1198,7 +1201,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                     {renderSortHeader('CHIẾN ICT', 'chienIct', 'left')}
                     {renderSortHeader('CHIẾN CE', 'chienCe', 'left')}
                     {renderSortHeader('SL TRƯỞNG CA', 'slTruongCa', 'center')}
-                    {renderSortHeader('DT QĐ TB 5T26', 'dtQdTb', 'right')}
+                    {canViewDtQdTb && renderSortHeader('DT QĐ TB 5T26', 'dtQdTb', 'right')}
                     {renderSortHeader('PHÂN LOẠI SHOP', 'phanLoaiShop', 'right')}
                   </tr>
                 </thead>
