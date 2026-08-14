@@ -1,0 +1,6 @@
+{
+  "name": "Theo Dõi Thi Đua & Bảng Xếp Hạng TNB",
+  "description": "Hệ thống theo dõi thi đua Realtime và Luỹ kế, bảng xếp hạng tự động và báo cáo phân tích trực quan",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

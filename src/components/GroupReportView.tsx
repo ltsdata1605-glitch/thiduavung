@@ -1,0 +1,736 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { StoreRecord, TimeMode, Channel } from '../types';
+import { usePersistedState } from '../hooks/usePersistedState';
+import {
+  getBossForStore,
+  getChannelForStore,
+  getChannelLabel,
+  getCategoryData,
+  formatStoreDisplayName,
+  getShortCategoryName,
+  BossAssignmentRecord,
+} from '../utils/parser';
+import { exportElementAsImage } from '../services/imageExport';
+import { ExportLoadingModal } from './ExportLoadingModal';
+import { Camera, Layers, MessageSquare } from 'lucide-react';
+
+interface GroupReportViewProps {
+  timeMode: TimeMode;
+  lastUpdated?: string;
+  stores: StoreRecord[];
+  selectedChannels: Channel[];
+  selectedProvince: string;
+  selectedBoss: string;
+  selectedCategory: string;
+  selectedCategoryGroup: string;
+  categoryGroupMap: Record<string, string>;
+  bossAssignments?: BossAssignmentRecord[];
+  onOpenTagBossModal?: () => void;
+}
+
+/** Distinct pastel colors per channel for headers & badges */
+export function getChannelHeaderBg(kenh: string): string {
+  const u = (kenh || '').toUpperCase();
+  if (u.includes('DML')) return 'bg-teal-600 text-white';
+  if (u.includes('DMM')) return 'bg-indigo-600 text-white';
+  if (u.includes('DMS')) return 'bg-violet-600 text-white';
+  if (u.includes('TGD')) return 'bg-amber-400 text-slate-950 font-black';
+  if (u.includes('TOPZONE') || u.includes('TZ')) return 'bg-slate-700 text-white';
+  return 'bg-amber-400 text-slate-950 font-black';
+}
+
+export function getChannelBadgeStyle(kenh: string): string {
+  const u = (kenh || '').toUpperCase();
+  if (u.includes('DML')) return 'bg-teal-100 text-teal-800 border border-teal-300';
+  if (u.includes('DMM')) return 'bg-indigo-100 text-indigo-800 border border-indigo-300';
+  if (u.includes('DMS')) return 'bg-violet-100 text-violet-800 border border-violet-300';
+  if (u.includes('TGD')) return 'bg-amber-100 text-amber-900 border border-amber-400 font-extrabold';
+  if (u.includes('TOPZONE') || u.includes('TZ')) return 'bg-slate-200 text-slate-800 border border-slate-300';
+  return 'bg-amber-100 text-amber-900 border border-amber-400 font-extrabold';
+}
+
+export const GroupReportView: React.FC<GroupReportViewProps> = ({
+  timeMode,
+  lastUpdated,
+  stores,
+  selectedChannels,
+  selectedProvince,
+  selectedCategory,
+  selectedCategoryGroup,
+  bossAssignments = [],
+  onOpenTagBossModal,
+}) => {
+  // Extract all category names dynamically from real uploaded/pasted store dataset
+  const allCategoryNames = useMemo(() => {
+    const set = new Set<string>();
+    stores.forEach((s) => {
+      if (s.categoryMap) {
+        Object.keys(s.categoryMap).forEach((c) => set.add(c));
+      }
+    });
+    const list = Array.from(set);
+    if (list.length === 0) {
+      list.push('TRẢ CHẬM HOMECREDIT');
+      list.push('Điện thoại Flagship Samsung Galaxy S/Z Series');
+      list.push('Laptop');
+    }
+    return list;
+  }, [stores]);
+
+  const [activeCategory, setActiveCategory] = useState<string>(
+    selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT')
+  );
+
+  const [selectedProvinceCard, setSelectedProvinceCard] = usePersistedState<string>(
+    'tnb_card2_province',
+    selectedProvince !== 'ALL' && selectedProvince ? selectedProvince : (stores[0]?.tinh || 'An Giang')
+  );
+
+  // BỘ LỌC TỈNH RIÊNG CHO BẢNG 3 (TOP/BOT)
+  const [selectedProvinceCard3, setSelectedProvinceCard3] = usePersistedState<string>(
+    'tnb_card3_province',
+    'ALL'
+  );
+
+  // 3 INDEPENDENT CHANNEL FILTER STATES (Hoàn toàn riêng biệt, không liên kết nhau)
+  const [channelsCard1, setChannelsCard1] = usePersistedState<Channel[]>(
+    'tnb_card1_channels',
+    selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
+  );
+
+  const [channelsCard2, setChannelsCard2] = usePersistedState<Channel[]>(
+    'tnb_card2_channels',
+    selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
+  );
+
+  const [channelsCard3, setChannelsCard3] = usePersistedState<Channel[]>(
+    'tnb_card3_channels',
+    selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
+  );
+
+  // CUSTOM TOP/BOT CRITERIA OPTIONS (Phần trăm hoặc Số lượng)
+  const [topBotMode, setTopBotMode] = usePersistedState<'percent' | 'count'>('tnb_topbot_mode', 'percent');
+  const [topBotValue, setTopBotValue] = usePersistedState<number>('tnb_topbot_value', 20);
+
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  // Sync state when parent filter dropdowns change
+  useEffect(() => {
+    if (selectedCategory && selectedCategory !== 'ALL') {
+      setActiveCategory(selectedCategory);
+    } else if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
+      setActiveCategory(selectedCategoryGroup);
+    }
+  }, [selectedCategory, selectedCategoryGroup]);
+
+  useEffect(() => {
+    if (selectedProvince && selectedProvince !== 'ALL') {
+      setSelectedProvinceCard(selectedProvince);
+    }
+  }, [selectedProvince]);
+
+  useEffect(() => {
+    if (selectedChannels && selectedChannels.length > 0) {
+      setChannelsCard1(selectedChannels);
+    }
+  }, [selectedChannels]);
+
+  const isExcludedChannel = (k: string = ''): boolean => {
+    const u = (k || '').toUpperCase();
+    return u === 'OFF' || u.includes('OFFLINE') || u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u === 'LUUDONG';
+  };
+
+  // Real timestamp string for banners
+  const nowStr = lastUpdated || (timeMode === 'realtime' ? '19:10:51 NGÀY 12/8/2026' : '08:00:00 NGÀY 12/8/2026');
+
+  // Formats "19:10:51 NGÀY 12/8/2026" => "19:10:51 - 12/8"
+  const formattedTimeStr = useMemo(() => {
+    if (!nowStr) return '19:10:51 - 12/8';
+    let cleaned = nowStr.replace(/THỜI GIAN ĐẾN:\s*/i, '').trim();
+    cleaned = cleaned.replace(/\s*NGÀY\s*/i, ' - ');
+    cleaned = cleaned.replace(/\/20\d\d/, '');
+    return cleaned;
+  }, [nowStr]);
+
+  const getChannelText = (channels: Channel[]) => {
+    const valid = channels.filter((c) => !isExcludedChannel(c));
+    if (valid.length === 0 || valid.length === 5) return 'DML, DMM, DMS, TGD, TopZone';
+    return valid.map(getChannelLabel).join(', ');
+  };
+
+  const channelLabelCard1 = useMemo(() => getChannelText(channelsCard1), [channelsCard1]);
+  const channelLabelCard2 = useMemo(() => getChannelText(channelsCard2), [channelsCard2]);
+  const channelLabelCard3 = useMemo(() => getChannelText(channelsCard3), [channelsCard3]);
+
+  // 1. Province Rollup Summary Data for Card 1 (Top Left)
+  const provinceSummaryRows = useMemo(() => {
+    const map = new Map<string, { target: number; achieved: number; rate: number }>();
+    stores.forEach((s) => {
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
+      if (channelsCard1.length > 0 && !channelsCard1.includes(effectiveKenh as Channel)) return;
+
+      const data = getCategoryData(s, activeCategory);
+      const cur = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
+      cur.target += data.target;
+      cur.achieved += data.achieved;
+      map.set(s.tinh, cur);
+    });
+
+    const rawRows = Array.from(map.entries()).map(([tinh, d]) => {
+      const rate = d.target > 0 ? (d.achieved / d.target) * 100 : 0;
+      return {
+        tinh,
+        target: Math.round(d.target),
+        achieved: Math.round(d.achieved),
+        rate: Math.round(rate),
+      };
+    });
+
+    rawRows.sort((a, b) => b.rate - a.rate);
+
+    const totalRows = rawRows.length;
+    return rawRows.map((row, idx) => {
+      let tag = '';
+      if (idx < 3) {
+        tag = 'Top';
+      } else if (idx >= totalRows - 3) {
+        tag = 'Bot';
+      }
+      return { ...row, tag };
+    });
+  }, [stores, activeCategory, channelsCard1, bossAssignments]);
+
+  const totalSummary = useMemo(() => {
+    const t = provinceSummaryRows.reduce((a, b) => a + b.target, 0);
+    const r = provinceSummaryRows.reduce((a, b) => a + b.achieved, 0);
+    const rate = t > 0 ? (r / t) * 100 : 0;
+    return { target: t, achieved: r, rate: Math.round(rate) };
+  }, [provinceSummaryRows]);
+
+  // 2. Province Detailed Breakout for Card 2 (Bottom Left)
+  const provinceDetailedStores = useMemo(() => {
+    return stores.filter((s) => {
+      if (s.tinh !== selectedProvinceCard) return false;
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
+      if (channelsCard2.length > 0 && !channelsCard2.includes(effectiveKenh as Channel)) return false;
+      return true;
+    });
+  }, [stores, selectedProvinceCard, channelsCard2, bossAssignments]);
+
+  const channelGroups = useMemo(() => {
+    const groups: { kenh: string; stores: StoreRecord[] }[] = [];
+    const kenhOrder = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
+    kenhOrder.forEach((k) => {
+      const list = provinceDetailedStores.filter((s) => getChannelForStore(s.sieuthi, bossAssignments, s.kenh) === k);
+      if (list.length > 0) {
+        // Sắp xếp các siêu thị trong từng kênh giảm dần theo tỷ lệ %HT
+        list.sort((a, b) => {
+          const rateA = getCategoryData(a, activeCategory).rate;
+          const rateB = getCategoryData(b, activeCategory).rate;
+          return rateB - rateA;
+        });
+        groups.push({ kenh: k, stores: list });
+      }
+    });
+    return groups;
+  }, [provinceDetailedStores, activeCategory, bossAssignments]);
+
+  // 3. Dynamic Top / Bot Leaderboard for Card 3 based on User Percent / Count & Province criteria
+  const topBotLeaderboard = useMemo(() => {
+    const valid = stores.filter((s) => {
+      if (selectedProvinceCard3 !== 'ALL' && s.tinh !== selectedProvinceCard3) return false;
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
+      if (channelsCard3.length > 0 && !channelsCard3.includes(effectiveKenh as Channel)) return false;
+      return true;
+    });
+
+    const sorted = [...valid].sort((a, b) => {
+      const rateA = getCategoryData(a, activeCategory).rate;
+      const rateB = getCategoryData(b, activeCategory).rate;
+      return rateB - rateA;
+    });
+
+    const val = topBotValue > 0 ? topBotValue : 1;
+    let count = 1;
+    if (topBotMode === 'percent') {
+      count = Math.max(1, Math.ceil(sorted.length * (val / 100)));
+    } else {
+      count = Math.max(1, Math.min(sorted.length, val));
+    }
+
+    const top20 = sorted.slice(0, count);
+    const bot20 = sorted.slice(-count).reverse();
+
+    return { top20, bot20 };
+  }, [stores, activeCategory, channelsCard3, selectedProvinceCard3, bossAssignments, topBotMode, topBotValue]);
+
+  const topBotLabelText = useMemo(() => {
+    const val = topBotValue > 0 ? topBotValue : 1;
+    return topBotMode === 'percent' ? `${val}%` : `${val} SIÊU THỊ`;
+  }, [topBotMode, topBotValue]);
+
+  const toggleChannelCard2 = (k: Channel) => {
+    if (channelsCard2.includes(k)) {
+      if (channelsCard2.length > 1) {
+        setChannelsCard2(channelsCard2.filter((c) => c !== k));
+      }
+    } else {
+      setChannelsCard2([...channelsCard2, k]);
+    }
+  };
+
+  const toggleChannelCard3 = (k: Channel) => {
+    if (channelsCard3.includes(k)) {
+      if (channelsCard3.length > 1) {
+        setChannelsCard3(channelsCard3.filter((c) => c !== k));
+      }
+    } else {
+      setChannelsCard3([...channelsCard3, k]);
+    }
+  };
+
+  const handleExportCard = async (elementId: string, filename: string) => {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    setExportingId(elementId);
+    try {
+      await exportElementAsImage(el, filename);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExportingId(null);
+    }
+  };
+
+  const allAvailableProvinces = useMemo(() => {
+    return Array.from(new Set(stores.map((s) => s.tinh))).sort();
+  }, [stores]);
+
+  return (
+    <div className="space-y-6 pb-12">
+      {/* Header bar at top of Nhóm view */}
+      <div className="p-4 bg-white rounded-none border border-slate-200/80 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-none bg-sky-100 flex items-center justify-center text-sky-700 font-bold shrink-0">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-800 uppercase tracking-wide">BÁO CÁO THEO NHÓM / NGÀNH HÀNG</h2>
+              <p className="text-xs text-slate-500 font-normal">Báo cáo tổng quan Vùng, chi tiết Tỉnh và Top/Bot theo Ngành hàng đã chọn ở bộ lọc trên</p>
+            </div>
+          </div>
+
+          {/* Quick Remarks / Nhận xét button */}
+          {onOpenTagBossModal && (
+            <button
+              onClick={onOpenTagBossModal}
+              className="px-3.5 py-2 bg-amber-200 hover:bg-amber-300 text-amber-900 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Nhận xét</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* CARD 1: Regional Province Summary (Top Left Card) */}
+      <div className="w-fit min-w-[350px] bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-province-summary">
+        {/* Control Bar with Export Button on Right — EXCLUDED FROM EXPORTED PNG */}
+        <div className="export-hide p-2 bg-slate-50 border-b border-slate-200 flex items-center justify-end rounded-none">
+          <button
+            onClick={() => handleExportCard('nhom-card-province-summary', `Tong_Quan_${activeCategory}.png`)}
+            disabled={exportingId === 'nhom-card-province-summary'}
+            title="Xuất ảnh"
+            className="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-none shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
+          >
+            <Camera className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Content Captured in Image: Header Banner + Table */}
+        <div className="w-full p-3">
+          {/* Header Banner - Size chữ lớn (text-lg sm:text-xl), khe hở mb-3 sang trọng */}
+          <div className="w-full mb-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 text-white py-3 px-3 text-center shadow-2xs border border-sky-500 rounded-none">
+            <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs">
+              {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'} • {getShortCategoryName(activeCategory).toUpperCase()}
+            </h3>
+            <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
+              Update: {formattedTimeStr} || {channelLabelCard1}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-xs font-sans border-separate border-spacing-0 border border-slate-200">
+              <thead>
+                <tr className="bg-sky-600 text-white font-bold uppercase text-[11px] rounded-none">
+                  <th className="py-2 px-2 text-center border-r border-sky-500 whitespace-nowrap">STT</th>
+                  <th className="py-2 px-2.5 text-left border-r border-sky-500 whitespace-nowrap">TỈNH</th>
+                  <th className="py-2 px-2.5 text-center border-r border-sky-500 whitespace-nowrap">TARGET</th>
+                  <th className="py-2 px-2.5 text-center border-r border-sky-500 whitespace-nowrap">REAL</th>
+                  <th className="py-2 px-2.5 text-center border-r border-sky-500 whitespace-nowrap">%HT</th>
+                  <th className="py-2 px-2.5 text-center whitespace-nowrap">T/B</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {provinceSummaryRows.map((row, idx) => (
+                  <tr key={row.tinh} className={idx % 2 === 0 ? 'bg-white' : 'bg-sky-50/20'}>
+                    <td className="py-1.5 px-2 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
+                    <td className="py-1.5 px-2.5 font-bold text-sky-900 border-r border-b border-slate-200 whitespace-nowrap">{row.tinh}</td>
+                    <td className="py-1.5 px-2.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{row.target.toLocaleString('vi-VN')}</td>
+                    <td className="py-1.5 px-2.5 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{row.achieved.toLocaleString('vi-VN')}</td>
+                    <td
+                      className={`py-1.5 px-2.5 text-center border-r border-b border-slate-200 whitespace-nowrap ${
+                        row.tag === 'Top' ? 'text-sky-800 font-bold bg-sky-50/60' : row.tag === 'Bot' ? 'text-rose-600 bg-rose-50/50 font-bold' : 'text-slate-700 font-bold'
+                      }`}
+                    >
+                      {Math.round(row.rate)}%
+                    </td>
+                    <td className="py-1.5 px-2.5 text-center font-bold border-b border-slate-200 whitespace-nowrap">
+                      {row.tag === 'Top' && <span className="text-sky-700 font-bold text-[11px]">Top</span>}
+                      {row.tag === 'Bot' && <span className="text-rose-600 font-bold text-[11px]">Bot</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-sky-600 text-white font-bold text-xs rounded-none border-t-2 border-sky-700">
+                  <td className="py-2.5 px-2 text-center border-r border-sky-500 whitespace-nowrap font-extrabold"></td>
+                  <td className="py-2.5 px-2.5 text-left border-r border-sky-500 whitespace-nowrap font-extrabold">Tổng</td>
+                  <td className="py-2.5 px-2.5 text-center border-r border-sky-500 whitespace-nowrap font-extrabold">{totalSummary.target.toLocaleString('vi-VN')}</td>
+                  <td className="py-2.5 px-2.5 text-center border-r border-sky-500 whitespace-nowrap font-extrabold">{totalSummary.achieved.toLocaleString('vi-VN')}</td>
+                  <td className="py-2.5 px-2.5 text-center border-r border-sky-500 whitespace-nowrap font-extrabold">{Math.round(totalSummary.rate)}%</td>
+                  <td className="py-2.5 px-2.5 text-center font-extrabold whitespace-nowrap"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* BOTTOM SECTION: 2 Side-by-Side Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* CARD 2: Selected Province Detailed Breakdown (Bottom Left Card) */}
+        <div className="w-full bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-province-detail">
+          {/* Controls Bar — BỘ LỌC KÊNH RIÊNG CHO BẢNG 2 */}
+          <div className="export-hide p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 rounded-none">
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedProvinceCard}
+                onChange={(e) => setSelectedProvinceCard(e.target.value)}
+                className="px-2.5 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-sky-700 focus:outline-none cursor-pointer"
+              >
+                {allAvailableProvinces.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex items-center gap-1.5 ml-2">
+                {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((k) => (
+                  <label key={k} className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={channelsCard2.includes(k)}
+                      onChange={() => toggleChannelCard2(k)}
+                      className="w-3.5 h-3.5 rounded-none text-sky-600 focus:ring-0 cursor-pointer"
+                    />
+                    {getChannelLabel(k)}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`)}
+              disabled={exportingId === 'nhom-card-province-detail'}
+              title="Xuất ảnh"
+              className="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-none shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
+            >
+              <Camera className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Content Captured in Image: Header Banner + Unified Table */}
+          <div className="w-full p-3">
+            {/* Header Banner - Size chữ lớn (text-lg sm:text-xl), khe hở mb-3 sang trọng */}
+            <div className="w-full mb-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 text-white py-3 px-3 text-center shadow-2xs border border-sky-500 rounded-none">
+              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs">
+                {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'} • {selectedProvinceCard.toUpperCase()} • {getShortCategoryName(activeCategory).toUpperCase()}
+              </h3>
+              <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
+                Update: {formattedTimeStr} || {channelLabelCard2}
+              </div>
+            </div>
+
+            {/* Single Unified Table - Tự động vừa vặn nội dung chữ từng cột */}
+            <div className="w-full overflow-x-auto border-t border-slate-200">
+              {channelGroups.length > 0 ? (
+                <table className="w-full text-xs font-sans border-separate border-spacing-0 border border-slate-200 table-auto">
+                  <tbody className="divide-y divide-slate-200">
+                    {channelGroups.map((group) => (
+                      <React.Fragment key={group.kenh}>
+                        {/* Dòng Tiêu đề Kênh với màu riêng biệt */}
+                        <tr className={`${getChannelHeaderBg(group.kenh)} font-bold uppercase text-[11px] rounded-none`}>
+                          <th className="py-2 px-1 text-center border-r border-white/20 whitespace-nowrap">STT</th>
+                          <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">TỈNH</th>
+                          <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">BOSS</th>
+                          <th className="py-2 px-1 text-center border-r border-white/20 whitespace-nowrap">KÊNH</th>
+                          <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">SIÊU THỊ</th>
+                          <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">TAR</th>
+                          <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">REAL</th>
+                          <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
+                        </tr>
+                        {group.stores.map((s, idx) => {
+                          const data = getCategoryData(s, activeCategory);
+                          const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+                          return (
+                            <tr key={s.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                              <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
+                              <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{s.tinh}</td>
+                              <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap truncate">
+                                {getBossForStore(s.sieuthi, bossAssignments, s.boss)}
+                              </td>
+                              <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
+                                <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
+                                  {getChannelLabel(effectiveKenh)}
+                                </span>
+                              </td>
+                              <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap truncate">
+                                {formatStoreDisplayName(s.sieuthi)}
+                              </td>
+                              <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
+                              <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
+                              <td
+                                className={`py-1.5 px-1.5 text-center font-bold border-b border-slate-200 whitespace-nowrap ${
+                                  data.rate >= 100 ? 'text-sky-700' : data.rate >= 80 ? 'text-slate-700' : 'text-rose-600'
+                                }`}
+                              >
+                                {Math.round(data.rate)}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-8 text-center text-slate-400 font-bold text-xs border border-slate-200">
+                  Không tìm thấy dữ liệu siêu thị cho tỉnh {selectedProvinceCard} với kênh đã chọn.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 3: Top / Bot Leaderboard (Bottom Right Card) - BỔ SUNG BỘ LỌC TỈNH, BỘ LỌC KÊNH & BỘ LỌC SỐ LƯỢNG / % */}
+        <div className="w-full bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-topbot-leaderboard">
+          {/* Controls Bar — BỘ LỌC TỈNH, KÊNH & BỘ LỌC SỐ LƯỢNG / % CHO BẢNG 3 */}
+          <div className="export-hide p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 rounded-none">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* BỘ LỌC TỈNH CHO BẢNG TOP/BOT */}
+              <select
+                value={selectedProvinceCard3}
+                onChange={(e) => setSelectedProvinceCard3(e.target.value)}
+                className="px-2.5 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-sky-700 focus:outline-none cursor-pointer"
+              >
+                <option value="ALL">Tất cả Tỉnh</option>
+                {allAvailableProvinces.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex items-center gap-1.5 ml-1">
+                {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((k) => (
+                  <label key={k} className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={channelsCard3.includes(k)}
+                      onChange={() => toggleChannelCard3(k)}
+                      className="w-3.5 h-3.5 rounded-none text-sky-600 focus:ring-0 cursor-pointer"
+                    />
+                    {getChannelLabel(k)}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* BỘ LỌC TUỲ CHỌN SỐ LƯỢNG HOẶC % TOP/BOT */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-bold text-slate-600">Tiêu chí:</span>
+                <select
+                  value={topBotMode}
+                  onChange={(e) => {
+                    const newMode = e.target.value as 'percent' | 'count';
+                    setTopBotMode(newMode);
+                    if (newMode === 'percent' && topBotValue > 100) setTopBotValue(20);
+                    else if (newMode === 'count' && topBotValue > 50) setTopBotValue(5);
+                  }}
+                  className="px-2 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-sky-700 focus:outline-none cursor-pointer"
+                >
+                  <option value="percent">% (Phần trăm)</option>
+                  <option value="count">Số lượng (Siêu thị)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="1"
+                  max={topBotMode === 'percent' ? 100 : 500}
+                  value={topBotValue || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val > 0) {
+                      setTopBotValue(val);
+                    } else if (e.target.value === '') {
+                      setTopBotValue(0);
+                    }
+                  }}
+                  className="w-14 px-2 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-slate-800 text-center focus:outline-none focus:border-sky-500"
+                  placeholder={topBotMode === 'percent' ? '20' : '5'}
+                />
+                <span className="text-xs font-bold text-slate-600">{topBotMode === 'percent' ? '%' : 'ST'}</span>
+              </div>
+
+              <button
+                onClick={() => handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`)}
+                disabled={exportingId === 'nhom-card-topbot-leaderboard'}
+                title="Xuất ảnh xếp hạng"
+                className="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-none shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ml-1"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Content Captured in Image: Header Banner + Top/Bot Tables */}
+          <div className="w-full p-3">
+            {/* Header Banner - Dynamic Title theo Tỉnh, % hoặc Số lượng */}
+            <div className="w-full mb-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 text-white py-3 px-3 text-center shadow-2xs border border-sky-500 rounded-none">
+              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs">
+                BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} %HT {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} • {getShortCategoryName(activeCategory).toUpperCase()}
+              </h3>
+              <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
+                Update: {formattedTimeStr} || {channelLabelCard3}
+              </div>
+            </div>
+
+            {/* Top Section */}
+            <div className="w-full overflow-x-auto">
+              {topBotLeaderboard.top20.length > 0 ? (
+                <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
+                  <thead>
+                    <tr className="bg-sky-600 text-white font-bold uppercase text-[11px] rounded-none">
+                      <th className="py-2 px-1 text-center border-r border-sky-500 whitespace-nowrap">STT</th>
+                      <th className="py-2 px-2 text-left border-r border-sky-500 whitespace-nowrap">TỈNH</th>
+                      <th className="py-2 px-2 text-left border-r border-sky-500 whitespace-nowrap">BOSS</th>
+                      <th className="py-2 px-1 text-center border-r border-sky-500 whitespace-nowrap">KÊNH</th>
+                      <th className="py-2 px-2 text-left border-r border-sky-500 whitespace-nowrap">SIÊU THỊ</th>
+                      <th className="py-2 px-1.5 text-center border-r border-sky-500 whitespace-nowrap">TAR</th>
+                      <th className="py-2 px-1.5 text-center border-r border-sky-500 whitespace-nowrap">REAL</th>
+                      <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {topBotLeaderboard.top20.map((s, idx) => {
+                      const data = getCategoryData(s, activeCategory);
+                      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+                      return (
+                        <tr key={s.id || idx} className="bg-white">
+                          <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{s.tinh}</td>
+                          <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
+                          <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
+                            <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
+                              {getChannelLabel(effectiveKenh)}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">{formatStoreDisplayName(s.sieuthi)}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-sky-700 border-b border-slate-200 whitespace-nowrap">{Math.round(data.rate)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-6 text-center text-slate-400 font-bold text-xs border border-slate-200">
+                  Không tìm thấy siêu thị TOP nào phù hợp với bộ lọc.
+                </div>
+              )}
+            </div>
+
+            {/* Bot Section Header */}
+            <div className="bg-slate-700 text-white p-2 text-center font-bold text-xs uppercase rounded-none mt-3 border-x border-t border-slate-700">
+              DANH SÁCH BOT {topBotLabelText} THẤP NHẤT
+            </div>
+
+            {/* Bot Section */}
+            <div className="w-full overflow-x-auto">
+              {topBotLeaderboard.bot20.length > 0 ? (
+                <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
+                  <thead>
+                    <tr className="bg-slate-800 text-white font-bold uppercase text-[11px] rounded-none">
+                      <th className="py-2 px-1 text-center border-r border-slate-700 whitespace-nowrap">STT</th>
+                      <th className="py-2 px-2 text-left border-r border-slate-700 whitespace-nowrap">TỈNH</th>
+                      <th className="py-2 px-2 text-left border-r border-slate-700 whitespace-nowrap">BOSS</th>
+                      <th className="py-2 px-1 text-center border-r border-slate-700 whitespace-nowrap">KÊNH</th>
+                      <th className="py-2 px-2 text-left border-r border-slate-700 whitespace-nowrap">SIÊU THỊ</th>
+                      <th className="py-2 px-1.5 text-center border-r border-slate-700 whitespace-nowrap">TAR</th>
+                      <th className="py-2 px-1.5 text-center border-r border-slate-700 whitespace-nowrap">REAL</th>
+                      <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {topBotLeaderboard.bot20.map((s, idx) => {
+                      const data = getCategoryData(s, activeCategory);
+                      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+                      return (
+                        <tr key={s.id || idx} className="bg-slate-50">
+                          <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{s.tinh}</td>
+                          <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
+                          <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
+                            <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
+                              {getChannelLabel(effectiveKenh)}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">{formatStoreDisplayName(s.sieuthi)}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-rose-600 border-b border-slate-200 whitespace-nowrap">{Math.round(data.rate)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-6 text-center text-slate-400 font-bold text-xs border border-slate-200">
+                  Không tìm thấy siêu thị BOT nào phù hợp với bộ lọc.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Export Loading Overlay Modal */}
+      <ExportLoadingModal
+        isOpen={exportingId !== null}
+        exportTitle="ĐANG CHỤP & XUẤT ÁNH THẺ BÁO CÁO (HD)"
+        subText="Hệ thống đang tự động căn chỉnh khung cột vừa vặn nội dung & tạo file PNG sắc nét..."
+      />
+    </div>
+  );
+};

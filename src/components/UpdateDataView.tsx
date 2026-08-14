@@ -1,0 +1,1389 @@
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { StoreRecord } from '../types';
+import { 
+  parsePastedData, 
+  parseBossPastedData, 
+  BossAssignmentRecord, 
+  BossValidationResult,
+  cleanKenhValue 
+} from '../utils/parser';
+import { sampleTSVTextRealtime, sampleTSVTextLuyKe, sampleTSVBossText } from '../data/sampleData';
+import { 
+  ClipboardPaste, 
+  Zap, 
+  TrendingUp, 
+  CheckCircle, 
+  RotateCcw,
+  RefreshCw,
+  Users,
+  Lock,
+  Unlock,
+  FileSpreadsheet,
+  Upload,
+  Download,
+  FileText,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  Check,
+  AlertTriangle,
+  XCircle,
+  X,
+  Globe,
+  Store,
+  Clock
+} from 'lucide-react';
+import { usePersistedState } from '../hooks/usePersistedState';
+
+interface UpdateDataViewProps {
+  onUpdateRealtimeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
+  onUpdateLuyKeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
+  onUpdateBossData?: (bossAssignments: BossAssignmentRecord[]) => Promise<void> | void;
+  currentRealtimeStoresTinh: StoreRecord[];
+  currentRealtimeStoresVung: StoreRecord[];
+  currentLuyKeStoresTinh: StoreRecord[];
+  currentLuyKeStoresVung: StoreRecord[];
+  currentBossAssignments: BossAssignmentRecord[];
+  lastUpdateRealtime?: string;
+  lastUpdateLuyKe?: string;
+}
+
+interface MultiSelectFilterProps {
+  label: string;
+  allLabel: string;
+  options: string[];
+  selectedValues: string[];
+  onChange: (selected: string[]) => void;
+}
+
+const MultiSelectFilter: React.FC<MultiSelectFilterProps> = ({
+  label,
+  allLabel,
+  options,
+  selectedValues,
+  onChange,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = useMemo(() => {
+    if (!search) return options;
+    return options.filter((o) => String(o).toLowerCase().includes(search.toLowerCase().trim()));
+  }, [options, search]);
+
+  const toggleOption = (val: string) => {
+    if (selectedValues.includes(val)) {
+      onChange(selectedValues.filter((v) => v !== val));
+    } else {
+      onChange([...selectedValues, val]);
+    }
+  };
+
+  const isAllSelected = selectedValues.length === 0;
+
+  const getDisplayText = () => {
+    if (selectedValues.length === 0) return allLabel;
+    if (selectedValues.length === 1) return selectedValues[0];
+    return `${selectedValues[0]} (+${selectedValues.length - 1})`;
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`w-full py-1.5 px-2.5 bg-white border rounded-xl text-xs font-semibold flex items-center justify-between gap-1 transition-all cursor-pointer truncate ${
+          selectedValues.length > 0
+            ? 'border-blue-500 text-blue-700 bg-blue-50/60 font-bold ring-1 ring-blue-400/30'
+            : 'border-slate-200 text-slate-800 hover:border-slate-300'
+        }`}
+      >
+        <span className="truncate">{getDisplayText()}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-2 animate-in fade-in zoom-in-95 duration-100">
+          {/* Quick Search inside filter dropdown */}
+          {options.length > 5 && (
+            <div className="relative">
+              <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={`Tìm ${label}...`}
+                className="w-full pl-7 pr-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          )}
+
+          {/* Header Action Row */}
+          <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500 border-b border-slate-100 pb-1.5">
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className={`hover:text-blue-600 cursor-pointer ${isAllSelected ? 'text-blue-600 font-extrabold' : ''}`}
+            >
+              ✓ Tất cả ({options.length})
+            </button>
+            {selectedValues.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-red-500 hover:text-red-700 cursor-pointer"
+              >
+                Xóa chọn ({selectedValues.length})
+              </button>
+            )}
+          </div>
+
+          {/* List of checkboxes */}
+          <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => {
+                const checked = selectedValues.includes(opt);
+                return (
+                  <div
+                    key={opt}
+                    onClick={() => toggleOption(opt)}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors ${
+                      checked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                      checked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                    }`}>
+                      {checked && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                    <span className="truncate">{opt}</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-2 text-xs text-slate-400 italic">Không tìm thấy</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Channel Priority Rank: ĐML (1) > ĐMM (2) > ĐMS (3) > TGD (4) > LƯU ĐỘNG (5) > TOPZONE (6)
+const getChannelRank = (kenh?: string): number => {
+  if (!kenh) return 99;
+  const k = String(kenh).toUpperCase().trim();
+  if (k.includes('ĐML') || k.includes('DML')) return 1;
+  if (k.includes('ĐMM') || k.includes('DMM')) return 2;
+  if (k.includes('ĐMS') || k.includes('DMS')) return 3;
+  if (k.includes('TGD')) return 4;
+  if (k.includes('LƯU ĐỘNG') || k.includes('LUU DONG')) return 5;
+  if (k.includes('TOPZONE') || k.includes('TZ')) return 6;
+  return 99;
+};
+
+export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
+  onUpdateRealtimeData,
+  onUpdateLuyKeData,
+  onUpdateBossData,
+  currentRealtimeStoresTinh,
+  currentRealtimeStoresVung,
+  currentLuyKeStoresTinh,
+  currentLuyKeStoresVung,
+  currentBossAssignments,
+  lastUpdateRealtime,
+  lastUpdateLuyKe,
+}) => {
+  // Lock / Unlock states for Realtime & Luỹ Kế inputs (Tỉnh & Vùng)
+  const [isRealtimeLockedTinh, setIsRealtimeLockedTinh] = useState(true);
+  const [isRealtimeLockedVung, setIsRealtimeLockedVung] = useState(true);
+  const [isLuyKeLockedTinh, setIsLuyKeLockedTinh] = useState(true);
+  const [isLuyKeLockedVung, setIsLuyKeLockedVung] = useState(true);
+
+  // Input text states for Tỉnh & Vùng
+  const [realtimeTextTinh, setRealtimeTextTinh] = useState(sampleTSVTextRealtime);
+  const [realtimeTextVung, setRealtimeTextVung] = useState(sampleTSVTextRealtime);
+  const [luykeTextTinh, setLuyKeTextTinh] = useState(sampleTSVTextLuyKe);
+  const [luykeTextVung, setLuyKeTextVung] = useState(sampleTSVTextLuyKe);
+  const [bossText, setBossText] = useState(sampleTSVBossText);
+
+  // File input ref for BOSS Excel import & Backup JSON import
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+
+  // Live parsed state previews for Tỉnh & Vùng — seeded from the
+  // persisted/synced dataset owned by App; falls back to the sample only
+  // when empty (first run / nothing saved yet).
+  const [parsedRealtimeStoresTinh, setParsedRealtimeStoresTinh] = useState<StoreRecord[]>(() =>
+    currentRealtimeStoresTinh.length > 0 ? currentRealtimeStoresTinh : parsePastedData(sampleTSVTextRealtime, true)
+  );
+  const [parsedRealtimeStoresVung, setParsedRealtimeStoresVung] = useState<StoreRecord[]>(() =>
+    currentRealtimeStoresVung.length > 0 ? currentRealtimeStoresVung : parsePastedData(sampleTSVTextRealtime, true)
+  );
+  const [parsedLuyKeStoresTinh, setParsedLuyKeStoresTinh] = useState<StoreRecord[]>(() =>
+    currentLuyKeStoresTinh.length > 0 ? currentLuyKeStoresTinh : parsePastedData(sampleTSVTextLuyKe, false)
+  );
+  const [parsedLuyKeStoresVung, setParsedLuyKeStoresVung] = useState<StoreRecord[]>(() =>
+    currentLuyKeStoresVung.length > 0 ? currentLuyKeStoresVung : parsePastedData(sampleTSVTextLuyKe, false)
+  );
+  // Boss Header Validation Error State
+  const [bossValidationError, setBossValidationError] = useState<BossValidationResult | null>(null);
+
+  // Interactive Processing Overlay State
+  const [processingState, setProcessingState] = useState<{
+    title: string;
+    stepText: string;
+    progress: number;
+  } | null>(null);
+
+  // Seeded from the persisted/synced dataset owned by App; falls back to the sample only when empty
+  const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(() =>
+    currentBossAssignments.length > 0 ? currentBossAssignments : parseBossPastedData(sampleTSVBossText).records
+  );
+
+  // Keep each table in sync when the shared dataset changes elsewhere
+  // (Firestore real-time updates, other tabs/users)
+  useEffect(() => {
+    if (currentBossAssignments.length > 0) {
+      setParsedBossItems(currentBossAssignments);
+    }
+  }, [currentBossAssignments]);
+
+  useEffect(() => {
+    if (currentRealtimeStoresTinh.length > 0) setParsedRealtimeStoresTinh(currentRealtimeStoresTinh);
+  }, [currentRealtimeStoresTinh]);
+
+  useEffect(() => {
+    if (currentRealtimeStoresVung.length > 0) setParsedRealtimeStoresVung(currentRealtimeStoresVung);
+  }, [currentRealtimeStoresVung]);
+
+  useEffect(() => {
+    if (currentLuyKeStoresTinh.length > 0) setParsedLuyKeStoresTinh(currentLuyKeStoresTinh);
+  }, [currentLuyKeStoresTinh]);
+
+  useEffect(() => {
+    if (currentLuyKeStoresVung.length > 0) setParsedLuyKeStoresVung(currentLuyKeStoresVung);
+  }, [currentLuyKeStoresVung]);
+
+  // Full view mode for BOSS table (default false for compact scroll mode)
+  const [isFullViewMode, setIsFullViewMode] = useState(false);
+
+  // Multi-select Filter states for BOSS list (persisted so they survive a refresh)
+  const [searchQuery, setSearchQuery] = usePersistedState('tnb_boss_searchQuery', '');
+  const [selectedTinhs, setSelectedTinhs] = usePersistedState<string[]>('tnb_boss_selectedTinhs', []);
+  const [selectedBosses, setSelectedBosses] = usePersistedState<string[]>('tnb_boss_selectedBosses', []);
+  const [selectedKenhs, setSelectedKenhs] = usePersistedState<string[]>('tnb_boss_selectedKenhs', []);
+  const [selectedChienIcts, setSelectedChienIcts] = usePersistedState<string[]>('tnb_boss_selectedChienIcts', []);
+  const [selectedChienCes, setSelectedChienCes] = usePersistedState<string[]>('tnb_boss_selectedChienCes', []);
+  const [selectedPhanLoais, setSelectedPhanLoais] = usePersistedState<string[]>('tnb_boss_selectedPhanLoais', []);
+
+  // Sorting state (Default sort by KÊNH: ĐML > ĐMM > ĐMS > TGD > TOPZONE), persisted across refreshes
+  const [sortField, setSortField] = usePersistedState<string>('tnb_boss_sortField', 'kenh');
+  const [sortDirection, setSortDirection] = usePersistedState<'asc' | 'desc'>('tnb_boss_sortDirection', 'asc');
+
+  // Pagination state (20 items per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
+
+  // Handle header sorting click
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Extract unique filter options from parsedBossItems
+  const uniqueTinhs = useMemo(() => Array.from(new Set(parsedBossItems.map(i => i.tinh).filter(Boolean))).sort() as string[], [parsedBossItems]);
+  const uniqueBosses = useMemo(() => Array.from(new Set(parsedBossItems.map(i => i.bossRaw || i.boss).filter(Boolean))).sort() as string[], [parsedBossItems]);
+  const uniqueKenhs = useMemo(() => Array.from(new Set(parsedBossItems.map(i => String(i.kenh)).filter(Boolean))).sort() as string[], [parsedBossItems]);
+  const uniqueChienIcts = useMemo(() => Array.from(new Set(parsedBossItems.map(i => i.chienIct).filter(Boolean))).sort() as string[], [parsedBossItems]);
+  const uniqueChienCes = useMemo(() => Array.from(new Set(parsedBossItems.map(i => i.chienCe).filter(Boolean))).sort() as string[], [parsedBossItems]);
+  const uniquePhanLoais = useMemo(() => Array.from(new Set(parsedBossItems.map(i => i.phanLoaiShop).filter(Boolean))).sort() as string[], [parsedBossItems]);
+
+  // Filtered BOSS items (Supports Multi-select filtering)
+  const filteredBossItems = useMemo(() => {
+    return parsedBossItems.filter((item) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase().trim();
+        const match =
+          (item.sieuthi && item.sieuthi.toLowerCase().includes(q)) ||
+          (item.boss && item.boss.toLowerCase().includes(q)) ||
+          (item.bossRaw && item.bossRaw.toLowerCase().includes(q)) ||
+          (item.tinh && item.tinh.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      if (selectedTinhs.length > 0 && !selectedTinhs.includes(item.tinh || '')) return false;
+      if (selectedBosses.length > 0 && !selectedBosses.includes(item.bossRaw || item.boss || '')) return false;
+      if (selectedKenhs.length > 0 && !selectedKenhs.includes(String(item.kenh))) return false;
+      if (selectedChienIcts.length > 0 && !selectedChienIcts.includes(item.chienIct || '')) return false;
+      if (selectedChienCes.length > 0 && !selectedChienCes.includes(item.chienCe || '')) return false;
+      if (selectedPhanLoais.length > 0 && !selectedPhanLoais.includes(item.phanLoaiShop || '')) return false;
+      return true;
+    });
+  }, [parsedBossItems, searchQuery, selectedTinhs, selectedBosses, selectedKenhs, selectedChienIcts, selectedChienCes, selectedPhanLoais]);
+
+  // Sorted BOSS items
+  const sortedBossItems = useMemo(() => {
+    const items = [...filteredBossItems];
+    return items.sort((a, b) => {
+      let valA: any = '';
+      let valB: any = '';
+
+      if (sortField === 'kenh') {
+        valA = getChannelRank(a.kenh);
+        valB = getChannelRank(b.kenh);
+      } else if (sortField === 'stt') {
+        valA = a.stt ?? 0;
+        valB = b.stt ?? 0;
+      } else if (sortField === 'tinh') {
+        valA = (a.tinh || '').toLowerCase();
+        valB = (b.tinh || '').toLowerCase();
+      } else if (sortField === 'boss') {
+        valA = (a.bossRaw || a.boss || '').toLowerCase();
+        valB = (b.bossRaw || b.boss || '').toLowerCase();
+      } else if (sortField === 'sieuthi') {
+        valA = (a.sieuthi || '').toLowerCase();
+        valB = (b.sieuthi || '').toLowerCase();
+      } else if (sortField === 'chienIct') {
+        valA = (a.chienIct || '').toLowerCase();
+        valB = (b.chienIct || '').toLowerCase();
+      } else if (sortField === 'chienCe') {
+        valA = (a.chienCe || '').toLowerCase();
+        valB = (b.chienCe || '').toLowerCase();
+      } else if (sortField === 'slTruongCa') {
+        valA = parseFloat(String(a.slTruongCa).replace(/[^0-9.-]+/g, '')) || 0;
+        valB = parseFloat(String(b.slTruongCa).replace(/[^0-9.-]+/g, '')) || 0;
+      } else if (sortField === 'dtQdTb') {
+        valA = parseFloat(String(a.dtQdTb).replace(/[^0-9.-]+/g, '')) || 0;
+        valB = parseFloat(String(b.dtQdTb).replace(/[^0-9.-]+/g, '')) || 0;
+      } else if (sortField === 'phanLoaiShop') {
+        valA = (a.phanLoaiShop || '').toLowerCase();
+        valB = (b.phanLoaiShop || '').toLowerCase();
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredBossItems, sortField, sortDirection]);
+
+  const totalPages = Math.ceil(sortedBossItems.length / ITEMS_PER_PAGE) || 1;
+  const paginatedBossItems = useMemo(() => {
+    return sortedBossItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  }, [sortedBossItems, currentPage]);
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSelectedTinhs([]);
+    setSelectedBosses([]);
+    setSelectedKenhs([]);
+    setSelectedChienIcts([]);
+    setSelectedChienCes([]);
+    setSelectedPhanLoais([]);
+    setSortField('kenh');
+    setSortDirection('asc');
+    setCurrentPage(1);
+  };
+
+  // Async helper to run paste processing with step-by-step progress feedback
+  const runProcessWithFeedback = async (
+    title: string,
+    scopeName: string,
+    text: string,
+    isRealtime: boolean,
+    scope: 'tinh' | 'vung',
+    setLock: (locked: boolean) => void,
+    setText: (t: string) => void,
+    setParsed: (p: StoreRecord[]) => void,
+    onUpdate: (parsed: StoreRecord[], rawText: string, s?: 'tinh' | 'vung') => Promise<void> | void
+  ) => {
+    setText(text);
+    setIsRealtimeLockedTinh(true);
+    setIsRealtimeLockedVung(true);
+    setIsLuyKeLockedTinh(true);
+    setIsLuyKeLockedVung(true);
+
+    setProcessingState({
+      title: `ĐANG XỬ LÝ DỮ LIỆU ${title.toUpperCase()}`,
+      stepText: `⚡ 1. Đang đọc và phân tích cấu trúc dữ liệu ${scopeName}...`,
+      progress: 25,
+    });
+
+    await new Promise((r) => setTimeout(r, 60));
+
+    const parsed = parsePastedData(text, isRealtime);
+    setParsed(parsed);
+
+    if (parsed.length > 0) {
+      setProcessingState({
+        title: `ĐANG TÍNH TOÁN ${title.toUpperCase()}`,
+        stepText: `📊 2. Đã đọc thành công ${parsed.length} siêu thị. Đang tính tỷ lệ % & xếp hạng...`,
+        progress: 60,
+      });
+
+      await new Promise((r) => setTimeout(r, 60));
+
+      setProcessingState({
+        title: `ĐANG ĐỒNG BỘ NỀN FIREBASE`,
+        stepText: `☁️ 3. Đang lưu giữ liệu & đồng bộ hệ thống Firebase Database...`,
+        progress: 88,
+      });
+
+      await onUpdate(parsed, text, scope);
+
+      setProcessingState({
+        title: `HOÀN TẤT ĐỒNG BỘ DỮ LIỆU`,
+        stepText: `✨ 4. Đã phân tích & đồng bộ ${parsed.length} siêu thị (${scopeName}) lên Firebase thành công!`,
+        progress: 100,
+      });
+
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    setProcessingState(null);
+  };
+
+  const processRealtimeDataTinh = (text: string) => {
+    runProcessWithFeedback('Realtime Thi Đua Tỉnh', 'Tỉnh', text, true, 'tinh', setIsRealtimeLockedTinh, setRealtimeTextTinh, setParsedRealtimeStoresTinh, onUpdateRealtimeData);
+  };
+
+  const processRealtimeDataVung = (text: string) => {
+    runProcessWithFeedback('Realtime Thi Đua Vùng', 'Vùng', text, true, 'vung', setIsRealtimeLockedVung, setRealtimeTextVung, setParsedRealtimeStoresVung, onUpdateRealtimeData);
+  };
+
+  const processLuyKeDataTinh = (text: string) => {
+    runProcessWithFeedback('Luỹ Kế Thi Đua Tỉnh', 'Tỉnh', text, false, 'tinh', setIsLuyKeLockedTinh, setLuyKeTextTinh, setParsedLuyKeStoresTinh, onUpdateLuyKeData);
+  };
+
+  const processLuyKeDataVung = (text: string) => {
+    runProcessWithFeedback('Luỹ Kế Thi Đua Vùng', 'Vùng', text, false, 'vung', setIsLuyKeLockedVung, setLuyKeTextVung, setParsedLuyKeStoresVung, onUpdateLuyKeData);
+  };
+
+  // Handle Excel File Upload for BOSS List & auto apply
+  const handleBossFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setProcessingState({
+          title: 'ĐANG XỬ LÝ FILE EXCEL BOSS',
+          stepText: '⚡ 1. Đang đọc file Excel...',
+          progress: 20,
+        });
+
+        // Loaded on demand — SheetJS is a large dependency and this is the
+        // only place in the app that needs it, so keeping it out of the main
+        // bundle noticeably shrinks the initial page load.
+        const XLSX = await import('xlsx');
+        const buffer = evt.target?.result as ArrayBuffer;
+        // cellText must stay enabled — sheet_to_txt below reads each cell's
+        // formatted text (.w), not its raw value; disabling it turned numbers
+        // like "24,791" into raw floats like "24791.80704".
+        const workbook = XLSX.read(buffer, { type: 'array', cellHTML: false, cellDates: false });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+
+        // Convert Excel worksheet to TSV string
+        const tsvText = XLSX.utils.sheet_to_txt(worksheet, { FS: '\t' });
+        setBossText(tsvText);
+
+        setProcessingState({
+          title: 'ĐANG TÍNH TOÁN DANH SÁCH BOSS',
+          stepText: '📊 2. Đang phân tích cấu trúc & khớp dữ liệu...',
+          progress: 55,
+        });
+
+        const { records, validation } = parseBossPastedData(tsvText);
+
+        if (!validation.isValid) {
+          setBossValidationError(validation);
+          setProcessingState(null);
+          return;
+        }
+
+        setBossValidationError(null);
+        setParsedBossItems(records);
+        setCurrentPage(1);
+
+        if (records.length > 0) {
+          if (onUpdateBossData) {
+            setProcessingState({
+              title: 'ĐANG ĐỒNG BỘ NỀN FIREBASE',
+              stepText: '☁️ 3. Đang lưu giữ liệu & đồng bộ hệ thống Firebase Database...',
+              progress: 88,
+            });
+            await onUpdateBossData(records);
+          }
+          setProcessingState({
+            title: 'HOÀN TẤT ĐỒNG BỘ DỮ LIỆU',
+            stepText: `✨ 4. Đã phân tích & đồng bộ ${records.length} siêu thị (Danh sách BOSS) lên Firebase thành công!`,
+            progress: 100,
+          });
+          await new Promise((r) => setTimeout(r, 300));
+        } else {
+          alert('Không tìm thấy dữ liệu BOSS hợp lệ trong file Excel.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Không thể đọc file Excel. Vui lòng kiểm tra lại định dạng file!');
+      } finally {
+        setProcessingState(null);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
+  const handleExportFullBackup = () => {
+    const data = {
+      app: 'TNB_Competition_Tracker',
+      version: '1.0',
+      exportDate: new Date().toLocaleString('vi-VN'),
+      realtimeStoresTinh: currentRealtimeStoresTinh,
+      realtimeStoresVung: currentRealtimeStoresVung,
+      luykeStoresTinh: currentLuyKeStoresTinh,
+      luykeStoresVung: currentLuyKeStoresVung,
+      bossAssignments: currentBossAssignments,
+    };
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tnb_backup_4_boxes_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFullBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target?.result as string;
+        const data = JSON.parse(text);
+        let count = 0;
+        if (Array.isArray(data.realtimeStoresTinh) && data.realtimeStoresTinh.length > 0) {
+          onUpdateRealtimeData(data.realtimeStoresTinh, '', 'tinh');
+          count++;
+        }
+        if (Array.isArray(data.realtimeStoresVung) && data.realtimeStoresVung.length > 0) {
+          onUpdateRealtimeData(data.realtimeStoresVung, '', 'vung');
+          count++;
+        }
+        if (Array.isArray(data.luykeStoresTinh) && data.luykeStoresTinh.length > 0) {
+          onUpdateLuyKeData(data.luykeStoresTinh, '', 'tinh');
+          count++;
+        }
+        if (Array.isArray(data.luykeStoresVung) && data.luykeStoresVung.length > 0) {
+          onUpdateLuyKeData(data.luykeStoresVung, '', 'vung');
+          count++;
+        }
+        if (Array.isArray(data.bossAssignments) && data.bossAssignments.length > 0 && onUpdateBossData) {
+          onUpdateBossData(data.bossAssignments);
+        }
+        alert('✅ Đã phục hồi thành công dữ liệu cả 4 ô từ file backup!');
+      } catch (err) {
+        alert('❌ File backup không hợp lệ. Vui lòng chọn file .json đã xuất từ ứng dụng!');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const isAnyFilterActive =
+    searchQuery !== '' ||
+    selectedTinhs.length > 0 ||
+    selectedBosses.length > 0 ||
+    selectedKenhs.length > 0 ||
+    selectedChienIcts.length > 0 ||
+    selectedChienCes.length > 0 ||
+    selectedPhanLoais.length > 0 ||
+    sortField !== 'kenh' ||
+    sortDirection !== 'asc';
+
+  // Render clickable th header for sorting
+  const renderSortHeader = (label: string, field: string, align: 'left' | 'center' | 'right' = 'left', minWidth?: string) => {
+    const isSorted = sortField === field;
+    return (
+      <th
+        onClick={() => handleSort(field)}
+        className={`p-2.5 font-extrabold uppercase text-[11px] tracking-tight cursor-pointer select-none hover:bg-amber-400/90 transition-colors ${
+          align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+        } ${minWidth ? minWidth : ''}`}
+        title={`Click để sắp xếp theo ${label}`}
+      >
+        <div className={`flex items-center gap-1 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'}`}>
+          <span>{label}</span>
+          {isSorted ? (
+            sortDirection === 'asc' ? (
+              <ArrowUp className="w-3.5 h-3.5 text-blue-900 shrink-0" />
+            ) : (
+              <ArrowDown className="w-3.5 h-3.5 text-blue-900 shrink-0" />
+            )
+          ) : (
+            <ArrowUpDown className="w-3 h-3 text-slate-700 opacity-60 hover:opacity-100 shrink-0" />
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  return (
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto animate-fade-in">
+      {/* Page Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <ClipboardPaste className="w-6 h-6 text-blue-600" />
+            CẬP NHẬT DỮ LIỆU TỪ BI
+          </h1>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">
+            Mở khóa để dán dữ liệu Ctrl+V =&gt; Hệ thống tự động phân tích, đồng bộ &amp; khóa dữ liệu lại
+          </p>
+        </div>
+
+        {/* Backup & Restore Data Buttons */}
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={backupInputRef}
+            onChange={handleImportFullBackup}
+            accept=".json"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={handleExportFullBackup}
+            title="Xuất tất cả dữ liệu đã dán ở 4 ô ra file backup .json"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-slate-600" />
+            Xuất Backup (.json)
+          </button>
+          <button
+            type="button"
+            onClick={() => backupInputRef.current?.click()}
+            title="Tải file backup .json để phục hồi 100% dữ liệu sang trình duyệt mới"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            <Upload className="w-4 h-4 text-white" />
+            Nhập Backup (.json)
+          </button>
+        </div>
+      </div>
+
+      {/* SIDE-BY-SIDE 2 COMPACT COLUMNS: REALTIME & LUỸ KẾ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* KHU VỰC 1: REALTIME */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+                <Zap className="w-4 h-4 text-emerald-600 fill-emerald-100" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm">
+                  REALTIME
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
+          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+              <span className="flex items-center gap-1.5 text-emerald-700">
+                <Store className="w-3.5 h-3.5" />
+                Thi Đua Tỉnh
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {lastUpdateRealtime && (
+                  <span className="text-[10px] bg-emerald-50 text-emerald-900 border border-emerald-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+                    Cập nhật: {lastUpdateRealtime}
+                  </span>
+                )}
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
+                  {parsedRealtimeStoresTinh.length} dòng
+                  {(() => {
+                    const catSet = new Set<string>();
+                    parsedRealtimeStoresTinh.forEach(r => r.categoryMap && Object.keys(r.categoryMap).forEach(c => catSet.add(c)));
+                    return catSet.size > 0 ? ` (${catSet.size} ngành hàng)` : '';
+                  })()}
+                </span>
+              </div>
+            </div>
+
+            {isRealtimeLockedTinh ? (
+              <div
+                onClick={() => {
+                  setRealtimeTextTinh('');
+                  setIsRealtimeLockedTinh(false);
+                }}
+                className="h-[52px] bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 hover:border-emerald-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                title="Bấm vào đây để dán dữ liệu mới"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-950 truncate">
+                    Đã khóa dữ liệu Thi Đua Tỉnh ({parsedRealtimeStoresTinh.length} dòng
+                    {(() => {
+                      const catSet = new Set<string>();
+                      parsedRealtimeStoresTinh.forEach(r => r.categoryMap && Object.keys(r.categoryMap).forEach(c => catSet.add(c)));
+                      return catSet.size > 0 ? ` - ${catSet.size} ngành hàng` : '';
+                    })()})
+                  </span>
+                </div>
+                <button className="px-2.5 py-1 bg-emerald-600 group-hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                  <Unlock className="w-3 h-3" />
+                  Mở dán mới
+                </button>
+              </div>
+            ) : (
+              <div className="h-[52px] relative rounded-xl overflow-hidden">
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={realtimeTextTinh}
+                  onChange={(e) => processRealtimeDataTinh(e.target.value)}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text && text.trim()) {
+                      e.preventDefault();
+                      processRealtimeDataTinh(text);
+                      setIsRealtimeLockedTinh(true);
+                    }
+                  }}
+                  onBlur={() => setIsRealtimeLockedTinh(true)}
+                  placeholder="Bấm Ctrl+V để dán dữ liệu Thi Đua Tỉnh mới tại đây..."
+                  className="w-full h-full bg-white border-2 border-emerald-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 resize-none shadow-inner leading-normal"
+                />
+                <button
+                  onClick={() => setIsRealtimeLockedTinh(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                >
+                  Khóa
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* SUB-BOX 2: Ô DƯỚI - THI ĐUA SIÊU THỊ */}
+          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+              <span className="flex items-center gap-1.5 text-blue-700">
+                <Globe className="w-3.5 h-3.5" />
+                Thi Đua Siêu Thị
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {lastUpdateRealtime && (
+                  <span className="text-[10px] bg-blue-50 text-blue-900 border border-blue-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-blue-600 shrink-0" />
+                    Cập nhật: {lastUpdateRealtime}
+                  </span>
+                )}
+                <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">
+                  {parsedRealtimeStoresVung.length} dòng
+                </span>
+              </div>
+            </div>
+
+            {isRealtimeLockedVung ? (
+              <div
+                onClick={() => {
+                  setRealtimeTextVung('');
+                  setIsRealtimeLockedVung(false);
+                }}
+                className="h-[52px] bg-blue-50 hover:bg-blue-100/80 border border-blue-200 hover:border-blue-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                title="Bấm vào đây để dán dữ liệu mới"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Lock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="text-xs font-bold text-blue-950 truncate">
+                    Đã khóa dữ liệu Thi Đua Siêu Thị ({parsedRealtimeStoresVung.length} dòng)
+                  </span>
+                </div>
+                <button className="px-2.5 py-1 bg-blue-600 group-hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                  <Unlock className="w-3 h-3" />
+                  Mở dán mới
+                </button>
+              </div>
+            ) : (
+              <div className="h-[52px] relative rounded-xl overflow-hidden">
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={realtimeTextVung}
+                  onChange={(e) => processRealtimeDataVung(e.target.value)}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text && text.trim()) {
+                      e.preventDefault();
+                      processRealtimeDataVung(text);
+                      setIsRealtimeLockedVung(true);
+                    }
+                  }}
+                  onBlur={() => setIsRealtimeLockedVung(true)}
+                  placeholder="Bấm Ctrl+V để dán dữ liệu Thi Đua Siêu Thị mới tại đây..."
+                  className="w-full h-full bg-white border-2 border-blue-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-blue-200 resize-none shadow-inner leading-normal"
+                />
+                <button
+                  onClick={() => setIsRealtimeLockedVung(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                >
+                  Khóa
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* KHU VỰC 2: LUỸ KẾ */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+                <TrendingUp className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-800 text-sm">
+                  LUỸ KẾ
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
+          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+              <span className="flex items-center gap-1.5 text-purple-700">
+                <Store className="w-3.5 h-3.5" />
+                Thi Đua Tỉnh
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {lastUpdateLuyKe && (
+                  <span className="text-[10px] bg-purple-50 text-purple-900 border border-purple-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-purple-600 shrink-0" />
+                    Cập nhật: {lastUpdateLuyKe}
+                  </span>
+                )}
+                <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md font-bold">
+                  {parsedLuyKeStoresTinh.length} dòng
+                </span>
+              </div>
+            </div>
+
+            {isLuyKeLockedTinh ? (
+              <div
+                onClick={() => {
+                  setLuyKeTextTinh('');
+                  setIsLuyKeLockedTinh(false);
+                }}
+                className="h-[52px] bg-purple-50 hover:bg-purple-100/80 border border-purple-200 hover:border-purple-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                title="Bấm vào đây để dán dữ liệu mới"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Lock className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span className="text-xs font-bold text-purple-950 truncate">
+                    Đã khóa dữ liệu Luỹ Kế Tỉnh ({parsedLuyKeStoresTinh.length} dòng)
+                  </span>
+                </div>
+                <button className="px-2.5 py-1 bg-purple-600 group-hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                  <Unlock className="w-3 h-3" />
+                  Mở dán mới
+                </button>
+              </div>
+            ) : (
+              <div className="h-[52px] relative rounded-xl overflow-hidden">
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={luykeTextTinh}
+                  onChange={(e) => processLuyKeDataTinh(e.target.value)}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text && text.trim()) {
+                      e.preventDefault();
+                      processLuyKeDataTinh(text);
+                      setIsLuyKeLockedTinh(true);
+                    }
+                  }}
+                  onBlur={() => setIsLuyKeLockedTinh(true)}
+                  placeholder="Bấm Ctrl+V để dán dữ liệu Luỹ Kế Thi Đua Tỉnh mới tại đây..."
+                  className="w-full h-full bg-white border-2 border-purple-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-purple-200 resize-none shadow-inner leading-normal"
+                />
+                <button
+                  onClick={() => setIsLuyKeLockedTinh(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                >
+                  Khóa
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* SUB-BOX 2: Ô DƯỚI - THI ĐUA SIÊU THỊ */}
+          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+              <span className="flex items-center gap-1.5 text-indigo-700">
+                <Globe className="w-3.5 h-3.5" />
+                Thi Đua Siêu Thị
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {lastUpdateLuyKe && (
+                  <span className="text-[10px] bg-indigo-50 text-indigo-900 border border-indigo-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-indigo-600 shrink-0" />
+                    Cập nhật: {lastUpdateLuyKe}
+                  </span>
+                )}
+                <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md font-bold">
+                  {parsedLuyKeStoresVung.length} dòng
+                </span>
+              </div>
+            </div>
+
+            {isLuyKeLockedVung ? (
+              <div
+                onClick={() => {
+                  setLuyKeTextVung('');
+                  setIsLuyKeLockedVung(false);
+                }}
+                className="h-[52px] bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200 hover:border-indigo-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                title="Bấm vào đây để dán dữ liệu mới"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Lock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  <span className="text-xs font-bold text-indigo-950 truncate">
+                    Đã khóa dữ liệu Luỹ Kế Siêu Thị ({parsedLuyKeStoresVung.length} dòng)
+                  </span>
+                </div>
+                <button className="px-2.5 py-1 bg-indigo-600 group-hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                  <Unlock className="w-3 h-3" />
+                  Mở dán mới
+                </button>
+              </div>
+            ) : (
+              <div className="h-[52px] relative rounded-xl overflow-hidden">
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={luykeTextVung}
+                  onChange={(e) => processLuyKeDataVung(e.target.value)}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text && text.trim()) {
+                      e.preventDefault();
+                      processLuyKeDataVung(text);
+                      setIsLuyKeLockedVung(true);
+                    }
+                  }}
+                  onBlur={() => setIsLuyKeLockedVung(true)}
+                  placeholder="Bấm Ctrl+V để dán dữ liệu Luỹ Kế Thi Đua Siêu Thị mới tại đây..."
+                  className="w-full h-full bg-white border-2 border-indigo-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-indigo-200 resize-none shadow-inner leading-normal"
+                />
+                <button
+                  onClick={() => setIsLuyKeLockedVung(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                >
+                  Khóa
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* KHU VỰC 3: DANH SÁCH BOSS & EXCEL IMPORT */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Users className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                <span>KHU VỰC 3: CẬP NHẬT DANH SÁCH BOSS</span>
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full uppercase">
+                  Excel / Google Sheet
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500">
+                Tải lên file Excel (.xlsx, .xls, .csv) chứa bảng phân công BOSS toàn vùng
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Hidden File Input for Excel */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleBossFileUpload}
+              accept=".xlsx, .xls, .csv, .tsv"
+              className="hidden"
+            />
+
+            {/* Excel Upload Button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Tải file Excel BOSS (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        {/* BOSS LIST FILTER BAR */}
+        {parsedBossItems.length > 0 && (
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                <Filter className="w-4 h-4 text-blue-600" />
+                <span>BỘ LỌC DANH SÁCH BOSS:</span>
+              </div>
+              {isAnyFilterActive && (
+                <button
+                  onClick={resetFilters}
+                  className="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Xóa bộ lọc
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+              {/* Search input for store name or store code */}
+              <div className="relative col-span-2 md:col-span-2 lg:col-span-1">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                  placeholder="Tìm siêu thị, mã kho..."
+                  className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Tỉnh (Multi-Select) */}
+              <MultiSelectFilter
+                label="Tỉnh"
+                allLabel="Tất cả Tỉnh"
+                options={uniqueTinhs}
+                selectedValues={selectedTinhs}
+                onChange={(vals) => { setSelectedTinhs(vals); setCurrentPage(1); }}
+              />
+
+              {/* Boss (Multi-Select) */}
+              <MultiSelectFilter
+                label="Boss T7"
+                allLabel="Tất cả Boss T7"
+                options={uniqueBosses}
+                selectedValues={selectedBosses}
+                onChange={(vals) => { setSelectedBosses(vals); setCurrentPage(1); }}
+              />
+
+              {/* Kênh (Multi-Select) */}
+              <MultiSelectFilter
+                label="Kênh"
+                allLabel="Tất cả Kênh"
+                options={uniqueKenhs}
+                selectedValues={selectedKenhs}
+                onChange={(vals) => { setSelectedKenhs(vals); setCurrentPage(1); }}
+              />
+
+              {/* Chiến ICT (Multi-Select) */}
+              <MultiSelectFilter
+                label="Chiến ICT"
+                allLabel="Tất cả Chiến ICT"
+                options={uniqueChienIcts}
+                selectedValues={selectedChienIcts}
+                onChange={(vals) => { setSelectedChienIcts(vals); setCurrentPage(1); }}
+              />
+
+              {/* Chiến CE (Multi-Select) */}
+              <MultiSelectFilter
+                label="Chiến CE"
+                allLabel="Tất cả Chiến CE"
+                options={uniqueChienCes}
+                selectedValues={selectedChienCes}
+                onChange={(vals) => { setSelectedChienCes(vals); setCurrentPage(1); }}
+              />
+
+              {/* Phân loại shop (Multi-Select) */}
+              <MultiSelectFilter
+                label="Phân Loại"
+                allLabel="Tất cả Phân Loại"
+                options={uniquePhanLoais}
+                selectedValues={selectedPhanLoais}
+                onChange={(vals) => { setSelectedPhanLoais(vals); setCurrentPage(1); }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Live Preview Table for BOSS (Displays ALL items without truncation) */}
+        {parsedBossItems.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-blue-600" />
+                Danh sách BOSS được nhập ({sortedBossItems.length} siêu thị):
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 font-normal">Hiển thị tất cả siêu thị (Bấm tiêu đề cột để sắp xếp)</span>
+                <button
+                  onClick={() => setIsFullViewMode((prev) => !prev)}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-[11px] transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                >
+                  {isFullViewMode ? '📐 Khung cuộn gọn' : '📜 Tràn màn hình'}
+                </button>
+              </div>
+            </div>
+
+            <div className={`overflow-x-auto rounded-xl border border-slate-200 ${isFullViewMode ? 'max-h-none' : 'max-h-[600px] overflow-y-auto'}`}>
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-amber-300 text-slate-900 font-extrabold uppercase text-[11px] tracking-tight border-b border-amber-400">
+                    {renderSortHeader('STT', 'stt', 'center', 'w-12')}
+                    {renderSortHeader('TỈNH', 'tinh', 'left')}
+                    {renderSortHeader('BOSS T7', 'boss', 'left')}
+                    {renderSortHeader('KÊNH', 'kenh', 'left')}
+                    {renderSortHeader('MST – TÊN SIÊU THỊ', 'sieuthi', 'left', 'min-w-[280px]')}
+                    {renderSortHeader('CHIẾN ICT', 'chienIct', 'left')}
+                    {renderSortHeader('CHIẾN CE', 'chienCe', 'left')}
+                    {renderSortHeader('SL TRƯỞNG CA', 'slTruongCa', 'center')}
+                    {renderSortHeader('DT QĐ TB 5T26', 'dtQdTb', 'right')}
+                    {renderSortHeader('PHÂN LOẠI SHOP', 'phanLoaiShop', 'right')}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/80 bg-white">
+                  {sortedBossItems.length > 0 ? (
+                    sortedBossItems.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-amber-50/40 transition-colors">
+                        <td className="p-2.5 font-bold text-slate-500 text-center">
+                          {idx + 1}
+                        </td>
+                        <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">{item.tinh || '-'}</td>
+                        <td className="p-2.5 font-extrabold text-indigo-900 whitespace-nowrap">{item.bossRaw || item.boss}</td>
+                        <td className="p-2.5 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded font-extrabold text-[11px] uppercase ${
+                            String(item.kenh).includes('TGD') 
+                              ? 'bg-amber-400 text-slate-900 shadow-2xs' 
+                              : String(item.kenh).includes('ĐMM') || String(item.kenh).includes('DMM')
+                              ? 'bg-emerald-600 text-white shadow-2xs'
+                              : 'bg-blue-600 text-white shadow-2xs'
+                          }`}>
+                            {item.kenh || 'TGD'}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-bold text-slate-900">{item.sieuthi}</td>
+                        <td className="p-2.5 font-semibold text-slate-700 whitespace-nowrap">{item.chienIct || '-'}</td>
+                        <td className="p-2.5 font-medium text-slate-600 whitespace-nowrap">{item.chienCe || '-'}</td>
+                        <td className="p-2.5 font-extrabold text-red-600 text-center whitespace-nowrap">{item.slTruongCa || '1'}</td>
+                        <td className="p-2.5 font-bold text-slate-800 text-right whitespace-nowrap">{item.dtQdTb || '-'}</td>
+                        <td className="p-2.5 font-bold text-amber-800 text-right whitespace-nowrap">{item.phanLoaiShop || '-'}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={10} className="p-8 text-center text-slate-400 italic">
+                        Không tìm thấy siêu thị phù hợp với từ khóa hoặc bộ lọc.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Summary (Displays ALL items info) */}
+            <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
+              <div>
+                Hiển thị tất cả <strong className="text-blue-600 font-bold">{sortedBossItems.length}</strong> siêu thị
+                {parsedBossItems.length !== sortedBossItems.length && (
+                  <span className="text-slate-400 text-[11px] ml-1">
+                    (lọc từ {parsedBossItems.length} siêu thị gốc)
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400 italic">
+                Cuộn lên/xuống để xem toàn bộ danh sách
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* BOSS FILE STRUCTURE VALIDATION ERROR MODAL */}
+      {bossValidationError && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="max-w-2xl w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 border border-red-200 relative max-h-[90vh] overflow-y-auto">
+            {/* Close Button */}
+            <button
+              onClick={() => setBossValidationError(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 shadow-sm">
+                <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-red-700 tracking-tight flex items-center gap-2">
+                  <span>❌ FILE BI BOSS KHÔNG ĐÚNG CÚ PHÁP CỘT</span>
+                </h3>
+                <p className="text-xs font-bold text-slate-600">
+                  Hệ thống đã tự động từ chối nhập file này để tránh làm mất hoặc hỏng dữ liệu phân công.
+                </p>
+              </div>
+            </div>
+
+            {/* Validation Details Card */}
+            <div className="p-4 bg-red-50/80 border border-red-200 rounded-2xl space-y-3 text-xs">
+              {/* Missing Columns */}
+              {bossValidationError.missingColumns.length > 0 && (
+                <div>
+                  <div className="font-extrabold text-red-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <XCircle className="w-4 h-4 text-red-600" />
+                    🚨 Các cột bắt buộc bị THIẾU ({bossValidationError.missingColumns.length} cột):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {bossValidationError.missingColumns.map((col, idx) => (
+                      <span key={idx} className="px-2.5 py-1 bg-red-600 text-white font-bold text-[11px] rounded-lg shadow-2xs">
+                        ❌ {col}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Extra Columns */}
+              {bossValidationError.extraColumns.length > 0 && (
+                <div className="pt-2 border-t border-red-200/60">
+                  <div className="font-extrabold text-amber-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    ⚠️ Phát hiện cột không đúng mẫu BI ({bossValidationError.extraColumns.length} cột dư/lệch):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {bossValidationError.extraColumns.map((col, idx) => (
+                      <span key={idx} className="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-[11px] rounded-lg">
+                        ⚠️ {col}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Found Headers in User File */}
+              <div className="pt-2 border-t border-red-200/60">
+                <div className="font-bold text-slate-700 mb-1">
+                  📋 Các tiêu đề cột tìm thấy trong file của bạn ({bossValidationError.foundColumns.length} cột):
+                </div>
+                <div className="bg-slate-900 text-emerald-400 font-mono text-[11px] p-2.5 rounded-xl max-h-24 overflow-y-auto leading-relaxed">
+                  {bossValidationError.foundColumns.length > 0
+                    ? bossValidationError.foundColumns.join(' | ')
+                    : '(Không tìm thấy hàng tiêu đề nào)'}
+                </div>
+              </div>
+            </div>
+
+            {/* Standard BI Sheet Reference Helper */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                💡 Cấu trúc chuẩn tiêu đề file Excel BI BOSS (Cột A ➔ Q):
+              </div>
+              <div className="text-[11px] font-mono text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200 max-h-28 overflow-y-auto space-y-1">
+                <div>A: VỊ TRÍ SIÊU THỊ | B: HUYỆN | C: QL phụ trách</div>
+                <div>D: TỈNH BASE | E: CỤM MỚI | F: MÃ BASE MỚI | G: SIÊU THỊ BASE</div>
+                <div>H: TỈNH MỚI 2026 | <strong>I: MST</strong> | <strong>J: SIÊU THỊ</strong> | K: USER</div>
+                <div><strong>L: TỈNH</strong> | <strong>M: BOSS T7</strong> | <strong>N: KÊNH</strong> | <strong>O: MST – TÊN SIÊU THỊ</strong></div>
+                <div>P: CHIẾN ICT | Q: CHIẾN CE | W: PHÂN LOẠI SHOP</div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setBossValidationError(null)}
+                className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Đã Hiểu - Vui Lòng Kiểm Tra &amp; Sửa Lại File Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE PROCESSING OVERLAY MODAL */}
+      {processingState && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center space-y-5 animate-in zoom-in-95 duration-200">
+            {/* Pulsing Icon */}
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 animate-pulse">
+              <RefreshCw className="w-8 h-8 animate-spin stroke-[2.5]" />
+            </div>
+
+            {/* Title & Step Text */}
+            <div className="space-y-2">
+              <h3 className="text-base font-extrabold text-slate-800 uppercase tracking-wide">
+                {processingState.title}
+              </h3>
+              <p className="text-xs font-semibold text-slate-600 bg-slate-50 py-2.5 px-3.5 rounded-xl border border-slate-200/80 leading-relaxed">
+                {processingState.stepText}
+              </p>
+            </div>
+
+            {/* Animated Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+                <div
+                  className="h-full bg-gradient-to-r from-sky-500 via-indigo-500 to-emerald-500 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${processingState.progress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between items-center text-[11px] font-bold text-slate-400">
+                <span>Tiến trình xử lý &amp; Đồng bộ Firebase</span>
+                <span className="text-sky-600 font-extrabold">{processingState.progress}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

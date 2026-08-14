@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Regular weight — used everywhere Tailwind resolves font-weight <= 600 (font-normal, font-medium, font-semibold) */
+@font-face {
+  font-family: "UTM Avo";
+  src: url('/Fonts/UTM Avo.ttf') format('truetype');
+  font-weight: 100 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold face — mapped across 700/800/900 so font-bold, font-extrabold and
+   font-black (all used heavily across this project) render with the real
+   bold artwork instead of a browser-synthesized fake bold. */
+@font-face {
+  font-family: "UTM Avo";
+  src: url('/Fonts/UTM AvoBold.ttf') format('truetype');
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "UTM Avo", ui-sans-serif, system-ui, sans-serif;
+  /* The report table's data cells use font-mono (for tabular number
+     alignment) — mapped to the same custom font so bold data cells actually
+     render as UTM AvoBold instead of silently falling back to the system
+     monospace stack. */
+  --font-mono: "UTM Avo", ui-monospace, monospace;
+}
+
+body {
+  font-family: "UTM Avo", ui-sans-serif, system-ui, sans-serif;
+}

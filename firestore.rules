@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email is string;
+    }
+
+    function accountIdOf() {
+      return request.auth.token.email.split('@')[0];
+    }
+
+    function profileExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(accountIdOf()));
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(accountIdOf())).data;
+    }
+
+    function isActiveUser() {
+      return profileExists() && myProfile().isActive == true;
+    }
+
+    function myRole() {
+      return myProfile().role;
+    }
+
+    function isSuperAdmin() {
+      return isActiveUser() && myRole() == 'super_admin';
+    }
+
+    function isEditorOrAbove() {
+      return isActiveUser() && myRole() in ['super_admin', 'admin', 'editor'];
+    }
+
+    // Account profiles / password hashes — the crown jewels this whole
+    // hardening pass exists to protect.
+    match /users/{accountId} {
+      // A user may read only their own profile; Super Admin may read anyone's.
+      allow get: if isActiveUser() && (accountId == accountIdOf() || isSuperAdmin());
+      // Listing the whole collection (User Management screen) is Super-Admin-only.
+      allow list: if isSuperAdmin();
+
+      allow create: if isSuperAdmin()
+                    && request.resource.data.accountId == accountId
+                    && request.resource.data.role in ['super_admin', 'admin', 'editor', 'viewer'];
+
+      // Super Admin only, and a write can never set an invalid role or
+      // silently re-point which account this doc represents — this is what
+      // stops any user from ever writing themselves a higher role.
+      allow update: if isSuperAdmin()
+                    && (!('accountId' in request.resource.data) || request.resource.data.accountId == accountId)
+                    && (!('role' in request.resource.data) || request.resource.data.role in ['super_admin', 'admin', 'editor', 'viewer']);
+
+      allow delete: if isSuperAdmin() && accountId != '3717';
+    }
+
+    // Shared operational/business data (realtime stores, luỹ kế stores, BOSS
+    // assignments, settings, user preferences).
+    match /competition_tracker/{docId} {
+      allow read: if isActiveUser();
+      allow write: if isEditorOrAbove();
+
+      // Large per-store datasets (Realtime/Luỹ Kế Siêu Thị) are split into
+      // chunk documents here — a single doc can exceed Firestore's 1MiB
+      // limit once every store carries a full per-category breakdown.
+      // Firestore rules aren't recursive, so this subcollection needs its
+      // own explicit grant matching the parent's.
+      match /chunks/{chunkId} {
+        allow read: if isActiveUser();
+        allow write: if isEditorOrAbove();
+      }
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
