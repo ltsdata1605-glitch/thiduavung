@@ -13,6 +13,7 @@ import {
 import { exportElementAsImage } from '../services/imageExport';
 import { saveGroupSummaryCardsToFirebase, getLocalCache } from '../services/storeService';
 import { ExportLoadingModal } from './ExportLoadingModal';
+import { ProvinceRemarksModal } from './ProvinceRemarksModal';
 import { Camera, Layers, MessageSquare, ChevronDown, Plus, X } from 'lucide-react';
 
 interface GroupReportViewProps {

@@ -9,6 +9,7 @@ import { UpdateDataView } from './components/UpdateDataView';
 import { SettingsView } from './components/SettingsView';
 import { TagBossModal } from './components/TagBossModal';
 import { LoginView } from './components/LoginView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { UserManagementModal } from './components/UserManagementModal';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { CategoryGroupModal } from './components/CategoryGroupModal';
@@ -867,27 +868,29 @@ export default function App() {
 
           {/* MAIN TAB CONTENT RENDER */}
           {activeTab === 'report' && (
-            <ReportView
-              timeMode={timeMode}
-              lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
-              entityScope={entityScope}
-              selectedChannels={selectedChannels}
-              selectedProvince={selectedProvince}
-              selectedBoss={selectedBoss}
-              selectedCategory={selectedCategory}
-              selectedCategoryGroup={selectedCategoryGroup}
-              categoryGroupMap={categoryGroupMap}
-              categoryOrderMap={categoryOrderMap}
-              categoryDisplayNameMap={categoryDisplayNameMap}
-              bossAssignments={bossAssignments}
-              showSummarySection={showSummarySection}
-              stores={activeStores}
-              onOpenTagBossModal={() => setIsTagBossModalOpen(true)}
-              onExportCompact={handleExportCompact}
-              onExportFull={handleExportFull}
-              onExportGroup={handleExportGroup}
-              forceShowAllRows={isExportingAllRows}
-            />
+            <ErrorBoundary fallbackTitle="Không thể tải báo cáo thi đua">
+              <ReportView
+                timeMode={timeMode}
+                lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
+                entityScope={entityScope}
+                selectedChannels={selectedChannels}
+                selectedProvince={selectedProvince}
+                selectedBoss={selectedBoss}
+                selectedCategory={selectedCategory}
+                selectedCategoryGroup={selectedCategoryGroup}
+                categoryGroupMap={categoryGroupMap}
+                categoryOrderMap={categoryOrderMap}
+                categoryDisplayNameMap={categoryDisplayNameMap}
+                bossAssignments={bossAssignments}
+                showSummarySection={showSummarySection}
+                stores={activeStores}
+                onOpenTagBossModal={() => setIsTagBossModalOpen(true)}
+                onExportCompact={handleExportCompact}
+                onExportFull={handleExportFull}
+                onExportGroup={handleExportGroup}
+                forceShowAllRows={isExportingAllRows}
+              />
+            </ErrorBoundary>
           )}
 
           {activeTab === 'update' && (
