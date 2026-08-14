@@ -618,6 +618,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
   };
 
+  const isLuyke = timeMode === 'luyke';
   const frozenHeaderThClass = 'border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700';
 
   const activeChannelsText =
