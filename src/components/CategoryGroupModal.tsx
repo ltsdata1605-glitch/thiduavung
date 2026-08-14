@@ -284,7 +284,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     // Clean up trailing spaces only upon saving
     const cleanedDisplayNames: Record<string, string> = {};
     Object.entries(draftDisplayNameMap).forEach(([k, v]) => {
-      const trimmed = (v || '').trim();
+      const trimmed = String(v || '').trim();
       if (trimmed) {
         cleanedDisplayNames[k] = trimmed;
       }

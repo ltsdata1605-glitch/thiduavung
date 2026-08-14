@@ -144,6 +144,12 @@ const ChannelDropdownFilter: React.FC<{
   );
 };
 
+export interface SummaryCardConfig {
+  id: string;
+  channels: Channel[];
+  category: string;
+}
+
 const ALL_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
 
 /** One repeatable "Tổng quan Tỉnh" card — each instance carries its own Kênh/Ngành hàng filters */
