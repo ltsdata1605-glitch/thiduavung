@@ -11,6 +11,8 @@
  *     before capture so every column ends up in the image.
  */
 
+import { getStoreCodeOnly } from '../utils/parser';
+
 /** Resolve oklch()/color-mix() computed colors to rgb() so the exported PNG doesn't render them as black. */
 function fixOklchColors(root: HTMLElement) {
   const cvs = document.createElement('canvas');
@@ -227,21 +229,43 @@ export async function exportElementAsImage(
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
   });
 
+  // Shorten all store names to warehouse code (mã kho) only in exported image
+  clone.querySelectorAll<HTMLElement>('[data-store-name], .store-name-cell').forEach((el) => {
+    const raw = el.getAttribute('data-store-name') || el.textContent || '';
+    if (raw) {
+      el.textContent = getStoreCodeOnly(raw);
+    }
+  });
+
+  // Tighten store column width in colgroups if present
+  clone.querySelectorAll<HTMLTableColElement>('col.col-sieuthi, col[data-col="sieuthi"]').forEach((col) => {
+    col.style.width = '120px';
+  });
+
   // Strip all scrollbars & expand inner containers
   suppressScrollbars(clone);
+
+  // Compact table cells padding
+  clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
+    cell.style.setProperty('padding-left', '6px', 'important');
+    cell.style.setProperty('padding-right', '6px', 'important');
+    cell.style.setProperty('white-space', 'nowrap', 'important');
+  });
 
   // Expand scrollable containers to show ALL content (no clipping)
   clone.querySelectorAll<HTMLElement>('.overflow-x-auto, .overflow-y-auto, [class*="max-h-"]').forEach((container) => {
     container.style.setProperty('overflow', 'visible', 'important');
     container.style.setProperty('max-height', 'none', 'important');
     container.style.setProperty('height', 'auto', 'important');
+    container.style.setProperty('width', 'max-content', 'important');
+    container.style.setProperty('max-width', 'none', 'important');
   });
 
-  // Set clone to the full scroll width — shows all columns that were
-  // horizontally scrolled out of view, preserving exact column proportions
-  clone.style.setProperty('width', `${fullScrollWidth}px`, 'important');
-  clone.style.setProperty('max-width', `${fullScrollWidth}px`, 'important');
-  clone.style.setProperty('min-width', `${fullScrollWidth}px`, 'important');
+  // Allow clone to shrink-wrap naturally to content width without empty margins
+  clone.style.setProperty('width', 'max-content', 'important');
+  clone.style.setProperty('max-width', 'none', 'important');
+  clone.style.setProperty('min-width', 'auto', 'important');
+  clone.style.setProperty('display', 'inline-block', 'important');
   clone.style.setProperty('box-sizing', 'border-box', 'important');
 
   // Sticky columns only need to stay pinned during live scrolling — flatten
@@ -279,7 +303,7 @@ export async function exportElementAsImage(
   captureContainer.style.position = 'absolute';
   captureContainer.style.left = '-9999px';
   captureContainer.style.top = '0';
-  captureContainer.style.width = `${fullScrollWidth}px`;
+  captureContainer.style.width = 'max-content';
   captureContainer.style.maxWidth = 'none';
   captureContainer.style.display = 'inline-block';
   captureContainer.appendChild(clone);
@@ -297,8 +321,26 @@ export async function exportElementAsImage(
     clone.style.setProperty('max-height', 'none', 'important');
     clone.style.setProperty('padding-bottom', '4px', 'important');
 
+    const tableInClone = clone.querySelector('table');
+    const actualTableWidth = tableInClone ? Math.ceil(tableInClone.getBoundingClientRect().width || tableInClone.scrollWidth || tableInClone.offsetWidth) : 0;
     const cloneRect = clone.getBoundingClientRect();
-    const width = Math.max(fullScrollWidth, Math.ceil(cloneRect.width || clone.scrollWidth));
+    const width = actualTableWidth > 0 ? actualTableWidth : Math.ceil(cloneRect.width || clone.scrollWidth);
+
+    // Apply exact width to clone, captureContainer and all full-width headers
+    if (width > 0) {
+      clone.style.setProperty('width', `${width}px`, 'important');
+      clone.style.setProperty('max-width', `${width}px`, 'important');
+      captureContainer.style.setProperty('width', `${width}px`, 'important');
+      captureContainer.style.setProperty('max-width', `${width}px`, 'important');
+
+      clone.querySelectorAll<HTMLElement>('div, section, header, [id*="root"]').forEach((div) => {
+        if (div.classList.contains('w-full') || div.style.width === '100%') {
+          div.style.setProperty('width', `${width}px`, 'important');
+          div.style.setProperty('max-width', `${width}px`, 'important');
+          div.style.setProperty('box-sizing', 'border-box', 'important');
+        }
+      });
+    }
 
     // Calculate exact content height without extra empty padding
     let actualContentHeight = 0;
@@ -317,10 +359,6 @@ export async function exportElementAsImage(
       ? Math.ceil(actualContentHeight + 4)
       : Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height));
 
-    // html-to-image rasterizes via an SVG <foreignObject> whose dimensions
-    // are capped by the browser's max canvas size (commonly ~16-32k px on
-    // one axis) — an uncapped scale on a very tall table export can silently
-    // fail past that. Clamp scale down (never below 1) instead of erroring.
     let finalScale = scale;
     if (height * scale > 16000) {
       finalScale = Math.max(1, 16000 / height);
@@ -363,6 +401,14 @@ export async function exportGroupSpecificElement(
 
   elementsToHide.forEach((selector) => {
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
+  });
+
+  // Shorten all store names to warehouse code (mã kho) only in exported image
+  clone.querySelectorAll<HTMLElement>('[data-store-name], .store-name-cell').forEach((el) => {
+    const raw = el.getAttribute('data-store-name') || el.textContent || '';
+    if (raw) {
+      el.textContent = getStoreCodeOnly(raw);
+    }
   });
 
   // Strip all scrollbars from clone DOM

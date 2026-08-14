@@ -995,7 +995,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                                 </span>
                               </td>
                               <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap truncate">
-                                {formatStoreDisplayName(s.sieuthi)}
+                                <span data-store-name={s.sieuthi} className="store-name-cell">
+                                  {formatStoreDisplayName(s.sieuthi)}
+                                </span>
                               </td>
                               <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
                               <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
@@ -1174,7 +1176,11 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                               {getChannelLabel(effectiveKenh)}
                             </span>
                           </td>
-                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">{formatStoreDisplayName(s.sieuthi)}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">
+                            <span data-store-name={s.sieuthi} className="store-name-cell">
+                              {formatStoreDisplayName(s.sieuthi)}
+                            </span>
+                          </td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-sky-700 border-b border-slate-200 whitespace-nowrap">{Math.round(data.rate)}%</td>
@@ -1227,7 +1233,11 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                               {getChannelLabel(effectiveKenh)}
                             </span>
                           </td>
-                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">{formatStoreDisplayName(s.sieuthi)}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">
+                            <span data-store-name={s.sieuthi} className="store-name-cell">
+                              {formatStoreDisplayName(s.sieuthi)}
+                            </span>
+                          </td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-rose-600 border-b border-slate-200 whitespace-nowrap">{Math.round(data.rate)}%</td>

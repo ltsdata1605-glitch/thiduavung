@@ -892,6 +892,27 @@ export function formatStoreDisplayName(sieuthi: string = ''): string {
 }
 
 /**
+ * Extracts ONLY the warehouse code (mã kho / short code) from a store string.
+ * Example: "908 - ĐML_AGI_LXU - 129 Trần Hưng Đạo" => "ĐML_AGI_LXU"
+ * Example: "ĐML_STR_STR - 99 Hùng Vương" => "ĐML_STR_STR"
+ * Example: "ĐML_LAN_BLU - Nguyễn Hữu Thọ" => "ĐML_LAN_BLU"
+ * Example: "8853 - ĐMS_LAN_DHU - Mỹ Quý Tây" => "ĐMS_LAN_DHU"
+ * Example: "8853 - Mỹ Quý Tây" => "8853"
+ */
+export function getStoreCodeOnly(sieuthi: string = ''): string {
+  if (!sieuthi) return '';
+  const cleaned = sieuthi.trim();
+  const parts = cleaned.split(/\s*-\s*/);
+  if (parts.length >= 3 && /^\d+$/.test(parts[0])) {
+    return parts[1] || parts[0];
+  }
+  if (parts.length >= 2) {
+    return parts[0];
+  }
+  return cleaned;
+}
+
+/**
  * Helper to calculate total DTQĐ TB 5T2026 for a given province directly from bossAssignments.
  */
 export function getDtQdTbForProvince(

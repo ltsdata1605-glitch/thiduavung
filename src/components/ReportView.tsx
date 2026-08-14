@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
 import { GroupReportView } from './GroupReportView';
 import { 
   Trophy, 
@@ -250,8 +250,8 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                         <span className="w-5 h-5 rounded-full bg-sky-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-xs">
                           #{idx + 1}
                         </span>
-                        <span className="font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
-                          {formatStoreDisplayName(s.sieuthi)}
+                        <span data-store-name={s.sieuthi} className="store-name-cell font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
+                          {getStoreCodeOnly(s.sieuthi)}
                         </span>
                       </div>
                       <button
@@ -1476,7 +1476,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   <col style={{ width: 80 }} />
                   <col style={{ width: 100 }} />
                   <col style={{ width: 54 }} />
-                  <col style={{ width: 280 }} />
+                  <col className="col-sieuthi" data-col="sieuthi" style={{ width: 280 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
                   <col className="export-hide" style={{ width: 80 }} />
@@ -1773,7 +1773,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
                         {/* Siêu thị — sticky (frozen) column */}
                         <td style={{ left: FROZEN_LEFT.sieuthi }} className={`sticky z-10 py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 font-sans whitespace-nowrap min-w-[280px] ${rowBgClass}`}>
-                          {formatStoreDisplayName(store.sieuthi)}
+                          <span data-store-name={store.sieuthi} className="store-name-cell">
+                            {formatStoreDisplayName(store.sieuthi)}
+                          </span>
                         </td>
                       </>
                     )}
