@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount } from './types';
-import {
-  initialUserProfile,
-  initialSettings,
-  sampleLuyKeStores,
-  sampleRealtimeStores,
-  sampleTSVTextRealtime,
-  sampleTSVTextLuyKe,
-  sampleTSVBossText,
-} from './data/sampleData';
-import { parsePastedData, parseBossPastedData, getBossForStore, extractMst, BossAssignmentRecord } from './utils/parser';
+import { initialUserProfile, initialSettings } from './data/sampleData';
+import { getBossForStore, extractMst, BossAssignmentRecord } from './utils/parser';
 import { Sidebar } from './components/Sidebar';
 import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
@@ -87,14 +79,14 @@ export default function App() {
   // Stores Data — Tỉnh & Vùng are independently persisted (separate Firestore
   // docs, see storeService.ts) since they're pasted into two separate boxes
   // in the UI and must not overwrite each other.
-  const [realtimeStoresTinh, setRealtimeStoresTinh] = useState<StoreRecord[]>(cachedData.realtimeStoresTinh?.length ? cachedData.realtimeStoresTinh : sampleRealtimeStores);
-  const [realtimeStoresVung, setRealtimeStoresVung] = useState<StoreRecord[]>(cachedData.realtimeStoresVung?.length ? cachedData.realtimeStoresVung : sampleRealtimeStores);
-  const [luykeStoresTinh, setLuyKeStoresTinh] = useState<StoreRecord[]>(cachedData.luykeStoresTinh?.length ? cachedData.luykeStoresTinh : sampleLuyKeStores);
-  const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : sampleLuyKeStores);
+  const [realtimeStoresTinh, setRealtimeStoresTinh] = useState<StoreRecord[]>(cachedData.realtimeStoresTinh?.length ? cachedData.realtimeStoresTinh : []);
+  const [realtimeStoresVung, setRealtimeStoresVung] = useState<StoreRecord[]>(cachedData.realtimeStoresVung?.length ? cachedData.realtimeStoresVung : []);
+  const [luykeStoresTinh, setLuyKeStoresTinh] = useState<StoreRecord[]>(cachedData.luykeStoresTinh?.length ? cachedData.luykeStoresTinh : []);
+  const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : []);
 
   // BOSS assignment list, hydrated from local cache first
   const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
-    cachedData.bossAssignments?.length ? cachedData.bossAssignments : parseBossPastedData(sampleTSVBossText).records
+    cachedData.bossAssignments?.length ? cachedData.bossAssignments : []
   );
 
   // Settings (global, shared by every account) & User Profile (per-account
@@ -554,40 +546,12 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  const handleResetDefaultData = async () => {
-    const defaultLuyKe = parsePastedData(sampleTSVTextLuyKe, false);
-    const defaultRealtime = parsePastedData(sampleTSVTextRealtime, true);
-    setLuyKeStoresTinh(defaultLuyKe);
-    setLuyKeStoresVung(defaultLuyKe);
-    setRealtimeStoresTinh(defaultRealtime);
-    setRealtimeStoresVung(defaultRealtime);
-    setSettings(initialSettings);
-    setUser(initialUserProfile);
-
-    const results = await Promise.all([
-      saveRealtimeStoresToFirebase(defaultRealtime, currentUser.name, 'tinh'),
-      saveRealtimeStoresToFirebase(defaultRealtime, currentUser.name, 'vung'),
-      saveLuyKeStoresToFirebase(defaultLuyKe, currentUser.name, 'tinh'),
-      saveLuyKeStoresToFirebase(defaultLuyKe, currentUser.name, 'vung'),
-      saveSettingsToFirebase(initialSettings, currentUser.name),
-    ]);
-    const failed = results.find((r) => !r.success);
-    if (failed) {
-      showErrorToast(failed.error || 'Khôi phục dữ liệu mẫu lên Firebase thất bại!');
-      return;
-    }
-
-    showToast('Đã khôi phục dữ liệu mẫu và đồng bộ lên Firebase!');
-  };
-
   const handleForceClearCache = async () => {
     await clearAllLocalCache();
-    const defaultLuyKe = parsePastedData(sampleTSVTextLuyKe, false);
-    const defaultRealtime = parsePastedData(sampleTSVTextRealtime, true);
-    setLuyKeStoresTinh(defaultLuyKe);
-    setLuyKeStoresVung(defaultLuyKe);
-    setRealtimeStoresTinh(defaultRealtime);
-    setRealtimeStoresVung(defaultRealtime);
+    setLuyKeStoresTinh([]);
+    setLuyKeStoresVung([]);
+    setRealtimeStoresTinh([]);
+    setRealtimeStoresVung([]);
     setSettings(initialSettings);
     setCategoryGroupMap(DEFAULT_CATEGORY_GROUP_MAP);
 
@@ -905,7 +869,6 @@ export default function App() {
               settings={settings}
               user={user}
               onSave={handleSaveSettings}
-              onResetDefaultData={handleResetDefaultData}
             />
           )}
         </main>

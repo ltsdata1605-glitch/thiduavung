@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { AppSettings, UserProfile } from '../types';
-import { Settings, Save, RotateCcw, Check, User, Palette, Shield } from 'lucide-react';
+import { Settings, Save, Check, User, Palette, Shield } from 'lucide-react';
 
 interface SettingsViewProps {
   settings: AppSettings;
   user: UserProfile;
   onSave: (settings: AppSettings, user: UserProfile) => void;
-  onResetDefaultData: () => void;
   onOpenUserManagement?: () => void;
   isSuperAdmin?: boolean;
 }
@@ -15,7 +14,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   settings,
   user,
   onSave,
-  onResetDefaultData,
   onOpenUserManagement,
   isSuperAdmin = false,
 }) => {
@@ -183,15 +181,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-          <button
-            type="button"
-            onClick={onResetDefaultData}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-          >
-            <RotateCcw className="w-4 h-4 text-slate-500" /> Khôi Phục Dữ Liệu Mẫu Mặc Định
-          </button>
-
+        <div className="flex items-center justify-end gap-4 pt-2">
           <button
             type="submit"
             className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-all"

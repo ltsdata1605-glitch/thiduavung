@@ -7,7 +7,6 @@ import {
   BossValidationResult,
   cleanKenhValue 
 } from '../utils/parser';
-import { sampleTSVTextRealtime, sampleTSVTextLuyKe, sampleTSVBossText } from '../data/sampleData';
 import { 
   ClipboardPaste, 
   Zap, 
@@ -218,31 +217,22 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const [isLuyKeLockedVung, setIsLuyKeLockedVung] = useState(true);
 
   // Input text states for Tỉnh & Vùng
-  const [realtimeTextTinh, setRealtimeTextTinh] = useState(sampleTSVTextRealtime);
-  const [realtimeTextVung, setRealtimeTextVung] = useState(sampleTSVTextRealtime);
-  const [luykeTextTinh, setLuyKeTextTinh] = useState(sampleTSVTextLuyKe);
-  const [luykeTextVung, setLuyKeTextVung] = useState(sampleTSVTextLuyKe);
-  const [bossText, setBossText] = useState(sampleTSVBossText);
+  const [realtimeTextTinh, setRealtimeTextTinh] = useState('');
+  const [realtimeTextVung, setRealtimeTextVung] = useState('');
+  const [luykeTextTinh, setLuyKeTextTinh] = useState('');
+  const [luykeTextVung, setLuyKeTextVung] = useState('');
+  const [bossText, setBossText] = useState('');
 
   // File input ref for BOSS Excel import & Backup JSON import
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   // Live parsed state previews for Tỉnh & Vùng — seeded from the
-  // persisted/synced dataset owned by App; falls back to the sample only
-  // when empty (first run / nothing saved yet).
-  const [parsedRealtimeStoresTinh, setParsedRealtimeStoresTinh] = useState<StoreRecord[]>(() =>
-    currentRealtimeStoresTinh.length > 0 ? currentRealtimeStoresTinh : parsePastedData(sampleTSVTextRealtime, true)
-  );
-  const [parsedRealtimeStoresVung, setParsedRealtimeStoresVung] = useState<StoreRecord[]>(() =>
-    currentRealtimeStoresVung.length > 0 ? currentRealtimeStoresVung : parsePastedData(sampleTSVTextRealtime, true)
-  );
-  const [parsedLuyKeStoresTinh, setParsedLuyKeStoresTinh] = useState<StoreRecord[]>(() =>
-    currentLuyKeStoresTinh.length > 0 ? currentLuyKeStoresTinh : parsePastedData(sampleTSVTextLuyKe, false)
-  );
-  const [parsedLuyKeStoresVung, setParsedLuyKeStoresVung] = useState<StoreRecord[]>(() =>
-    currentLuyKeStoresVung.length > 0 ? currentLuyKeStoresVung : parsePastedData(sampleTSVTextLuyKe, false)
-  );
+  // persisted/synced dataset owned by App.
+  const [parsedRealtimeStoresTinh, setParsedRealtimeStoresTinh] = useState<StoreRecord[]>(currentRealtimeStoresTinh);
+  const [parsedRealtimeStoresVung, setParsedRealtimeStoresVung] = useState<StoreRecord[]>(currentRealtimeStoresVung);
+  const [parsedLuyKeStoresTinh, setParsedLuyKeStoresTinh] = useState<StoreRecord[]>(currentLuyKeStoresTinh);
+  const [parsedLuyKeStoresVung, setParsedLuyKeStoresVung] = useState<StoreRecord[]>(currentLuyKeStoresVung);
   // Boss Header Validation Error State
   const [bossValidationError, setBossValidationError] = useState<BossValidationResult | null>(null);
 
@@ -253,10 +243,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     progress: number;
   } | null>(null);
 
-  // Seeded from the persisted/synced dataset owned by App; falls back to the sample only when empty
-  const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(() =>
-    currentBossAssignments.length > 0 ? currentBossAssignments : parseBossPastedData(sampleTSVBossText).records
-  );
+  // Seeded from the persisted/synced dataset owned by App.
+  const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(currentBossAssignments);
 
   // Keep each table in sync when the shared dataset changes elsewhere
   // (Firestore real-time updates, other tabs/users)

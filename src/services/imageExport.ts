@@ -149,6 +149,20 @@ export async function exportElementAsImage(
   const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
   const { elementsToHide = ['.export-hide'], scale = isMobileDevice ? 1.5 : 2 } = options;
 
+  // Measure the FULL content width including all horizontally scrolled columns.
+  // The table is nested inside a .overflow-x-auto scroll container — we must
+  // measure from THAT container (or from the <table> directly), not from the
+  // card wrapper whose width is clamped to the viewport.
+  const scrollContainer = element.querySelector<HTMLElement>('.overflow-x-auto');
+  const tableEl = element.querySelector<HTMLElement>('table');
+  const innerWidth = Math.max(
+    tableEl?.scrollWidth ?? 0,
+    scrollContainer?.scrollWidth ?? 0,
+    element.scrollWidth,
+    element.offsetWidth
+  );
+  const fullScrollWidth = innerWidth;
+
   const clone = element.cloneNode(true) as HTMLElement;
 
   // Remove control bars and camera export buttons
@@ -159,51 +173,22 @@ export async function exportElementAsImage(
   // Strip all scrollbars & expand inner containers
   suppressScrollbars(clone);
 
-  // Expand any inner scrollable containers to fit full content height
+  // Expand scrollable containers to show ALL content (no clipping)
   clone.querySelectorAll<HTMLElement>('.overflow-x-auto, .overflow-y-auto, [class*="max-h-"]').forEach((container) => {
     container.style.setProperty('overflow', 'visible', 'important');
     container.style.setProperty('max-height', 'none', 'important');
     container.style.setProperty('height', 'auto', 'important');
-    container.style.setProperty('max-width', 'none', 'important');
-    container.style.setProperty('width', 'max-content', 'important');
   });
 
-  // Let clone expand naturally to fit its content — do NOT clamp to viewport
-  clone.style.setProperty('width', 'max-content', 'important');
-  clone.style.setProperty('max-width', 'none', 'important');
-  clone.style.setProperty('display', 'inline-block', 'important');
+  // Set clone to the full scroll width — shows all columns that were
+  // horizontally scrolled out of view, preserving exact column proportions
+  clone.style.setProperty('width', `${fullScrollWidth}px`, 'important');
+  clone.style.setProperty('max-width', `${fullScrollWidth}px`, 'important');
+  clone.style.setProperty('min-width', `${fullScrollWidth}px`, 'important');
+  clone.style.setProperty('box-sizing', 'border-box', 'important');
 
-  // Force all inner wrapper divs to also expand
-  clone.querySelectorAll<HTMLElement>('div, section, main, header').forEach((div) => {
-    div.style.setProperty('width', 'max-content', 'important');
-    div.style.setProperty('max-width', 'none', 'important');
-    div.style.setProperty('min-width', 'auto', 'important');
-    div.style.setProperty('margin-left', '0', 'important');
-    div.style.setProperty('margin-right', '0', 'important');
-  });
-
-  // Remove fixed colgroups & force auto column widths to fit content tightly when exporting
-  clone.querySelectorAll('colgroup').forEach((cg) => cg.remove());
-  clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
-    table.style.setProperty('table-layout', 'auto', 'important');
-    table.style.setProperty('width', 'max-content', 'important');
-    table.style.setProperty('box-sizing', 'border-box', 'important');
-  });
-  clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
-    cell.style.setProperty('white-space', 'nowrap', 'important');
-    cell.style.setProperty('padding-left', '8px', 'important');
-    cell.style.setProperty('padding-right', '8px', 'important');
-    cell.style.setProperty('width', 'auto', 'important');
-    cell.style.setProperty('max-width', 'none', 'important');
-    cell.style.setProperty('min-width', 'auto', 'important');
-  });
-  // Strip fixed max-width constraints on category title inner containers in clone
-  clone.querySelectorAll<HTMLElement>('[class*="max-w-"]').forEach((el) => {
-    el.style.setProperty('max-width', 'none', 'important');
-    el.style.setProperty('width', 'auto', 'important');
-  });
-
-  // Sticky columns only need to stay pinned during live scrolling
+  // Sticky columns only need to stay pinned during live scrolling — flatten
+  // them so they render in normal flow in the exported image
   clone.querySelectorAll<HTMLElement>('.sticky').forEach((el) => {
     el.style.setProperty('position', 'static', 'important');
   });
@@ -237,7 +222,7 @@ export async function exportElementAsImage(
   captureContainer.style.position = 'absolute';
   captureContainer.style.left = '-9999px';
   captureContainer.style.top = '0';
-  captureContainer.style.width = 'max-content';
+  captureContainer.style.width = `${fullScrollWidth}px`;
   captureContainer.style.maxWidth = 'none';
   captureContainer.style.display = 'inline-block';
   captureContainer.appendChild(clone);
@@ -249,54 +234,20 @@ export async function exportElementAsImage(
     fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    // Measure the actual table width — this is the authoritative width for the export
-    const tableEl = clone.querySelector('table');
-    const tableWidth = tableEl
-      ? Math.ceil(tableEl.getBoundingClientRect().width || tableEl.scrollWidth || tableEl.offsetWidth)
-      : 0;
+    const cloneRect = clone.getBoundingClientRect();
+    const cloneTop = cloneRect.top;
 
-    // If a table exists, constrain the entire clone to the table width so title
-    // headers wrap within the table boundary (matching images 1-4 style)
-    if (tableWidth > 0) {
-      clone.style.setProperty('width', `${tableWidth}px`, 'important');
-      clone.style.setProperty('max-width', `${tableWidth}px`, 'important');
-      clone.style.setProperty('min-width', `${tableWidth}px`, 'important');
-      captureContainer.style.setProperty('width', `${tableWidth}px`, 'important');
-      captureContainer.style.setProperty('max-width', `${tableWidth}px`, 'important');
-
-      clone.querySelectorAll<HTMLElement>('div, section, main, header').forEach((div) => {
-        div.style.setProperty('width', `${tableWidth}px`, 'important');
-        div.style.setProperty('max-width', `${tableWidth}px`, 'important');
-        div.style.setProperty('box-sizing', 'border-box', 'important');
-      });
-
-      // Ensure top title bar flex containers don't push title text to the right
-      clone.querySelectorAll<HTMLElement>('.justify-between, .justify-start').forEach((el) => {
-        el.style.setProperty('justify-content', 'flex-start', 'important');
-        el.style.setProperty('gap', '12px', 'important');
-      });
-    }
-
-    // Ensure title headers wrap automatically onto multiple lines if text is long
-    clone.querySelectorAll<HTMLElement>('h1, h2, h3, h4, .text-center').forEach((el) => {
-      el.style.setProperty('white-space', 'normal', 'important');
-      el.style.setProperty('word-break', 'break-word', 'important');
-      el.style.setProperty('overflow-wrap', 'break-word', 'important');
-    });
-
-    // Wait another frame for layout to settle after width adjustments
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-
-    const rect = clone.getBoundingClientRect();
-    const cloneTop = rect.top;
+    // Calculate maximum bottom coordinate of all child elements inside clone
     let maxChildBottom = 0;
     clone.querySelectorAll<HTMLElement>('*').forEach((child) => {
       const b = child.getBoundingClientRect().bottom - cloneTop;
       if (b > maxChildBottom) maxChildBottom = b;
     });
 
-    const width = tableWidth > 0 ? tableWidth : Math.ceil(rect.width || clone.scrollWidth);
-    const height = Math.ceil(Math.max(clone.scrollHeight, rect.height, maxChildBottom) + 32);
+    const width = Math.max(fullScrollWidth, Math.ceil(cloneRect.width || clone.scrollWidth));
+    const height = Math.ceil(
+      Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height, maxChildBottom) + 32
+    );
 
     const htmlToImage = await import('html-to-image');
     const blob = await htmlToImage.toBlob(clone, {
