@@ -702,7 +702,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold text-slate-800 tracking-wide uppercase">BÁO CÁO THEO NHÓM / NGÀNH HÀNG</h2>
+              <h2 className="text-sm font-extrabold text-slate-800 tracking-wide uppercase">BÁO CÁO THI ĐUA TỈNH THEO NGÀNH HÀNG</h2>
               <p className="text-xs text-slate-500 font-normal">Báo cáo tổng quan Vùng, chi tiết Tỉnh và Top/Bot theo từng Ngành hàng</p>
             </div>
           </div>
@@ -717,17 +717,6 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               <Plus className="w-4 h-4" />
               <span>Thêm bảng</span>
             </button>
-
-            {/* Quick Remarks / Nhận xét button */}
-            {onOpenTagBossModal && (
-              <button
-                onClick={onOpenTagBossModal}
-                className="px-3.5 py-2 bg-amber-200 hover:bg-amber-300 text-amber-900 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Nhận xét</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
