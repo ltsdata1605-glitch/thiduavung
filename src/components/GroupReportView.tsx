@@ -11,6 +11,7 @@ import {
   BossAssignmentRecord,
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
+import { saveGroupSummaryCardsToFirebase, getLocalCache } from '../services/storeService';
 import { ExportLoadingModal } from './ExportLoadingModal';
 import { Camera, Layers, MessageSquare, ChevronDown, Plus, X } from 'lucide-react';
 
@@ -24,6 +25,7 @@ interface GroupReportViewProps {
   selectedCategory: string;
   selectedCategoryGroup: string;
   categoryGroupMap: Record<string, string>;
+  categoryOrderMap?: Record<string, number>;
   categoryDisplayNameMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
   onOpenTagBossModal?: () => void;
@@ -377,6 +379,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   selectedProvince,
   selectedCategory,
   selectedCategoryGroup,
+  categoryGroupMap,
+  categoryOrderMap = {},
   categoryDisplayNameMap = {},
   bossAssignments = [],
   onOpenTagBossModal,
@@ -394,43 +398,110 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
       list.push('TRẢ CHẬM HOMECREDIT');
       list.push('Điện thoại Flagship Samsung Galaxy S/Z Series');
       list.push('Laptop');
+      list.push('Bảo hiểm');
     }
     return list;
   }, [stores]);
 
+  // Sort category names from top to bottom based on custom STT / order map
+  const sortedCategoryNames = useMemo(() => {
+    return [...allCategoryNames].sort((a, b) => {
+      const orderA = categoryOrderMap?.[a] ?? 999;
+      const orderB = categoryOrderMap?.[b] ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b, 'vi');
+    });
+  }, [allCategoryNames, categoryOrderMap]);
+
   const [activeCategory, setActiveCategory] = useState<string>(
-    selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT')
+    selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (sortedCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT')
   );
 
-  // BẢNG TỔNG QUAN TỈNH (CARD 1) — CÓ THỂ THÊM NHIỀU BẢNG, MỖI BẢNG TỰ QUẢN LÝ BỘ LỌC RIÊNG
-  const [summaryCards, setSummaryCards] = usePersistedState<SummaryCardConfig[]>(
-    'tnb_summary_cards',
-    [
-      {
-        id: 'card-1',
-        channels: selectedChannels.length > 0 ? selectedChannels : ALL_CHANNELS,
-        category: selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT'),
-      },
-    ]
-  );
+  // Helper to build 4 default cards from top to bottom
+  const buildDefault4Cards = (cats: string[], defaultChannels: Channel[]): SummaryCardConfig[] => {
+    const chs = defaultChannels.length > 0 ? defaultChannels : ALL_CHANNELS;
+    const cat1 = cats[0] || 'TRẢ CHẬM HOMECREDIT';
+    const cat2 = cats[1] || cats[0] || 'Điện thoại Flagship Samsung Galaxy S/Z Series';
+    const cat3 = cats[2] || cats[1] || cats[0] || 'Laptop';
+    const cat4 = cats[3] || cats[2] || cats[1] || cats[0] || 'Bảo hiểm';
+    return [
+      { id: 'card-1', channels: chs, category: cat1 },
+      { id: 'card-2', channels: chs, category: cat2 },
+      { id: 'card-3', channels: chs, category: cat3 },
+      { id: 'card-4', channels: chs, category: cat4 },
+    ];
+  };
+
+  // BẢNG TỔNG QUAN TỈNH (CARD 1) — MẶC ĐỊNH LUÔN CÓ 4 BẢNG THEO THỨ TỰ TỪ TRÊN XUỐNG, ĐỒNG BỘ FIREBASE & INDEXEDDB
+  const [summaryCards, setSummaryCards] = useState<SummaryCardConfig[]>(() => {
+    const cached = getLocalCache().groupSummaryCards;
+    if (cached && Array.isArray(cached) && cached.length >= 4) {
+      return cached;
+    }
+    try {
+      const local = localStorage.getItem('tnb_summary_cards');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length >= 4) return parsed;
+      }
+    } catch {}
+    return buildDefault4Cards(allCategoryNames, selectedChannels);
+  });
+
+  // Ensure 4 cards exist when sortedCategoryNames is loaded / updated
+  useEffect(() => {
+    setSummaryCards((prev) => {
+      if (prev.length >= 4) return prev;
+      const chs = selectedChannels.length > 0 ? selectedChannels : ALL_CHANNELS;
+      const newCards: SummaryCardConfig[] = [...prev];
+      for (let i = prev.length; i < 4; i++) {
+        const cat = sortedCategoryNames[i] || sortedCategoryNames[0] || allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT';
+        newCards.push({
+          id: `card-${Date.now()}-${i}`,
+          channels: chs,
+          category: cat,
+        });
+      }
+      try {
+        localStorage.setItem('tnb_summary_cards', JSON.stringify(newCards));
+      } catch {}
+      void saveGroupSummaryCardsToFirebase(newCards);
+      return newCards;
+    });
+  }, [sortedCategoryNames]);
+
+  const persistSummaryCards = (newCards: SummaryCardConfig[]) => {
+    setSummaryCards(newCards);
+    try {
+      localStorage.setItem('tnb_summary_cards', JSON.stringify(newCards));
+    } catch {}
+    // Persist to Firebase Firestore & IndexedDB
+    void saveGroupSummaryCardsToFirebase(newCards);
+  };
 
   const addSummaryCard = () => {
-    setSummaryCards((prev) => [
-      ...prev,
+    const nextIdx = summaryCards.length;
+    const nextCat = sortedCategoryNames[nextIdx % sortedCategoryNames.length] || activeCategory;
+    const newCards = [
+      ...summaryCards,
       {
         id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         channels: ALL_CHANNELS,
-        category: activeCategory,
+        category: nextCat,
       },
-    ]);
+    ];
+    persistSummaryCards(newCards);
   };
 
   const removeSummaryCard = (id: string) => {
-    setSummaryCards((prev) => (prev.length > 1 ? prev.filter((c) => c.id !== id) : prev));
+    if (summaryCards.length <= 1) return;
+    const newCards = summaryCards.filter((c) => c.id !== id);
+    persistSummaryCards(newCards);
   };
 
   const updateSummaryCard = (id: string, patch: Partial<SummaryCardConfig>) => {
-    setSummaryCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    const newCards = summaryCards.map((c) => (c.id === id ? { ...c, ...patch } : c));
+    persistSummaryCards(newCards);
   };
 
   const [selectedProvinceCard, setSelectedProvinceCard] = usePersistedState<string>(

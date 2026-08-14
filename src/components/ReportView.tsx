@@ -769,6 +769,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
         selectedCategory={selectedCategory}
         selectedCategoryGroup={selectedCategoryGroup}
         categoryGroupMap={categoryGroupMap}
+        categoryOrderMap={categoryOrderMap}
         categoryDisplayNameMap={categoryDisplayNameMap}
         bossAssignments={bossAssignments}
         onOpenTagBossModal={onOpenTagBossModal}

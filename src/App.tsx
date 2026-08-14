@@ -228,6 +228,11 @@ export default function App() {
       if (payload.categoryDisplayNames) {
         setCategoryDisplayNameMap(payload.categoryDisplayNames);
       }
+      if (payload.groupSummaryCards && Array.isArray(payload.groupSummaryCards) && payload.groupSummaryCards.length > 0) {
+        try {
+          localStorage.setItem('tnb_summary_cards', JSON.stringify(payload.groupSummaryCards));
+        } catch {}
+      }
     });
 
     return () => unsubscribe();
