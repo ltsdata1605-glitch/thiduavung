@@ -196,6 +196,44 @@ function suppressScrollbars(container: HTMLElement) {
 }
 
 /**
+ * Compute the highest possible pixelRatio/scale that will not exceed mobile/browser
+ * GPU texture limits (which otherwise turns the canvas 100% pitch black on iOS/Android).
+ */
+function computeSafeScale(targetWidth: number, targetHeight: number, requestedScale: number = 2.5): number {
+  const isMobile =
+    typeof navigator !== 'undefined' &&
+    (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.innerWidth < 768));
+
+  // Mobile WebKit / Safari limits: 4096px max dimension or ~12.5 Megapixels total area.
+  // Desktop browsers support up to 14000px and 64 Megapixels.
+  const maxDim = isMobile ? 4096 : 14000;
+  const maxArea = isMobile ? 12 * 1024 * 1024 : 64 * 1024 * 1024;
+
+  let safeScale = requestedScale;
+
+  // 1. Cap by max width
+  if (targetWidth * safeScale > maxDim) {
+    safeScale = Math.min(safeScale, maxDim / targetWidth);
+  }
+
+  // 2. Cap by max height
+  if (targetHeight * safeScale > maxDim) {
+    safeScale = Math.min(safeScale, maxDim / targetHeight);
+  }
+
+  // 3. Cap by total pixel buffer area
+  const projectedArea = targetWidth * safeScale * (targetHeight * safeScale);
+  if (projectedArea > maxArea) {
+    const areaScale = Math.sqrt(maxArea / (targetWidth * targetHeight));
+    safeScale = Math.min(safeScale, areaScale);
+  }
+
+  // Never drop below 0.75, round to 2 decimal places
+  return Math.max(0.75, Math.round(safeScale * 100) / 100);
+}
+
+/**
  * Clone `element`, fix everything that would otherwise render wrong/missing
  * in the export (oklch colors, scrolled-out table columns, Recharts SVGs, scrollbars),
  * then rasterize it to a PNG Blob via html-to-image.
@@ -363,10 +401,7 @@ export async function exportElementAsImage(
     const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
     const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
 
-    let finalScale = scale;
-    if (height * scale > 16000) {
-      finalScale = Math.max(1, 16000 / height);
-    }
+    const finalScale = computeSafeScale(finalWidth, height, scale);
 
     const htmlToImage = await import('html-to-image');
     const blob = await htmlToImage.toBlob(clone, {
@@ -523,10 +558,7 @@ export async function exportGroupSpecificElement(
     const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
     const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
 
-    let finalScale = scale;
-    if (height * scale > 16000) {
-      finalScale = Math.max(1, 16000 / height);
-    }
+    const finalScale = computeSafeScale(finalWidth, height, scale);
 
     const htmlToImage = await import('html-to-image');
     const blob = await htmlToImage.toBlob(clone, {

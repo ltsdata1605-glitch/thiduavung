@@ -179,6 +179,12 @@ interface ReportViewProps {
   onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups') => void;
   forceShowAllRows?: boolean;
   valueDisplayMode?: 'percent' | 'value';
+  // Only Super Admin / Admin may see the DTQĐ TB column & values (a
+  // revenue-per-sales-headcount figure sourced from the BOSS file) and the
+  // "DT Luỹ Kế / DT Realtime" value-display toggle. Editor/Viewer accounts
+  // never receive this data — defaults true so callers that don't pass it
+  // (e.g. any not-yet-updated usage) keep the previous, unrestricted behavior.
+  canViewDtQdTb?: boolean;
 }
 
 interface VerticalComparisonTableProps {
@@ -188,6 +194,7 @@ interface VerticalComparisonTableProps {
   categoryGroupMap: Record<string, string>;
   timeMode: TimeMode;
   valueDisplayMode: 'percent' | 'value';
+  canViewDtQdTb?: boolean;
   onRemoveStore: (storeKey: string) => void;
   resolveBoss: (sieuthi: string, fallbackBoss?: string) => string;
   resolveKenh: (sieuthi: string, fallbackKenh?: Channel | string) => Channel | string;
@@ -202,6 +209,7 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
   categoryGroupMap,
   timeMode,
   valueDisplayMode,
+  canViewDtQdTb = true,
   onRemoveStore,
   resolveBoss,
   resolveKenh,
@@ -333,38 +341,40 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
             })()}
           </tr>
 
-          {/* Metric Row 2: DTQĐ TB 5T2026 */}
-          <tr className="bg-slate-100 font-black text-slate-900 border-b border-slate-300 divide-x divide-slate-300">
-            <td className="p-2 font-black text-xs uppercase text-slate-800 sticky left-0 z-10 bg-slate-100 shadow-xs">
-              📊 DTQĐ TB 5T2026
-            </td>
-            {stores.map((s, idx) => {
-              const dtQdNum = parseDtQdTbNum(resolveDtQd(s.sieuthi));
-              return (
-                <td key={idx} className="p-2 text-center font-black text-xs text-slate-800">
-                  {dtQdNum > 0 ? (
-                    <span className="px-2 py-0.5 bg-white border border-slate-300 rounded-lg shadow-2xs font-extrabold text-slate-900">
-                      {formatDtQdTb(dtQdNum)}
-                    </span>
-                  ) : '-'}
-                </td>
-              );
-            })}
-            {isTwoStores && (() => {
-              const dt1 = parseDtQdTbNum(resolveDtQd(stores[0].sieuthi));
-              const dt2 = parseDtQdTbNum(resolveDtQd(stores[1].sieuthi));
-              const diffDt = Math.round(dt1 - dt2);
-              return (
-                <td className="p-2 text-center font-bold text-xs bg-slate-200/70">
-                  {diffDt !== 0 ? (
-                    <span className="font-extrabold text-slate-800">
-                      {diffDt > 0 ? `#1 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ` : `#2 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ`}
-                    </span>
-                  ) : '-'}
-                </td>
-              );
-            })()}
-          </tr>
+          {/* Metric Row 2: DTQĐ TB 5T2026 — Super Admin / Admin only */}
+          {canViewDtQdTb && (
+            <tr className="bg-slate-100 font-black text-slate-900 border-b border-slate-300 divide-x divide-slate-300">
+              <td className="p-2 font-black text-xs uppercase text-slate-800 sticky left-0 z-10 bg-slate-100 shadow-xs">
+                📊 DTQĐ TB 5T2026
+              </td>
+              {stores.map((s, idx) => {
+                const dtQdNum = parseDtQdTbNum(resolveDtQd(s.sieuthi));
+                return (
+                  <td key={idx} className="p-2 text-center font-black text-xs text-slate-800">
+                    {dtQdNum > 0 ? (
+                      <span className="px-2 py-0.5 bg-white border border-slate-300 rounded-lg shadow-2xs font-extrabold text-slate-900">
+                        {formatDtQdTb(dtQdNum)}
+                      </span>
+                    ) : '-'}
+                  </td>
+                );
+              })}
+              {isTwoStores && (() => {
+                const dt1 = parseDtQdTbNum(resolveDtQd(stores[0].sieuthi));
+                const dt2 = parseDtQdTbNum(resolveDtQd(stores[1].sieuthi));
+                const diffDt = Math.round(dt1 - dt2);
+                return (
+                  <td className="p-2 text-center font-bold text-xs bg-slate-200/70">
+                    {diffDt !== 0 ? (
+                      <span className="font-extrabold text-slate-800">
+                        {diffDt > 0 ? `#1 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ` : `#2 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ`}
+                      </span>
+                    ) : '-'}
+                  </td>
+                );
+              })()}
+            </tr>
+          )}
         </thead>
 
         {/* Table Body: Category Rows Grouped by Nhóm */}
@@ -551,8 +561,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
   onExportFull,
   onExportGroup,
   forceShowAllRows = false,
-  valueDisplayMode = 'percent',
+  valueDisplayMode: rawValueDisplayMode = 'percent',
+  canViewDtQdTb = true,
 }) => {
+  // Non-privileged accounts can never see the DT Luỹ Kế/Realtime value view
+  // even if 'value' somehow ended up in their persisted preference (e.g. the
+  // same browser was previously used by a privileged account).
+  const valueDisplayMode = canViewDtQdTb ? rawValueDisplayMode : 'percent';
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<string>('default');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -1484,6 +1499,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
             categoryGroupMap={categoryGroupMap}
             timeMode={timeMode}
             valueDisplayMode={valueDisplayMode}
+            canViewDtQdTb={canViewDtQdTb}
             onRemoveStore={(storeKey) => toggleStoreSelection(storeKey)}
             resolveBoss={resolveBoss}
             resolveKenh={resolveKenh}
