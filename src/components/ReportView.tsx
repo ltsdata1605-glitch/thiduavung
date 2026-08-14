@@ -177,11 +177,8 @@ interface ReportViewProps {
   onExportCompact?: () => void;
   onExportFull?: () => void;
   onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups') => void;
-  // Set true while an export capture is in flight — the Siêu Thị table
-  // paginates for render performance, but an exported image still needs
-  // every row, so App.tsx flips this on, waits a render tick, captures the
-  // DOM, then flips it back off.
   forceShowAllRows?: boolean;
+  valueDisplayMode?: 'percent' | 'value';
 }
 
 export const ReportView: React.FC<ReportViewProps> = ({
@@ -204,6 +201,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   onExportFull,
   onExportGroup,
   forceShowAllRows = false,
+  valueDisplayMode = 'percent',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<string>('default');
@@ -1459,9 +1457,34 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 const isTop2 = index === 1;
                 const isTop3 = index === 2;
 
-                const renderCatRate = (catName: string, fallbackMetric?: { rate: number }) => {
+                const renderCatRate = (catName: string, fallbackMetric?: { rate: number; achieved?: number }) => {
                   const catData = getCategoryData(store, catName);
                   const rateVal = catData ? catData.rate : fallbackMetric ? fallbackMetric.rate : 0;
+                  const achievedVal = catData ? catData.achieved : fallbackMetric?.achieved ? fallbackMetric.achieved : 0;
+
+                  if (valueDisplayMode === 'value') {
+                    if (achievedVal === 0) {
+                      return <span className="font-bold text-slate-400">0</span>;
+                    }
+                    return (
+                      <span
+                        className={
+                          rateVal >= 100
+                            ? 'font-black text-emerald-600 bg-emerald-50 px-1 rounded'
+                            : rateVal >= 80
+                            ? 'font-extrabold text-slate-800'
+                            : 'font-extrabold text-slate-700'
+                        }
+                      >
+                        {achievedVal >= 1000
+                          ? Math.round(achievedVal).toLocaleString('vi-VN')
+                          : achievedVal % 1 !== 0
+                          ? Number(achievedVal.toFixed(1)).toLocaleString('vi-VN')
+                          : achievedVal.toLocaleString('vi-VN')}
+                      </span>
+                    );
+                  }
+
                   if (rateVal === 0) {
                     return <span className="font-extrabold text-rose-600">0%</span>;
                   }
@@ -1641,7 +1664,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     -
                   </td>
                 ) : (
-                  categoryAverages.map(({ avgRate, cName }, cIdx) => {
+                  categoryAverages.map(({ avgRate, totalA, cName }, cIdx) => {
                     const groupName = getCategoryGroup(cName, categoryGroupMap);
                     const groupTag = getGroupTag(groupName);
 
@@ -1652,9 +1675,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       ? 'text-slate-300 font-bold'
                       : 'text-rose-500 font-bold';
 
+                    const displayFooterVal = valueDisplayMode === 'value'
+                      ? (totalA >= 1000
+                          ? Math.round(totalA).toLocaleString('vi-VN')
+                          : totalA > 0
+                          ? Number(totalA.toFixed(1)).toLocaleString('vi-VN')
+                          : '0')
+                      : (avgRate > 0 ? `${avgRate}%` : '0%');
+
                     return (
                       <td key={`tot-${cIdx}`} data-group={groupTag} className={`py-3 px-1 text-center border-r border-slate-800 bg-slate-900 ${textClass}`}>
-                        {avgRate > 0 ? `${avgRate}%` : '0%'}
+                        {displayFooterVal}
                       </td>
                     );
                   })

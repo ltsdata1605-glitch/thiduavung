@@ -315,6 +315,8 @@ interface HeaderBannerProps {
   onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups') => void;
   showSummarySection?: boolean;
   setShowSummarySection?: (show: boolean) => void;
+  valueDisplayMode?: 'percent' | 'value';
+  setValueDisplayMode?: (mode: 'percent' | 'value') => void;
   systemName?: string;
   subTitle?: string;
 }
@@ -347,6 +349,8 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   onExportGroup,
   showSummarySection = true,
   setShowSummarySection,
+  valueDisplayMode = 'percent',
+  setValueDisplayMode,
 }) => {
   const allChannels: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
 
@@ -630,6 +634,36 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               <BarChart2 className="w-3.5 h-3.5" />
               <span>{showSummarySection ? 'Thu gọn Biểu đồ' : 'Biểu đồ'}</span>
             </button>
+          )}
+
+          {/* View Mode Segmented Toggle: % vs Doanh Thu / Thực Đạt */}
+          {setValueDisplayMode && entityScope !== 'nhom' && (
+            <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-xl shrink-0 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setValueDisplayMode('percent')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                  valueDisplayMode === 'percent'
+                    ? 'bg-white text-sky-800 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title={timeMode === 'realtime' ? 'Chế độ xem % HT Target Ngày' : 'Chế độ xem % HT Dự Kiến'}
+              >
+                <span>%</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setValueDisplayMode('value')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                  valueDisplayMode === 'value'
+                    ? 'bg-white text-emerald-800 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title={timeMode === 'realtime' ? 'Chế độ xem Doanh thu Realtime' : 'Chế độ xem Doanh thu Luỹ Kế'}
+              >
+                <span>{timeMode === 'realtime' ? 'DT Realtime' : 'DT Luỹ Kế'}</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

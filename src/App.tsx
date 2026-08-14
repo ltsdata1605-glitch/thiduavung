@@ -60,6 +60,7 @@ export default function App() {
   const [selectedBoss, setSelectedBoss] = usePersistedState<string>('tnb_selectedBoss', 'ALL');
   const [selectedCategory, setSelectedCategory] = usePersistedState<string>('tnb_selectedCategory', 'ALL');
   const [selectedCategoryGroup, setSelectedCategoryGroup] = usePersistedState<string>('tnb_selectedCategoryGroup', 'ALL');
+  const [valueDisplayMode, setValueDisplayMode] = usePersistedState<'percent' | 'value'>('tnb_valueDisplayMode', 'percent');
 
   // Ngành hàng → Nhóm mapping (global, shared by every account — same idea
   // as `settings`), managed via the Category Group modal from the Report
@@ -857,6 +858,8 @@ export default function App() {
               onExportGroup={handleExportGroup}
               showSummarySection={showSummarySection}
               setShowSummarySection={setShowSummarySection}
+              valueDisplayMode={valueDisplayMode}
+              setValueDisplayMode={setValueDisplayMode}
               systemName={settings.systemName}
               subTitle={settings.subTitle}
             />
@@ -883,6 +886,7 @@ export default function App() {
                 categoryDisplayNameMap={categoryDisplayNameMap}
                 bossAssignments={bossAssignments}
                 showSummarySection={showSummarySection}
+                valueDisplayMode={valueDisplayMode}
                 stores={activeStores}
                 onOpenTagBossModal={() => setIsTagBossModalOpen(true)}
                 onExportCompact={handleExportCompact}
