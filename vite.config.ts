@@ -5,6 +5,10 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // GitHub Pages serves this repo at /thiduavung/, not the domain root —
+    // only set when the GH Actions workflow passes it; other hosts
+    // (Cloudflare, local dev) keep the default root base.
+    base: process.env.VITE_BASE_PATH || '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
