@@ -21,7 +21,12 @@ import {
   Camera,
   Smartphone,
   ShieldCheck,
-  Tv
+  Tv,
+  Check,
+  Eye,
+  EyeOff,
+  X,
+  Scale
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -213,6 +218,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 100;
 
+  // Selected stores for direct side-by-side comparison
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
+  const [isFilterToSelected, setIsFilterToSelected] = useState(false);
+
+  const toggleStoreSelection = (storeKey: string) => {
+    setSelectedStoreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(storeKey)) {
+        next.delete(storeKey);
+      } else {
+        next.add(storeKey);
+      }
+      return next;
+    });
+  };
+
   // MST -> BossAssignmentRecord lookup, built once per bossAssignments change.
   // The Siêu Thị view renders/filters/sorts up to ~700+ store rows against a
   // BOSS file of similar size; doing that with a linear .find() per row (as
@@ -256,6 +277,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
   }, [bossByMst]);
 
   // Filter stores according to active user filters
+  const hasSearch = Boolean(searchTerm.trim());
+
   const filteredStores = stores.filter((s) => {
     // Exclude stores with channel "OFF" or "LƯU ĐỘNG"
     const effectiveKenh = resolveKenh(s.sieuthi, s.kenh);
@@ -275,14 +298,24 @@ export const ReportView: React.FC<ReportViewProps> = ({
       return false;
     }
 
+    const storeKey = s.id || s.sieuthi;
+
+    // If user activated comparison mode, only show the selected stores
+    if (isFilterToSelected && selectedStoreIds.size > 0) {
+      return selectedStoreIds.has(storeKey) || selectedStoreIds.has(s.sieuthi);
+    }
+
     // Channel filter (derived from BOSS file assignments)
     if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) {
       return false;
     }
-    // Province filter
-    if (selectedProvince !== 'ALL' && s.tinh !== selectedProvince) {
+
+    // Province filter: ONLY applied when NOT searching
+    // ("khi gõ tìm kiếm sẽ tìm kiếm all dữ liệu tỉnh, không bị giới hạn bởi bộ lọc tỉnh")
+    if (!hasSearch && selectedProvince !== 'ALL' && s.tinh !== selectedProvince) {
       return false;
     }
+
     // Boss filter
     if (selectedBoss !== 'ALL') {
       const effectiveBoss = resolveBoss(s.sieuthi, s.boss);
@@ -290,8 +323,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
         return false;
       }
     }
-    // Search filter
-    if (searchTerm.trim()) {
+
+    // Search filter: Searches across ALL provinces when user types a keyword
+    if (hasSearch) {
       const term = searchTerm.toLowerCase();
       const matchSieuThi = s.sieuthi.toLowerCase().includes(term);
       const matchTinh = s.tinh.toLowerCase().includes(term);
@@ -1133,6 +1167,57 @@ export const ReportView: React.FC<ReportViewProps> = ({
           </div>
         </div>
 
+        {/* Comparison Floating / Highlight Bar (when 1 or more stores are selected) */}
+        {!isProvinceView && selectedStoreIds.size > 0 && (
+          <div className="mx-3.5 mb-3 p-2.5 bg-gradient-to-r from-slate-900 via-sky-900 to-indigo-950 text-white rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-3 animate-fade-in border border-sky-600/50">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs">
+                {selectedStoreIds.size}
+              </span>
+              <span className="font-extrabold text-xs text-amber-200">
+                Đã chọn {selectedStoreIds.size} siêu thị để so sánh hiệu quả thi đua
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFilterToSelected(!isFilterToSelected)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 ${
+                  isFilterToSelected
+                    ? 'bg-amber-400 text-slate-950 hover:bg-amber-300 ring-2 ring-amber-300'
+                    : 'bg-sky-500 hover:bg-sky-400 text-white'
+                }`}
+              >
+                {isFilterToSelected ? (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5" />
+                    <span>Hiện tất cả siêu thị ({storesToDisplay.length})</span>
+                  </>
+                ) : (
+                  <>
+                    <Scale className="w-3.5 h-3.5" />
+                    <span>Chỉ so sánh {selectedStoreIds.size} siêu thị này</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedStoreIds(new Set());
+                  setIsFilterToSelected(false);
+                }}
+                className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                title="Bỏ chọn tất cả siêu thị"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Bỏ chọn</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Scrollable Data Table matching user screenshot #4 header design */}
         <div className="overflow-x-auto overflow-y-visible select-none border border-slate-200 rounded-none">
           <table className="w-full text-left border-separate border-spacing-0 text-xs whitespace-nowrap table-fixed">
@@ -1341,16 +1426,49 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   );
                 };
 
-                const rowBgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+                const storeKey = store.id || store.sieuthi;
+                const isSelected = selectedStoreIds.has(storeKey) || selectedStoreIds.has(store.sieuthi);
+
+                const rowBgClass = isSelected
+                  ? 'bg-sky-100/90 font-medium'
+                  : index % 2 === 0
+                  ? 'bg-white'
+                  : 'bg-slate-50';
 
                 return (
                   <tr
                     key={store.id}
                     className={`hover:bg-indigo-100 transition-colors ${rowBgClass}`}
                   >
-                    {/* Rank STT — sticky (frozen) column */}
-                    <td style={{ left: FROZEN_LEFT.stt }} className={`sticky z-10 py-2 px-2 text-center border-r border-b border-slate-200 font-sans ${rowBgClass}`}>
-                      <span className="font-bold text-slate-600 text-xs">#{index + 1}</span>
+                    {/* Rank STT — sticky (frozen) column with Compare Checkbox */}
+                    <td
+                      style={{ left: FROZEN_LEFT.stt }}
+                      className={`sticky z-10 py-2 px-1 text-center border-r border-b border-slate-200 font-sans ${rowBgClass}`}
+                    >
+                      {!isProvinceView ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStoreSelection(storeKey);
+                          }}
+                          title={isSelected ? "Bỏ chọn so sánh siêu thị này" : "Chọn siêu thị này để so sánh"}
+                          className="group/btn flex items-center justify-center gap-1 mx-auto cursor-pointer focus:outline-none"
+                        >
+                          <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
+                            isSelected 
+                              ? 'bg-sky-600 border-sky-600 text-white shadow-xs' 
+                              : 'border-slate-300 bg-white group-hover/btn:border-sky-400'
+                          }`}>
+                            {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                          </span>
+                          <span className={`font-bold text-xs ${isSelected ? 'text-sky-800' : 'text-slate-600'}`}>
+                            #{index + 1}
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="font-bold text-slate-600 text-xs">#{index + 1}</span>
+                      )}
                     </td>
 
                     {/* Tỉnh — sticky (frozen) column */}
