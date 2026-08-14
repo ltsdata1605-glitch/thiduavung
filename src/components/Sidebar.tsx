@@ -67,14 +67,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      onMouseEnter={() => setIsCollapsed(false)}
-      onMouseLeave={() => setIsCollapsed(true)}
       className={`sticky top-0 h-screen shrink-0 flex flex-col bg-white border-r border-slate-200/80 transition-all duration-300 ease-in-out shadow-lg z-40 select-none ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
-      {/* Brand Header */}
-      <div className="flex items-center h-16 border-b border-slate-100 bg-slate-50/50 px-3 overflow-hidden">
+      {/* Brand Header & Toggle Button (Only expands/collapses when clicking the logo) */}
+      <button
+        type="button"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="flex items-center h-16 border-b border-slate-100 bg-slate-50/50 px-3 overflow-hidden cursor-pointer hover:bg-slate-100/80 transition-colors w-full text-left focus:outline-hidden"
+        title={isCollapsed ? 'Nhấn vào logo để mở rộng Menu' : 'Nhấn vào logo để thu gọn Menu'}
+      >
         {!isCollapsed ? (
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3 min-w-0">
@@ -101,7 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <ChevronRight className="w-3.5 h-3.5 text-slate-400 absolute right-1 top-1/2 -translate-y-1/2 opacity-70" />
           </div>
         )}
-      </div>
+      </button>
 
       {/* Navigation Menu */}
       <nav className="flex-1 px-3 py-4 space-y-2">
