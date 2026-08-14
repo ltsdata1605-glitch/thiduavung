@@ -4,7 +4,6 @@ import {
   formatStoreDisplayName,
   getChannelForStore,
   getCategoryData,
-  resolveCategoryDisplayName,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
@@ -44,17 +43,18 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   selectedCategoryGroup = 'ALL',
   bossAssignments = [],
   categoryDisplayNameMap = {},
-  timeModeName = 'Realtime',
+  timeModeName = 'Luỹ kế',
   lastUpdated,
 }) => {
   const [copied, setCopied] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
   const [customText, setCustomText] = useState<string>('');
 
+  const isLuyKe = !timeModeName.toLowerCase().includes('real');
   const safeStores = stores || [];
-  const modeIcon = timeModeName.toLowerCase().includes('real') ? '⚡' : '📈';
-  const modeTitle = timeModeName.toLowerCase().includes('real') ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
-  const fullTime = lastUpdated || `19:53:30 NGÀY 13/8/2026`;
+  const modeIcon = isLuyKe ? '📈' : '⚡';
+  const modeTitle = isLuyKe ? 'CẬP NHẬT LUỸ KẾ' : 'CẬP NHẬT REALTIME';
+  const fullTime = lastUpdated || `19:59:24 NGÀY 13/8/2026`;
 
   const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
   const provinceName = isSpecificProvince ? selectedProvince.toUpperCase() : '';
@@ -84,59 +84,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 
   const totalCatCount = activeCategoryList.length || 38;
 
-  // 2. Overall Metrics for the current scope
-  const totalTarget = useMemo(() => filteredStores.reduce((acc, s) => acc + (s.target || 0), 0), [filteredStores]);
-  const totalAchieved = useMemo(() => filteredStores.reduce((acc, s) => acc + (s.achieved || 0), 0), [filteredStores]);
-  const totalRate = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
-  const remaining = totalTarget - totalAchieved;
-  const isSurpassed = remaining <= 0 && totalTarget > 0;
-  const totalSummaryLine = isSurpassed
-    ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${totalRate}%) - Hoàn thành xuất sắc mục tiêu!`
-    : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
-
-  // 3. Store Ranking (No tags, clean display names)
-  const storeRanking = useMemo(() => {
-    return [...filteredStores]
-      .map((s) => {
-        const target = s.target || 0;
-        const achieved = s.achieved || 0;
-
-        let achievedCategories = 0;
-        if (activeCategoryList.length > 0) {
-          activeCategoryList.forEach((cat) => {
-            const data = getCategoryData(s, cat);
-            if ((data.rate || 0) >= 100) {
-              achievedCategories += 1;
-            }
-          });
-        }
-
-        const rate =
-          selectedCategory !== 'ALL'
-            ? target > 0
-              ? (achieved / target) * 100
-              : 0
-            : activeCategoryList.length > 0
-            ? (achievedCategories / activeCategoryList.length) * 100
-            : s.rate !== undefined
-            ? s.rate
-            : target > 0
-            ? (achieved / target) * 100
-            : 0;
-
-        return {
-          tinh: s.tinh,
-          storeName: formatStoreDisplayName(s.sieuthi),
-          target,
-          achieved,
-          achievedCategories,
-          rate,
-        };
-      })
-      .sort((a, b) => b.rate - a.rate);
-  }, [filteredStores, activeCategoryList, selectedCategory]);
-
-  // 4. Province Ranking (Aggregated across all stores in each province)
+  // 2. Province Ranking (Aggregated across all stores in each province matching selectedChannels)
   const provinceRanking = useMemo(() => {
     const map = new Map<string, {
       target: number;
@@ -177,7 +125,12 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
           activeCategoryList.forEach((cat) => {
             const c = stat.catTotals[cat];
             if (c) {
-              const catRate = c.target > 0 ? (c.achieved / c.target) * 100 : (c.count > 0 ? c.rateSum / c.count : 0);
+              // In Luỹ Kế: average % HT Dự Kiến across stores in the province for that category
+              // In Realtime: calculate % from daily target vs realtime achieved (or average per-store rate)
+              const catRate = isLuyKe
+                ? (c.count > 0 ? Math.round(c.rateSum / c.count) : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0))
+                : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0));
+
               if (catRate >= 100) achievedCategories += 1;
             }
           });
@@ -186,12 +139,12 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
         const rate =
           selectedCategory !== 'ALL'
             ? stat.target > 0
-              ? (stat.achieved / stat.target) * 100
+              ? Math.round((stat.achieved / stat.target) * 100)
               : 0
             : activeCategoryList.length > 0
-            ? (achievedCategories / activeCategoryList.length) * 100
+            ? Math.round((achievedCategories / activeCategoryList.length) * 100)
             : stat.target > 0
-            ? (stat.achieved / stat.target) * 100
+            ? Math.round((stat.achieved / stat.target) * 100)
             : 0;
 
         return {
@@ -203,8 +156,108 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
           storesCount: stat.storesCount,
         };
       })
-      .sort((a, b) => b.rate - a.rate);
-  }, [safeStores, bossAssignments, selectedChannels, activeCategoryList, selectedCategory]);
+      .sort((a, b) => {
+        if (b.achievedCategories !== a.achievedCategories) {
+          return b.achievedCategories - a.achievedCategories;
+        }
+        return b.rate - a.rate;
+      });
+  }, [safeStores, bossAssignments, selectedChannels, activeCategoryList, selectedCategory, isLuyKe]);
+
+  // 3. Region-wide total category metrics
+  const regionMetrics = useMemo(() => {
+    const regionCatTotals: Record<string, { target: number; achieved: number; rateSum: number; count: number }> = {};
+    let totalTargetVal = 0;
+    let totalAchievedVal = 0;
+
+    safeStores.forEach((s) => {
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
+      if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
+
+      totalTargetVal += (s.target || 0);
+      totalAchievedVal += (s.achieved || 0);
+
+      if (s.categoryMap) {
+        Object.entries(s.categoryMap).forEach(([cat, data]) => {
+          const c = regionCatTotals[cat] || { target: 0, achieved: 0, rateSum: 0, count: 0 };
+          c.target += (data.target || 0);
+          c.achieved += (data.achieved || 0);
+          c.rateSum += (data.rate || 0);
+          c.count += 1;
+          regionCatTotals[cat] = c;
+        });
+      }
+    });
+
+    let vungAchievedCatCount = 0;
+    if (activeCategoryList.length > 0) {
+      activeCategoryList.forEach((cat) => {
+        const c = regionCatTotals[cat];
+        if (c) {
+          const catRate = isLuyKe
+            ? (c.count > 0 ? Math.round(c.rateSum / c.count) : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0))
+            : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0));
+          if (catRate >= 100) vungAchievedCatCount += 1;
+        }
+      });
+    }
+
+    const vungRate = totalCatCount > 0 ? Math.round((vungAchievedCatCount / totalCatCount) * 100) : 0;
+    return {
+      totalTarget: totalTargetVal,
+      totalAchieved: totalAchievedVal,
+      vungAchievedCatCount,
+      vungRate,
+    };
+  }, [safeStores, bossAssignments, selectedChannels, activeCategoryList, totalCatCount, isLuyKe]);
+
+  // 4. Store Ranking (No tags, clean display names)
+  const storeRanking = useMemo(() => {
+    return [...filteredStores]
+      .map((s) => {
+        const target = s.target || 0;
+        const achieved = s.achieved || 0;
+
+        let achievedCategories = 0;
+        if (activeCategoryList.length > 0) {
+          activeCategoryList.forEach((cat) => {
+            const data = getCategoryData(s, cat);
+            if ((data.rate || 0) >= 100) {
+              achievedCategories += 1;
+            }
+          });
+        }
+
+        const rate =
+          selectedCategory !== 'ALL'
+            ? target > 0
+              ? Math.round((achieved / target) * 100)
+              : 0
+            : activeCategoryList.length > 0
+            ? Math.round((achievedCategories / activeCategoryList.length) * 100)
+            : s.rate !== undefined
+            ? Math.round(s.rate)
+            : target > 0
+            ? Math.round((achieved / target) * 100)
+            : 0;
+
+        return {
+          tinh: s.tinh,
+          storeName: formatStoreDisplayName(s.sieuthi),
+          target,
+          achieved,
+          achievedCategories,
+          rate,
+        };
+      })
+      .sort((a, b) => {
+        if (b.achievedCategories !== a.achievedCategories) {
+          return b.achievedCategories - a.achievedCategories;
+        }
+        return b.rate - a.rate;
+      });
+  }, [filteredStores, activeCategoryList, selectedCategory]);
 
   // Highlights
   const top1Province = provinceRanking[0];
@@ -212,6 +265,12 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 
   const top1Store = storeRanking[0];
   const low1Store = storeRanking[storeRanking.length - 1];
+
+  const totalTarget = isSpecificProvince ? filteredStores.reduce((acc, s) => acc + (s.target || 0), 0) : regionMetrics.totalTarget;
+  const totalAchieved = isSpecificProvince ? filteredStores.reduce((acc, s) => acc + (s.achieved || 0), 0) : regionMetrics.totalAchieved;
+  const totalRate = isSpecificProvince
+    ? (totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0)
+    : regionMetrics.vungRate;
 
   // =========================================================================
   // TEMPLATES FOR TAB VÙNG (Scope = Toàn Vùng TNB)
@@ -247,9 +306,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 
     return `${modeIcon} ${modeTitle} - BẢNG XẾP HẠNG THI ĐUA CÁC TỈNH VÙNG TNB - ${fullTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ TOÀN VÙNG:
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
+📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
 
 🏆 TOP TỈNH DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
@@ -263,10 +321,9 @@ ${botLines || 'Đang cập nhật'}
     modeIcon,
     modeTitle,
     fullTime,
+    regionMetrics,
     totalTarget,
     totalAchieved,
-    totalRate,
-    totalSummaryLine,
     selectedCategory,
     totalCatCount,
   ]);
@@ -301,9 +358,8 @@ ${botLines || 'Đang cập nhật'}
 
     return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ TOÀN VÙNG TNB - ${fullTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ VÙNG:
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
+📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
 
 🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
@@ -317,10 +373,9 @@ ${botLines || 'Đang cập nhật'}
     modeIcon,
     modeTitle,
     fullTime,
+    regionMetrics,
     totalTarget,
     totalAchieved,
-    totalRate,
-    totalSummaryLine,
     selectedCategory,
     totalCatCount,
   ]);
@@ -354,9 +409,8 @@ ${botLines || 'Đang cập nhật'}
 
     return `${modeIcon} TÓM TẮT KẾT QUẢ THI ĐUA TỈNH TNB - ${fullTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ VÙNG:
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
+📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
 
 🏆 TOP 3 TỈNH DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
@@ -369,10 +423,9 @@ ${botLines || 'Đang cập nhật'}
     provinceRanking,
     modeIcon,
     fullTime,
+    regionMetrics,
     totalTarget,
     totalAchieved,
-    totalRate,
-    totalSummaryLine,
     selectedCategory,
     totalCatCount,
   ]);
@@ -413,7 +466,6 @@ ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${provinceName}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
 
 🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
@@ -431,7 +483,6 @@ ${botLines || 'Đang cập nhật'}
     totalTarget,
     totalAchieved,
     totalRate,
-    totalSummaryLine,
     selectedCategory,
     totalCatCount,
   ]);
@@ -454,7 +505,6 @@ ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${provinceName}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
 
 🚨 DANH SÁCH SIÊU THỊ CẦN CẢI THIỆN TIẾN ĐỘ:
 ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
@@ -468,7 +518,6 @@ ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
     modeIcon,
     totalAchieved,
     totalRate,
-    totalSummaryLine,
     selectedCategory,
     totalCatCount,
   ]);
@@ -505,7 +554,6 @@ ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${provinceName}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
 
 🏆 TOP SIÊU THỊ DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
@@ -522,7 +570,6 @@ ${botLines || 'Đang cập nhật'}
     totalTarget,
     totalAchieved,
     totalRate,
-    totalSummaryLine,
     selectedCategory,
     totalCatCount,
   ]);
@@ -586,8 +633,8 @@ ${botLines || 'Đang cập nhật'}
                 </div>
                 <div className="text-xs font-bold text-emerald-600">
                   {isSpecificProvince
-                    ? (top1Store ? `${Math.round(top1Store.rate)}%` : '-')
-                    : (top1Province ? `${Math.round(top1Province.rate)}%` : '-')}
+                    ? (top1Store ? `${top1Store.achievedCategories}/${totalCatCount} (${Math.round(top1Store.rate)}%)` : '-')
+                    : (top1Province ? `${top1Province.achievedCategories}/${totalCatCount} (${Math.round(top1Province.rate)}%)` : '-')}
                 </div>
               </div>
             </div>
@@ -607,8 +654,8 @@ ${botLines || 'Đang cập nhật'}
                 </div>
                 <div className="text-xs font-bold text-rose-600">
                   {isSpecificProvince
-                    ? (low1Store ? `${Math.round(low1Store.rate)}%` : '-')
-                    : (low1Province ? `${Math.round(low1Province.rate)}%` : '-')}
+                    ? (low1Store ? `${low1Store.achievedCategories}/${totalCatCount} (${Math.round(low1Store.rate)}%)` : '-')
+                    : (low1Province ? `${low1Province.achievedCategories}/${totalCatCount} (${Math.round(low1Province.rate)}%)` : '-')}
                 </div>
               </div>
             </div>
