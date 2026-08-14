@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { TimeMode, EntityScope, Channel } from '../types';
-import { resolveCategoryDisplayName } from '../utils/parser';
+import { resolveCategoryDisplayName, checkDataFreshness } from '../utils/parser';
 import {
   Zap,
   TrendingUp,
@@ -22,7 +22,8 @@ import {
   Tv,
   Trash2,
   Search,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 const DEFAULT_CATEGORY_GROUP: Record<string, string> = {
@@ -456,14 +457,32 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </button>
           </div>
 
-          <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-bold text-slate-600 flex flex-wrap items-center gap-2 mt-0.5">
-              <span className="flex items-center gap-1.5 text-slate-600">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                THỜI GIAN ĐẾN: {lastUpdated}
-              </span>
-            </p>
-          </div>
+          {(() => {
+            const freshness = checkDataFreshness(lastUpdated, 60);
+            return (
+              <div className="min-w-0">
+                {freshness.isOutdated ? (
+                  <div
+                    title="Dữ liệu chưa được cập nhật trong hơn 1 giờ qua hoặc chưa cập nhật mới!"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border-2 border-rose-400 text-rose-700 rounded-xl font-black text-xs sm:text-sm shadow-xs animate-pulse"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-rose-600 animate-bounce shrink-0" />
+                    <span className="tracking-tight uppercase">THỜI GIAN ĐẾN: {freshness.displayText}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-rose-600 text-white font-black rounded-md tracking-wider uppercase shrink-0">
+                      Chưa cập nhật mới
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs sm:text-sm font-extrabold text-slate-700 flex flex-wrap items-center gap-2 mt-0.5">
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 border border-emerald-200 text-emerald-800 rounded-xl shadow-2xs font-extrabold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                      THỜI GIAN ĐẾN: {freshness.displayText}
+                    </span>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Mode Control Button Group */}

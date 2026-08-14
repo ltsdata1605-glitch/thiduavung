@@ -877,8 +877,6 @@ ${botLines || 'Đang cập nhật'}
       : templateTinhSummary
     : activeTemplateTab === 'template_1'
     ? templateVungRankingTinh
-    : activeTemplateTab === 'template_2'
-    ? templateVungTopBotStore
     : templateVungSummary;
 
   const activeMessage = customText || currentTemplateText;
@@ -966,58 +964,88 @@ ${botLines || 'Đang cập nhật'}
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
-              <button
-                onClick={() => {
-                  setActiveTemplateTab('template_1');
-                  setCustomText('');
-                }}
-                className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTemplateTab === 'template_1' && !customText
-                    ? 'bg-white text-amber-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="truncate">
-                  {isSpecificProvince ? 'Mẫu 1: TOP/BOT ST' : 'Mẫu 1: Xếp hạng Tỉnh'}
-                </span>
-              </button>
+            {isSpecificProvince ? (
+              /* Scope TỈNH: 3 Mẫu */
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
+                <button
+                  onClick={() => {
+                    setActiveTemplateTab('template_1');
+                    setCustomText('');
+                  }}
+                  className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeTemplateTab === 'template_1' && !customText
+                      ? 'bg-white text-amber-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="truncate">Mẫu 1: TOP/BOT ST</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setActiveTemplateTab('template_2');
-                  setCustomText('');
-                }}
-                className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTemplateTab === 'template_2' && !customText
-                    ? 'bg-white text-rose-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                <span className="truncate">
-                  {isSpecificProvince ? 'Mẫu 2: DS Cần tăng tốc' : 'Mẫu 2: TOP/BOT Siêu thị'}
-                </span>
-              </button>
+                <button
+                  onClick={() => {
+                    setActiveTemplateTab('template_2');
+                    setCustomText('');
+                  }}
+                  className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeTemplateTab === 'template_2' && !customText
+                      ? 'bg-white text-rose-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span className="truncate">Mẫu 2: DS Cần tăng tốc</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setActiveTemplateTab('template_3');
-                  setCustomText('');
-                }}
-                className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTemplateTab === 'template_3' && !customText
-                    ? 'bg-white text-sky-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                <span className="truncate">
-                  Mẫu 3: Tóm tắt {isSpecificProvince ? 'Tỉnh' : 'Vùng'}
-                </span>
-              </button>
-            </div>
+                <button
+                  onClick={() => {
+                    setActiveTemplateTab('template_3');
+                    setCustomText('');
+                  }}
+                  className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeTemplateTab === 'template_3' && !customText
+                      ? 'bg-white text-sky-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                  <span className="truncate">Mẫu 3: Tóm tắt Tỉnh</span>
+                </button>
+              </div>
+            ) : (
+              /* Scope VÙNG: 2 Mẫu */
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                <button
+                  onClick={() => {
+                    setActiveTemplateTab('template_1');
+                    setCustomText('');
+                  }}
+                  className={`py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeTemplateTab === 'template_1' && !customText
+                      ? 'bg-white text-amber-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Flame className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="truncate">Mẫu 1: Xếp hạng Tỉnh (TOP/BOT)</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTemplateTab('template_2');
+                    setCustomText('');
+                  }}
+                  className={`py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    activeTemplateTab === 'template_2' && !customText
+                      ? 'bg-white text-sky-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Zap className="w-4 h-4 text-sky-500 shrink-0" />
+                  <span className="truncate">Mẫu 2: Tóm tắt Vùng (Top/Bot Tỉnh)</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Text Area Content */}

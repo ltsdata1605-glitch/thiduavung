@@ -42,6 +42,7 @@ export interface StoreRecord {
   dennangluong: { achieved: number; rate: number };
   baohanh: { achieved: number; rate: number };
   
+  achievedCategories?: number;
   lastUpdated?: string;
 }
 

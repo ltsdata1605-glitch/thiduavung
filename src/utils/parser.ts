@@ -951,3 +951,59 @@ export function getCategoryData(
   return { target: 0, achieved: 0, rate: 0 };
 }
 
+export interface DataFreshnessInfo {
+  isOutdated: boolean;
+  ageMinutes: number;
+  displayText: string;
+}
+
+/**
+ * Checks whether data lastUpdated timestamp is older than 60 minutes.
+ * If older or missing, triggers blinking warning indicator.
+ */
+export function checkDataFreshness(lastUpdated?: string, maxAllowedMinutes: number = 60): DataFreshnessInfo {
+  if (!lastUpdated || !lastUpdated.trim()) {
+    return { isOutdated: true, ageMinutes: 999999, displayText: 'Chưa cập nhật' };
+  }
+
+  const cleaned = lastUpdated.replace(/THỜI GIAN ĐẾN:\s*/i, '').trim();
+
+  try {
+    // Extract time (HH:mm[:ss]) and date (DD/MM[/YYYY])
+    const timeMatch = cleaned.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+    const dateMatch = cleaned.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+
+    if (timeMatch) {
+      const hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      const seconds = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+
+      const now = new Date();
+      let day = now.getDate();
+      let month = now.getMonth();
+      let year = now.getFullYear();
+
+      if (dateMatch) {
+        day = parseInt(dateMatch[1], 10);
+        month = parseInt(dateMatch[2], 10) - 1;
+        if (dateMatch[3]) {
+          year = dateMatch[3].length === 2 ? 2000 + parseInt(dateMatch[3], 10) : parseInt(dateMatch[3], 10);
+        }
+      }
+
+      const updatedDate = new Date(year, month, day, hours, minutes, seconds);
+      const diffMs = now.getTime() - updatedDate.getTime();
+      const ageMinutes = Math.floor(diffMs / (1000 * 60));
+
+      // Outdated if older than maxAllowedMinutes (> 1 hour) or negative due to clock skew
+      const isOutdated = ageMinutes > maxAllowedMinutes || ageMinutes < -120;
+      return { isOutdated, ageMinutes, displayText: cleaned };
+    }
+  } catch (err) {
+    console.warn('Error checking data freshness:', err);
+  }
+
+  return { isOutdated: false, ageMinutes: 0, displayText: cleaned };
+}
+
+

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, resolveCategoryDisplayName, formatCategoryHeaderTitle, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
 import { GroupReportView } from './GroupReportView';
 import { 
   Trophy, 
@@ -181,6 +181,320 @@ interface ReportViewProps {
   valueDisplayMode?: 'percent' | 'value';
 }
 
+interface VerticalComparisonTableProps {
+  stores: StoreRecord[];
+  displayedCategoryNames: string[];
+  categoryDisplayNameMap: Record<string, string>;
+  categoryGroupMap: Record<string, string>;
+  timeMode: TimeMode;
+  valueDisplayMode: 'percent' | 'value';
+  onRemoveStore: (storeKey: string) => void;
+  resolveBoss: (sieuthi: string, fallbackBoss?: string) => string;
+  resolveKenh: (sieuthi: string, fallbackKenh?: Channel | string) => Channel | string;
+  resolveDtQd: (sieuthi: string) => string;
+  totalCatCount: number;
+}
+
+const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
+  stores,
+  displayedCategoryNames,
+  categoryDisplayNameMap,
+  categoryGroupMap,
+  timeMode,
+  valueDisplayMode,
+  onRemoveStore,
+  resolveBoss,
+  resolveKenh,
+  resolveDtQd,
+  totalCatCount,
+}) => {
+  const groupedCategories = useMemo(() => {
+    const map = new Map<string, { groupName: string; cats: string[]; style: ReturnType<typeof getPresetGroupStyle> }>();
+    displayedCategoryNames.forEach((cat) => {
+      const style = getPresetGroupStyle(cat, categoryGroupMap);
+      const groupName = style.label;
+      if (!map.has(groupName)) {
+        map.set(groupName, { groupName, cats: [], style });
+      }
+      map.get(groupName)!.cats.push(cat);
+    });
+    return Array.from(map.values());
+  }, [displayedCategoryNames, categoryGroupMap]);
+
+  const isTwoStores = stores.length === 2;
+
+  return (
+    <div className="overflow-x-auto select-none border border-slate-200 shadow-xs bg-white">
+      <table className="w-full text-left border-collapse text-xs table-auto">
+        {/* Table Header: Stores Info */}
+        <thead>
+          <tr className="bg-slate-900 text-white divide-x divide-slate-800">
+            <th className="p-3.5 font-black uppercase text-xs sm:text-sm tracking-wider w-64 min-w-[260px] sticky left-0 z-20 bg-slate-900 shadow-md">
+              <div className="flex items-center gap-2">
+                <Scale className="w-4 h-4 text-amber-400" />
+                <span>CHỈ SỐ / NGÀNH HÀNG</span>
+              </div>
+            </th>
+            {stores.map((s, idx) => {
+              const storeKey = s.sieuthi;
+              const boss = resolveBoss(s.sieuthi, s.boss);
+              const kenh = resolveKenh(s.sieuthi, s.kenh);
+              return (
+                <th
+                  key={storeKey || idx}
+                  className="p-3.5 text-center min-w-[200px] max-w-[260px] bg-slate-900"
+                >
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="flex items-center justify-between w-full gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-5 h-5 rounded-full bg-sky-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+                          #{idx + 1}
+                        </span>
+                        <span className="font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
+                          {formatStoreDisplayName(s.sieuthi)}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveStore(storeKey)}
+                        className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0"
+                        title="Bỏ siêu thị này khỏi so sánh"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-1">
+                      <span className="px-2 py-0.5 bg-slate-800 text-slate-200 rounded-md text-[10px] font-extrabold border border-slate-700">
+                        {s.tinh}
+                      </span>
+                      <span className="px-2 py-0.5 bg-sky-950 text-sky-300 rounded-md text-[10px] font-extrabold border border-sky-800">
+                        {kenh}
+                      </span>
+                      {boss && boss !== 'Chưa phân công' && (
+                        <span className="px-2 py-0.5 bg-purple-950 text-purple-300 rounded-md text-[10px] font-extrabold border border-purple-800 truncate max-w-[120px]">
+                          {boss}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </th>
+              );
+            })}
+            {isTwoStores && (
+              <th className="p-3.5 text-center min-w-[140px] max-w-[180px] bg-slate-950 text-amber-300 font-black text-xs uppercase tracking-wider">
+                CHÊNH LỆCH
+              </th>
+            )}
+          </tr>
+
+          {/* Metric Row 1: Tổng Ngành Đạt (>= 100%) */}
+          <tr className="bg-amber-50 font-black text-slate-900 border-b border-amber-200 divide-x divide-amber-200">
+            <td className="p-3 font-black text-xs uppercase text-amber-950 sticky left-0 z-10 bg-amber-50 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span>🎯 SỐ NGÀNH ĐẠT</span>
+                <span className="text-[10px] text-amber-700 font-bold">(&ge; 100%)</span>
+              </div>
+            </td>
+            {stores.map((s, idx) => {
+              const count = s.achievedCategories || 0;
+              const rate = totalCatCount > 0 ? Math.round((count / totalCatCount) * 100) : 0;
+              return (
+                <td key={idx} className="p-3 text-center font-black text-sm text-slate-900">
+                  <span className="text-emerald-700">{count}</span>
+                  <span className="text-slate-400">/{totalCatCount}</span>
+                  <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    {rate}%
+                  </span>
+                </td>
+              );
+            })}
+            {isTwoStores && (() => {
+              const count1 = stores[0].achievedCategories || 0;
+              const count2 = stores[1].achievedCategories || 0;
+              const diff = count1 - count2;
+              const rate1 = totalCatCount > 0 ? Math.round((count1 / totalCatCount) * 100) : 0;
+              const rate2 = totalCatCount > 0 ? Math.round((count2 / totalCatCount) * 100) : 0;
+              const diffRate = rate1 - rate2;
+              return (
+                <td className="p-3 text-center font-black text-xs bg-amber-100/60">
+                  {diff > 0 ? (
+                    <span className="text-emerald-800 font-black">
+                      #1 hơn +{diff} ngành ({diffRate > 0 ? `+${diffRate}%` : `${diffRate}%`})
+                    </span>
+                  ) : diff < 0 ? (
+                    <span className="text-sky-800 font-black">
+                      #2 hơn +{Math.abs(diff)} ngành ({diffRate < 0 ? `+${Math.abs(diffRate)}%` : `${diffRate}%`})
+                    </span>
+                  ) : (
+                    <span className="text-slate-600 font-bold">Ngang nhau</span>
+                  )}
+                </td>
+              );
+            })()}
+          </tr>
+
+          {/* Metric Row 2: DTQĐ TB 5T2026 */}
+          <tr className="bg-slate-100 font-black text-slate-900 border-b-2 border-slate-300 divide-x divide-slate-300">
+            <td className="p-3 font-black text-xs uppercase text-slate-800 sticky left-0 z-10 bg-slate-100 shadow-xs">
+              📊 DTQĐ TB 5T2026
+            </td>
+            {stores.map((s, idx) => {
+              const dtQd = resolveDtQd(s.sieuthi);
+              return (
+                <td key={idx} className="p-3 text-center font-black text-xs text-slate-800">
+                  {dtQd && dtQd !== '-' ? (
+                    <span className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg shadow-2xs font-extrabold text-slate-900">
+                      {dtQd} {typeof dtQd === 'number' || !isNaN(Number(dtQd)) ? 'tỷ' : ''}
+                    </span>
+                  ) : '-'}
+                </td>
+              );
+            })}
+            {isTwoStores && (() => {
+              const dt1 = parseDtQdTbNum(resolveDtQd(stores[0].sieuthi));
+              const dt2 = parseDtQdTbNum(resolveDtQd(stores[1].sieuthi));
+              const diffDt = dt1 - dt2;
+              return (
+                <td className="p-3 text-center font-bold text-xs bg-slate-200/70">
+                  {diffDt !== 0 ? (
+                    <span className="font-extrabold text-slate-800">
+                      {diffDt > 0 ? `#1 hơn +${diffDt.toFixed(3)} tỷ` : `#2 hơn +${Math.abs(diffDt).toFixed(3)} tỷ`}
+                    </span>
+                  ) : '-'}
+                </td>
+              );
+            })()}
+          </tr>
+        </thead>
+
+        {/* Table Body: Category Rows Grouped by Nhóm */}
+        <tbody className="divide-y divide-slate-200">
+          {groupedCategories.map((group, gIdx) => {
+            return (
+              <React.Fragment key={group.groupName || gIdx}>
+                {/* Group Banner Header */}
+                <tr className={`${group.style.band} font-black border-y border-slate-300 shadow-2xs`}>
+                  <td
+                    colSpan={stores.length + (isTwoStores ? 2 : 1)}
+                    className="py-2.5 px-4 font-black uppercase text-xs tracking-wider sticky left-0 z-10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-900/30"></span>
+                      <span>{group.groupName} ({group.cats.length} ngành hàng)</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Rows per Category */}
+                {group.cats.map((cat, cIdx) => {
+                  const catDisplayName = resolveCategoryDisplayName(cat, categoryDisplayNameMap);
+                  const isEven = cIdx % 2 === 0;
+
+                  const storeValues = stores.map((s) => {
+                    const data = getCategoryData(s, cat);
+                    return {
+                      target: data.target || 0,
+                      achieved: data.achieved || 0,
+                      rate: data.rate || 0,
+                    };
+                  });
+
+                  return (
+                    <tr
+                      key={cat}
+                      className={`hover:bg-amber-50/60 transition-colors divide-x divide-slate-200 ${
+                        isEven ? 'bg-white' : 'bg-slate-50/70'
+                      }`}
+                    >
+                      {/* Column 1: Category Name */}
+                      <td className={`py-2.5 px-3.5 font-bold text-xs text-slate-800 sticky left-0 z-10 shadow-xs ${isEven ? 'bg-white' : 'bg-slate-50'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-slate-400 font-mono w-4 shrink-0">#{cIdx + 1}</span>
+                          <span className="font-black text-slate-900 tracking-tight" title={catDisplayName}>
+                            {catDisplayName}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Store Columns */}
+                      {storeValues.map((val, sIdx) => {
+                        const isReached = val.rate >= 100;
+                        const isZero = val.rate === 0;
+                        const rateColorClass = isZero
+                          ? 'text-slate-400 bg-slate-100/50'
+                          : isReached
+                          ? 'text-emerald-700 font-black bg-emerald-50 border border-emerald-300'
+                          : 'text-rose-700 font-black bg-rose-50 border border-rose-300';
+
+                        return (
+                          <td key={sIdx} className="py-2.5 px-3 text-center">
+                            {valueDisplayMode === 'percent' ? (
+                              <span className={`inline-block px-3 py-1 rounded-xl text-xs font-black shadow-2xs ${rateColorClass}`}>
+                                {Math.round(val.rate)}%
+                              </span>
+                            ) : (
+                              <div className="flex flex-col items-center">
+                                <span className="font-black text-xs text-slate-900">
+                                  {Math.round(val.achieved).toLocaleString('vi-VN')}
+                                </span>
+                                {val.target > 0 && (
+                                  <span className="text-[10px] text-slate-500 font-bold">
+                                    /{Math.round(val.target).toLocaleString('vi-VN')} ({Math.round(val.rate)}%)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+
+                      {/* Diff Column for 2 stores */}
+                      {isTwoStores && (() => {
+                        const r1 = storeValues[0].rate || 0;
+                        const r2 = storeValues[1].rate || 0;
+                        const diff = Math.round(r1 - r2);
+                        if (r1 === 0 && r2 === 0) {
+                          return (
+                            <td className="py-2.5 px-3 text-center text-slate-400 text-xs">
+                              -
+                            </td>
+                          );
+                        }
+                        if (diff === 0) {
+                          return (
+                            <td className="py-2.5 px-3 text-center text-slate-500 font-bold text-xs">
+                              Bằng nhau
+                            </td>
+                          );
+                        }
+                        const isStore1Better = diff > 0;
+                        return (
+                          <td className="py-2.5 px-3 text-center">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black shadow-2xs ${
+                                isStore1Better
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-sky-100 text-sky-800 border border-sky-300'
+                              }`}
+                            >
+                              <span>{isStore1Better ? '#1 hơn' : '#2 hơn'}</span>
+                              <span>+{Math.abs(diff)}%</span>
+                            </span>
+                          </td>
+                        );
+                      })()}
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 export const ReportView: React.FC<ReportViewProps> = ({
   timeMode,
   lastUpdated,
@@ -208,17 +522,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showChartSection, setShowChartSection] = useState(true);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  // Siêu Thị (per-store) view can list 700+ rows — rendering all of them at
-  // once is what was actually slow (data pipeline itself measured under
-  // 35ms; DOM paint for the full table took 170ms-1.4s). Paginating keeps
-  // each render to a manageable row count; forceShowAllRows (set by App.tsx
-  // during an image export) bypasses this so exports still capture everything.
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
 
   // Selected stores for direct side-by-side comparison
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [isFilterToSelected, setIsFilterToSelected] = useState(false);
+  const [comparisonLayout, setComparisonLayout] = useState<'horizontal' | 'vertical'>('horizontal');
 
   const toggleStoreSelection = (storeKey: string) => {
     setSelectedStoreIds((prev) => {
@@ -596,7 +906,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     const rate = selectedCategoriesList.length === 1
       ? Math.round(s.rate || 0)
       : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
-    return { ...s, rate };
+    return { ...s, rate, achievedCategories: achievedCount };
   });
 
   // Sort stores
@@ -907,14 +1217,25 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </h3>
               <p className="text-xs sm:text-sm font-extrabold text-slate-600 flex flex-wrap items-center gap-2 mt-1">
                 <span className="text-red-600 font-black">{subHeaderTitle}</span>
-                {lastUpdated && (
-                  <>
-                    <span className="text-slate-300">|</span>
-                    <span className="text-sky-700 font-black">
-                      Update: {lastUpdated.replace(/THỜI GIAN ĐẾN:\s*/i, '').replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '')}
-                    </span>
-                  </>
-                )}
+                {lastUpdated && (() => {
+                  const freshness = checkDataFreshness(lastUpdated, 60);
+                  return (
+                    <>
+                      <span className="text-slate-300">|</span>
+                      {freshness.isOutdated ? (
+                        <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-300 font-black animate-pulse">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
+                          Update: {freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '')}
+                          <span className="text-[9px] px-1 bg-rose-600 text-white rounded-sm font-black uppercase">Cũ &gt; 1h</span>
+                        </span>
+                      ) : (
+                        <span className="text-sky-700 font-black">
+                          Update: {freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '')}
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
               </p>
             </div>
           </div>
@@ -1051,7 +1372,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setIsFilterToSelected(!isFilterToSelected)}
@@ -1074,11 +1395,39 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 )}
               </button>
 
+              {/* Chuyển Bảng Dọc / Bảng Ngang */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isFilterToSelected) setIsFilterToSelected(true);
+                  setComparisonLayout(comparisonLayout === 'vertical' ? 'horizontal' : 'vertical');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5 border ${
+                  comparisonLayout === 'vertical' && isFilterToSelected
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-300 ring-2 ring-emerald-300'
+                    : 'bg-indigo-600/90 hover:bg-indigo-500 text-white border-indigo-400/50'
+                }`}
+                title="Chuyển đổi giữa Chế độ Bảng Dọc (so sánh từng dòng ngành hàng) và Bảng Ngang"
+              >
+                {comparisonLayout === 'vertical' && isFilterToSelected ? (
+                  <>
+                    <Grid className="w-3.5 h-3.5" />
+                    <span>Xem Bảng ngang</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpDown className="w-3.5 h-3.5" />
+                    <span>Xem Bảng dọc</span>
+                  </>
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
                   setSelectedStoreIds(new Set());
                   setIsFilterToSelected(false);
+                  setComparisonLayout('horizontal');
                 }}
                 className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
                 title="Bỏ chọn tất cả siêu thị"
@@ -1090,8 +1439,24 @@ export const ReportView: React.FC<ReportViewProps> = ({
           </div>
         )}
 
-        {/* Scrollable Data Table matching user screenshot #4 header design */}
-        <div className="overflow-x-auto overflow-y-visible select-none border border-slate-200 rounded-none">
+        {/* If in Vertical Comparison Mode, render VerticalComparisonTable */}
+        {!isProvinceView && isFilterToSelected && comparisonLayout === 'vertical' && sortedStores.length > 0 ? (
+          <VerticalComparisonTable
+            stores={sortedStores}
+            displayedCategoryNames={displayedCategoryNames}
+            categoryDisplayNameMap={categoryDisplayNameMap}
+            categoryGroupMap={categoryGroupMap}
+            timeMode={timeMode}
+            valueDisplayMode={valueDisplayMode}
+            onRemoveStore={(storeKey) => toggleStoreSelection(storeKey)}
+            resolveBoss={resolveBoss}
+            resolveKenh={resolveKenh}
+            resolveDtQd={resolveDtQd}
+            totalCatCount={displayedCategoryNames.length}
+          />
+        ) : (
+          /* Scrollable Data Table matching user screenshot #4 header design */
+          <div className="overflow-x-auto overflow-y-visible select-none border border-slate-200 rounded-none">
           <table className="w-full text-left border-separate border-spacing-0 text-xs whitespace-nowrap table-fixed">
             {/* table-fixed makes the <col> widths below authoritative instead of
                 merely a hint — without it, browsers just widen a column to fit
@@ -1524,8 +1889,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
             </tbody>
           </table>
         </div>
+        )}
 
-        {!showAllRows && totalPages > 1 && (
+        {!showAllRows && totalPages > 1 && !(isFilterToSelected && comparisonLayout === 'vertical') && (
           <div className="export-hide flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50/80">
             <span className="text-xs font-bold text-slate-500">
               {`Hiển thị ${pageStartIndex + 1}–${Math.min(pageStartIndex + PAGE_SIZE, sortedStores.length)} / ${sortedStores.length} siêu thị`}
