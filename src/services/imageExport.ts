@@ -11,7 +11,7 @@
  *     before capture so every column ends up in the image.
  */
 
-import { getStoreCodeOnly } from '../utils/parser';
+import { formatStoreDisplayName } from '../utils/parser';
 
 /** Resolve oklch()/color-mix() computed colors to rgb() so the exported PNG doesn't render them as black. */
 function fixOklchColors(root: HTMLElement) {
@@ -207,16 +207,11 @@ export async function exportElementAsImage(
 ): Promise<Blob | null> {
   const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
 
-  // Measure the FULL content width including all horizontally scrolled columns.
-  // The table is nested inside a .overflow-x-auto scroll container — we must
-  // measure from THAT container (or from the <table> directly), not from the
-  // card wrapper whose width is clamped to the viewport.
   const scrollContainer = element.querySelector<HTMLElement>('.overflow-x-auto');
   const tableEl = element.querySelector<HTMLElement>('table');
   const liveTableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
   const liveScrollWidth = scrollContainer ? Math.ceil(Math.max(scrollContainer.scrollWidth, scrollContainer.offsetWidth)) : 0;
-  const liveElementWidth = Math.ceil(Math.max(element.scrollWidth, element.offsetWidth));
-  const fullContentWidth = Math.max(liveTableWidth, liveScrollWidth, liveElementWidth, 600);
+  const isMultiColumnTable = (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 20) || (liveTableWidth > 800);
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -225,17 +220,12 @@ export async function exportElementAsImage(
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
   });
 
-  // Shorten all store names to warehouse code (mã kho) only in exported image
+  // Display full store names in all exported images (except comparison mode which formats itself)
   clone.querySelectorAll<HTMLElement>('[data-store-name], .store-name-cell').forEach((el) => {
     const raw = el.getAttribute('data-store-name') || el.textContent || '';
     if (raw) {
-      el.textContent = getStoreCodeOnly(raw);
+      el.textContent = formatStoreDisplayName(raw);
     }
-  });
-
-  // Tighten store column width in colgroups if present
-  clone.querySelectorAll<HTMLTableColElement>('col.col-sieuthi, col[data-col="sieuthi"]').forEach((col) => {
-    col.style.width = '120px';
   });
 
   // Strip all scrollbars & expand inner containers
@@ -253,20 +243,21 @@ export async function exportElementAsImage(
     container.style.setProperty('overflow', 'visible', 'important');
     container.style.setProperty('max-height', 'none', 'important');
     container.style.setProperty('height', 'auto', 'important');
-    container.style.setProperty('width', `${fullContentWidth}px`, 'important');
+    container.style.setProperty('width', 'max-content', 'important');
     container.style.setProperty('max-width', 'none', 'important');
   });
 
   clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
-    table.style.setProperty('width', `${fullContentWidth}px`, 'important');
-    table.style.setProperty('min-width', `${fullContentWidth}px`, 'important');
-    table.style.setProperty('max-width', `${fullContentWidth}px`, 'important');
+    table.style.setProperty('width', 'max-content', 'important');
+    table.style.setProperty('min-width', 'auto', 'important');
+    table.style.setProperty('max-width', 'none', 'important');
+    table.style.setProperty('table-layout', 'auto', 'important');
   });
 
-  // Set clone dimensions explicitly to full content width
-  clone.style.setProperty('width', `${fullContentWidth}px`, 'important');
-  clone.style.setProperty('min-width', `${fullContentWidth}px`, 'important');
-  clone.style.setProperty('max-width', `${fullContentWidth}px`, 'important');
+  // Set clone dimensions to fit content
+  clone.style.setProperty('width', 'max-content', 'important');
+  clone.style.setProperty('min-width', 'auto', 'important');
+  clone.style.setProperty('max-width', 'none', 'important');
   clone.style.setProperty('height', 'auto', 'important');
   clone.style.setProperty('min-height', 'auto', 'important');
   clone.style.setProperty('max-height', 'none', 'important');
@@ -315,9 +306,8 @@ export async function exportElementAsImage(
   captureContainer.style.zIndex = '-9999';
   captureContainer.style.opacity = '0';
   captureContainer.style.pointerEvents = 'none';
-  captureContainer.style.width = `${fullContentWidth}px`;
-  captureContainer.style.minWidth = `${fullContentWidth}px`;
-  captureContainer.style.maxWidth = `${fullContentWidth}px`;
+  captureContainer.style.width = 'max-content';
+  captureContainer.style.maxWidth = 'none';
   captureContainer.style.display = 'block';
   captureContainer.style.backgroundColor = '#ffffff';
   captureContainer.appendChild(clone);
@@ -332,7 +322,12 @@ export async function exportElementAsImage(
     // Re-measure after DOM attachment
     const tableInClone = clone.querySelector('table');
     const actualTableWidth = tableInClone ? Math.ceil(Math.max(tableInClone.scrollWidth, tableInClone.offsetWidth, tableInClone.getBoundingClientRect().width)) : 0;
-    const finalWidth = Math.max(fullContentWidth, actualTableWidth, 600);
+    
+    // For wide tables (like 38-category report), ensure full width; for compact cards (like Tab Nhóm), shrink-wrap to table width
+    let finalWidth = actualTableWidth > 0 ? actualTableWidth : Math.max(liveTableWidth, 320);
+    if (isMultiColumnTable) {
+      finalWidth = Math.max(finalWidth, liveTableWidth, liveScrollWidth);
+    }
 
     // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
@@ -350,6 +345,12 @@ export async function exportElementAsImage(
         div.style.setProperty('box-sizing', 'border-box', 'important');
       }
     });
+
+    if (tableInClone) {
+      tableInClone.style.setProperty('width', `${finalWidth}px`, 'important');
+      tableInClone.style.setProperty('min-width', `${finalWidth}px`, 'important');
+      tableInClone.style.setProperty('max-width', `${finalWidth}px`, 'important');
+    }
 
     // Calculate exact content height reliably
     const cloneScrollHeight = Math.ceil(clone.scrollHeight);
@@ -400,11 +401,11 @@ export async function exportGroupSpecificElement(
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
   });
 
-  // Shorten all store names to warehouse code (mã kho) only in exported image
+  // Display full store names in exported image (except comparison mode which formats itself)
   clone.querySelectorAll<HTMLElement>('[data-store-name], .store-name-cell').forEach((el) => {
     const raw = el.getAttribute('data-store-name') || el.textContent || '';
     if (raw) {
-      el.textContent = getStoreCodeOnly(raw);
+      el.textContent = formatStoreDisplayName(raw);
     }
   });
 
