@@ -431,8 +431,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-800 uppercase tracking-wide">BÁO CÁO THEO NHÓM / NGÀNH HÀNG</h2>
-              <p className="text-xs text-slate-500 font-normal">Báo cáo tổng quan Vùng, chi tiết Tỉnh và Top/Bot theo Ngành hàng đã chọn ở bộ lọc trên</p>
+              <h2 className="text-sm font-extrabold text-slate-800 tracking-wide uppercase">BÁO CÁO THEO NHÓM / NGÀNH HÀNG</h2>
+              <p className="text-xs text-slate-500 font-normal">Báo cáo tổng quan Vùng, chi tiết Tỉnh và Top/Bot theo từng Ngành hàng</p>
             </div>
           </div>
 
