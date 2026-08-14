@@ -143,12 +143,6 @@ const ChannelDropdownFilter: React.FC<{
   );
 };
 
-interface SummaryCardConfig {
-  id: string;
-  channels: Channel[];
-  category: string;
-}
-
 const ALL_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
 
 /** One repeatable "Tổng quan Tỉnh" card — each instance carries its own Kênh/Ngành hàng filters */
@@ -162,6 +156,7 @@ const ProvinceSummaryCard: React.FC<{
   allCategoryNames: string[];
   categoryDisplayNameMap: Record<string, string>;
   timeMode: TimeMode;
+  lastUpdated?: string;
   formattedTimeStr: string;
   isExcludedChannel: (k?: string) => boolean;
   exportingId: string | null;
@@ -176,11 +171,13 @@ const ProvinceSummaryCard: React.FC<{
   allCategoryNames,
   categoryDisplayNameMap,
   timeMode,
+  lastUpdated,
   formattedTimeStr,
   isExcludedChannel,
   exportingId,
   onExport,
 }) => {
+  const [isRemarksOpen, setIsRemarksOpen] = useState(false);
   const bannerBgClass = 'bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 border-sky-500';
   const tableHeaderBgClass = 'bg-sky-600 text-white';
   const tableHeaderBorderClass = 'border-sky-500';
@@ -188,23 +185,21 @@ const ProvinceSummaryCard: React.FC<{
 
   const elementId = `nhom-card-province-summary-${config.id}`;
 
-  // Cap the title bar's width to the table's own rendered width so a long
-  // ngành hàng name wraps onto multiple lines instead of stretching the
-  // card. useLayoutEffect (not useEffect) applies the cap before paint, so
-  // there is no flash of the stretched layout first.
   const summaryTableRef = useRef<HTMLTableElement>(null);
   const [summaryTitleMaxWidth, setSummaryTitleMaxWidth] = useState<number | undefined>(undefined);
   useLayoutEffect(() => {
     if (summaryTableRef.current) {
       setSummaryTitleMaxWidth(summaryTableRef.current.offsetWidth);
     }
-  });
+  }, []);
 
-  const channelLabel = useMemo(() => {
-    const valid = config.channels.filter((c) => !isExcludedChannel(c));
-    if (valid.length === 0 || valid.length >= ALL_CHANNELS.length) return 'All Kênh';
+  const getChannelText = (channels: Channel[]) => {
+    const valid = channels.filter((c) => !isExcludedChannel(c));
+    if (valid.length === 0 || valid.length >= 5) return 'All Kênh';
     return valid.map(getChannelLabel).join(', ');
-  }, [config.channels, isExcludedChannel]);
+  };
+
+  const channelLabel = useMemo(() => getChannelText(config.channels), [config.channels]);
 
   const provinceSummaryRows = useMemo(() => {
     const map = new Map<string, { target: number; achieved: number; rate: number }>();
@@ -214,27 +209,25 @@ const ProvinceSummaryCard: React.FC<{
       if (config.channels.length > 0 && !config.channels.includes(effectiveKenh as Channel)) return;
 
       const data = getCategoryData(s, config.category);
-      const cur = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
-      cur.target += data.target;
-      cur.achieved += data.achieved;
-      map.set(s.tinh, cur);
+      const current = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
+      const newTarget = current.target + data.target;
+      const newAchieved = current.achieved + data.achieved;
+      const newRate = newTarget > 0 ? (newAchieved / newTarget) * 100 : 0;
+      map.set(s.tinh, { target: newTarget, achieved: newAchieved, rate: newRate });
     });
 
-    const rawRows = Array.from(map.entries()).map(([tinh, d]) => {
-      const rate = d.target > 0 ? (d.achieved / d.target) * 100 : 0;
-      return {
-        tinh,
-        target: Math.round(d.target),
-        achieved: Math.round(d.achieved),
-        rate: Math.round(rate),
-      };
-    });
+    const rows = Array.from(map.entries()).map(([tinh, data]) => ({
+      tinh,
+      target: data.target,
+      achieved: data.achieved,
+      rate: data.rate,
+    }));
 
-    rawRows.sort((a, b) => b.rate - a.rate);
+    rows.sort((a, b) => b.rate - a.rate);
 
-    const totalRows = rawRows.length;
-    return rawRows.map((row, idx) => {
-      let tag = '';
+    const totalRows = rows.length;
+    return rows.map((row, idx) => {
+      let tag: 'Top' | 'Bot' | undefined = undefined;
       if (idx < 3) {
         tag = 'Top';
       } else if (idx >= totalRows - 3) {
@@ -253,12 +246,21 @@ const ProvinceSummaryCard: React.FC<{
 
   return (
     <div className="w-full min-w-0 bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id={elementId}>
-      {/* Control Bar with Channel Filter + Export/Remove Button — EXCLUDED FROM EXPORTED PNG */}
+      {/* Control Bar with Channel Filter + Remarks + Export/Remove Button — EXCLUDED FROM EXPORTED PNG */}
       <div className="export-hide p-1.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-1.5 rounded-none">
         {/* BỘ LỌC KÊNH (Dropdown bấm vào mới show) */}
         <ChannelDropdownFilter selectedChannels={config.channels} onChange={onChangeChannels} />
 
         <div className="flex items-center gap-1 shrink-0">
+          {/* Nhận xét riêng cho bảng tỉnh */}
+          <button
+            onClick={() => setIsRemarksOpen(true)}
+            title="Xem & Sao chép Nhận xét thi đua cho ngành hàng này"
+            className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
+
           {onRemove && (
             <button
               onClick={onRemove}
@@ -278,6 +280,18 @@ const ProvinceSummaryCard: React.FC<{
           </button>
         </div>
       </div>
+
+      <ProvinceRemarksModal
+        isOpen={isRemarksOpen}
+        onClose={() => setIsRemarksOpen(false)}
+        categoryName={resolveCategoryDisplayName(config.category, categoryDisplayNameMap)}
+        timeMode={timeMode}
+        lastUpdated={lastUpdated}
+        formattedTimeStr={formattedTimeStr}
+        rows={provinceSummaryRows}
+        totalSummary={totalSummary}
+        channelLabel={channelLabel}
+      />
 
       {/* Content Captured in Image: Header Banner + Table */}
       <div className="w-full p-2">
@@ -720,6 +734,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
             allCategoryNames={allCategoryNames}
             categoryDisplayNameMap={categoryDisplayNameMap}
             timeMode={timeMode}
+            lastUpdated={lastUpdated}
             formattedTimeStr={formattedTimeStr}
             isExcludedChannel={isExcludedChannel}
             exportingId={exportingId}
