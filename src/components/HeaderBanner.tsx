@@ -300,116 +300,131 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
         </div>
       </div>
 
-      {/* ROW 2: Compact Filter Bar & Export Actions Integrated into Header (Only active for VÙNG & SIÊU THỊ) */}
-      {entityScope !== 'group' && (
-        <div className="pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 pl-2">
-          {/* Filter Controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Channel Checkboxes */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">Kênh:</span>
-              {allChannels.map((ch) => {
-                const isChecked = selectedChannels.includes(ch);
-                return (
-                  <button
-                    key={ch}
-                    onClick={() => toggleChannel(ch)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all border cursor-pointer flex items-center gap-1 ${
-                      isChecked
-                        ? 'bg-blue-200 text-blue-900 border-blue-300 shadow-2xs'
-                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
-                      isChecked ? 'border-blue-400 bg-white text-blue-700' : 'border-slate-400 bg-white'
-                    }`}>
-                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                    </span>
-                    <span>{ch}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-
-            {/* Select Province Dropdown */}
-            <div className="flex items-center gap-1">
-              <label className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</label>
-              <select
-                value={selectedProvince}
-                onChange={(e) => setSelectedProvince(e.target.value)}
-                className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate"
-              >
-                <option value="ALL">Tất cả</option>
-                {provinceList.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Select Category Group Dropdown (Clickable Label Opens Modal) */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={onOpenCategoryGroupModal}
-                title="Quản lý & Cấu hình Nhóm Ngành Hàng"
-                className="text-[11px] font-bold text-slate-400 uppercase hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer transition-colors"
-              >
-                <span>Nhóm N.Hàng:</span>
-                <Settings2 className="w-3 h-3 text-indigo-500 hover:text-indigo-700" />
-              </button>
-              <select
-                value={selectedCategoryGroup}
-                onChange={(e) => setSelectedCategoryGroup(e.target.value)}
-                className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate"
-              >
-                <option value="ALL">Tất cả</option>
-                {categoryGroupList.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Select Category Dropdown (Dynamically filtered by selected Nhóm N.Hàng) */}
-            <div className="flex items-center gap-1">
-              <label className="text-[11px] font-bold text-slate-400 uppercase">Ngành hàng:</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate"
-              >
-                <option value="ALL">Tất cả</option>
-                {filteredCategoryOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.id === 'ALL' ? c.label : getShortCategoryName(c.label || c.id)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Toggle KPI Cards & Charts Section Button */}
-            {setShowSummarySection && (
-              <button
-                onClick={() => setShowSummarySection(!showSummarySection)}
-                className={`px-3 py-1 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer border shrink-0 ${
-                  showSummarySection
-                    ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
-                    : 'bg-violet-200 text-violet-900 border-violet-300 hover:bg-violet-300'
-                }`}
-                title={showSummarySection ? 'Thu gọn Biểu đồ' : 'Hiện Biểu đồ'}
-              >
-                <BarChart2 className="w-3.5 h-3.5" />
-                <span>{showSummarySection ? 'Thu gọn Biểu đồ' : 'Biểu đồ'}</span>
-              </button>
-            )}
+      {/* ROW 2: Compact Filter Bar & Export Actions Integrated into Header (Disabled when in Tab NHÓM) */}
+      <div
+        className={`pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 pl-2 transition-all ${
+          entityScope === 'group'
+            ? 'opacity-40 grayscale pointer-events-none select-none cursor-not-allowed'
+            : ''
+        }`}
+        title={entityScope === 'group' ? 'Các bộ lọc này bị vô hiệu hoá trong tab Nhóm (vui lòng dùng bộ lọc riêng trên từng bảng bên dưới)' : undefined}
+      >
+        {/* Filter Controls */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Channel Checkboxes */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">Kênh:</span>
+            {allChannels.map((ch) => {
+              const isChecked = selectedChannels.includes(ch);
+              return (
+                <button
+                  key={ch}
+                  disabled={entityScope === 'group'}
+                  onClick={() => toggleChannel(ch)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all border flex items-center gap-1 ${
+                    entityScope === 'group'
+                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                      : isChecked
+                      ? 'bg-blue-200 text-blue-900 border-blue-300 shadow-2xs cursor-pointer'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer'
+                  }`}
+                >
+                  <span className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
+                    isChecked ? 'border-blue-400 bg-white text-blue-700' : 'border-slate-400 bg-white'
+                  }`}>
+                    {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                  </span>
+                  <span>{ch}</span>
+                </button>
+              );
+            })}
           </div>
+
+          <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+
+          {/* Select Province Dropdown */}
+          <div className="flex items-center gap-1">
+            <label className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</label>
+            <select
+              disabled={entityScope === 'group'}
+              value={selectedProvince}
+              onChange={(e) => setSelectedProvince(e.target.value)}
+              className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              <option value="ALL">Tất cả</option>
+              {provinceList.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Select Category Group Dropdown (Clickable Label Opens Modal) */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              disabled={entityScope === 'group'}
+              onClick={onOpenCategoryGroupModal}
+              title="Quản lý & Cấu hình Nhóm Ngành Hàng"
+              className="text-[11px] font-bold text-slate-400 uppercase hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:hover:text-slate-400"
+            >
+              <span>Nhóm N.Hàng:</span>
+              <Settings2 className="w-3 h-3 text-indigo-500 hover:text-indigo-700" />
+            </button>
+            <select
+              disabled={entityScope === 'group'}
+              value={selectedCategoryGroup}
+              onChange={(e) => setSelectedCategoryGroup(e.target.value)}
+              className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              <option value="ALL">Tất cả</option>
+              {categoryGroupList.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Select Category Dropdown (Dynamically filtered by selected Nhóm N.Hàng) */}
+          <div className="flex items-center gap-1">
+            <label className="text-[11px] font-bold text-slate-400 uppercase">Ngành hàng:</label>
+            <select
+              disabled={entityScope === 'group'}
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              <option value="ALL">Tất cả</option>
+              {filteredCategoryOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.id === 'ALL' ? c.label : getShortCategoryName(c.label || c.id)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Toggle KPI Cards & Charts Section Button */}
+          {setShowSummarySection && (
+            <button
+              disabled={entityScope === 'group'}
+              onClick={() => setShowSummarySection(!showSummarySection)}
+              className={`px-3 py-1 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all border shrink-0 ${
+                entityScope === 'group'
+                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                  : showSummarySection
+                  ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 cursor-pointer'
+                  : 'bg-violet-200 text-violet-900 border-violet-300 hover:bg-violet-300 cursor-pointer'
+              }`}
+              title={showSummarySection ? 'Thu gọn Biểu đồ' : 'Hiện Biểu đồ'}
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>{showSummarySection ? 'Thu gọn Biểu đồ' : 'Biểu đồ'}</span>
+            </button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
