@@ -1,11 +1,12 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { StoreRecord } from '../types';
-import { 
-  parsePastedData, 
-  parseBossPastedData, 
-  BossAssignmentRecord, 
+import {
+  parsePastedData,
+  parseBossPastedData,
+  validateStoreHeaders,
+  BossAssignmentRecord,
   BossValidationResult,
-  cleanKenhValue 
+  cleanKenhValue
 } from '../utils/parser';
 import { 
   ClipboardPaste, 
@@ -235,6 +236,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const [parsedLuyKeStoresVung, setParsedLuyKeStoresVung] = useState<StoreRecord[]>(currentLuyKeStoresVung);
   // Boss Header Validation Error State
   const [bossValidationError, setBossValidationError] = useState<BossValidationResult | null>(null);
+  // Structure validation error for one of the 4 Realtime/Luỹ Kế Tỉnh/Vùng paste boxes
+  const [storeValidationError, setStoreValidationError] = useState<(BossValidationResult & { scopeName: string }) | null>(null);
 
   // Interactive Processing Overlay State
   const [processingState, setProcessingState] = useState<{
@@ -407,6 +410,15 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     setParsed: (p: StoreRecord[]) => void,
     onUpdate: (parsed: StoreRecord[], rawText: string, s?: 'tinh' | 'vung') => Promise<void> | void
   ) => {
+    // Validate BEFORE touching any lock/modal state — a bad paste (wrong
+    // sheet, wrong box, random text) gets rejected instantly instead of
+    // running the full processing overlay only to land on 0/garbage rows.
+    const validation = validateStoreHeaders(text);
+    if (!validation.isValid) {
+      setStoreValidationError({ ...validation, scopeName: `${title} (${scopeName})` });
+      return;
+    }
+
     setText(text);
     setIsRealtimeLockedTinh(true);
     setIsRealtimeLockedVung(true);
@@ -419,36 +431,49 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       progress: 25,
     });
 
-    await new Promise((r) => setTimeout(r, 60));
+    // Short yield (not a real delay) — just enough for React to paint step 1
+    // before the parse runs; parsing itself is the actual work, not this wait.
+    await new Promise((r) => setTimeout(r, 15));
 
     const parsed = parsePastedData(text, isRealtime);
     setParsed(parsed);
 
-    if (parsed.length > 0) {
-      setProcessingState({
-        title: `ĐANG TÍNH TOÁN ${title.toUpperCase()}`,
-        stepText: `📊 2. Đã đọc thành công ${parsed.length} siêu thị. Đang tính tỷ lệ % & xếp hạng...`,
-        progress: 60,
+    if (parsed.length === 0) {
+      setProcessingState(null);
+      setStoreValidationError({
+        isValid: false,
+        errorMessage: `Đã nhận diện được cấu trúc cột, nhưng không đọc được siêu thị nào từ dữ liệu đã dán (${scopeName}). Vui lòng kiểm tra lại nội dung đã dán.`,
+        missingColumns: [],
+        extraColumns: [],
+        foundColumns: validation.foundColumns,
+        scopeName: `${title} (${scopeName})`,
       });
-
-      await new Promise((r) => setTimeout(r, 60));
-
-      setProcessingState({
-        title: `ĐANG ĐỒNG BỘ NỀN FIREBASE`,
-        stepText: `☁️ 3. Đang lưu giữ liệu & đồng bộ hệ thống Firebase Database...`,
-        progress: 88,
-      });
-
-      await onUpdate(parsed, text, scope);
-
-      setProcessingState({
-        title: `HOÀN TẤT ĐỒNG BỘ DỮ LIỆU`,
-        stepText: `✨ 4. Đã phân tích & đồng bộ ${parsed.length} siêu thị (${scopeName}) lên Firebase thành công!`,
-        progress: 100,
-      });
-
-      await new Promise((r) => setTimeout(r, 300));
+      return;
     }
+
+    setProcessingState({
+      title: `ĐANG TÍNH TOÁN ${title.toUpperCase()}`,
+      stepText: `📊 2. Đã đọc thành công ${parsed.length} siêu thị. Đang tính tỷ lệ % & xếp hạng...`,
+      progress: 60,
+    });
+
+    await new Promise((r) => setTimeout(r, 15));
+
+    setProcessingState({
+      title: `ĐANG ĐỒNG BỘ NỀN FIREBASE`,
+      stepText: `☁️ 3. Đang lưu giữ liệu & đồng bộ hệ thống Firebase Database...`,
+      progress: 88,
+    });
+
+    await onUpdate(parsed, text, scope);
+
+    setProcessingState({
+      title: `HOÀN TẤT ĐỒNG BỘ DỮ LIỆU`,
+      stepText: `✨ 4. Đã phân tích & đồng bộ ${parsed.length} siêu thị (${scopeName}) lên Firebase thành công!`,
+      progress: 100,
+    });
+
+    await new Promise((r) => setTimeout(r, 150));
     setProcessingState(null);
   };
 
@@ -1331,6 +1356,73 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
               >
                 Đã Hiểu - Vui Lòng Kiểm Tra &amp; Sửa Lại File Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STORE PASTE STRUCTURE VALIDATION ERROR MODAL (4 boxes: Realtime/Luỹ Kế × Tỉnh/Vùng) */}
+      {storeValidationError && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="max-w-2xl w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 border border-red-200 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setStoreValidationError(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 shadow-sm">
+                <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-red-700 tracking-tight flex items-center gap-2">
+                  <span>❌ DỮ LIỆU DÁN VÀO Ô "{storeValidationError.scopeName.toUpperCase()}" KHÔNG ĐÚNG CẤU TRÚC</span>
+                </h3>
+                <p className="text-xs font-bold text-slate-600">
+                  {storeValidationError.errorMessage || 'Hệ thống đã tự động từ chối xử lý để tránh làm hỏng dữ liệu thi đua hiện có.'}
+                </p>
+              </div>
+            </div>
+
+            {storeValidationError.missingColumns.length > 0 && (
+              <div className="p-4 bg-red-50/80 border border-red-200 rounded-2xl space-y-1.5 text-xs">
+                <div className="font-extrabold text-red-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <XCircle className="w-4 h-4 text-red-600" />
+                  🚨 Không tìm thấy cột bắt buộc ({storeValidationError.missingColumns.length} cột):
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {storeValidationError.missingColumns.map((col, idx) => (
+                    <span key={idx} className="px-2.5 py-1 bg-red-600 text-white font-bold text-[11px] rounded-lg shadow-2xs">
+                      ❌ {col}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="text-xs font-bold text-slate-700">
+                📋 Tiêu đề cột tìm thấy trong dữ liệu bạn đã dán ({storeValidationError.foundColumns.length} cột):
+              </div>
+              <div className="bg-slate-900 text-emerald-400 font-mono text-[11px] p-2.5 rounded-xl max-h-24 overflow-y-auto leading-relaxed">
+                {storeValidationError.foundColumns.length > 0
+                  ? storeValidationError.foundColumns.join(' | ')
+                  : '(Không tìm thấy hàng tiêu đề nào)'}
+              </div>
+              <div className="text-[11px] font-semibold text-slate-500 pt-1">
+                💡 Mỗi ô Realtime/Luỹ Kế cần có ít nhất cột <strong>TARGET / CHỈ TIÊU</strong> và/hoặc <strong>ĐẠT / REALTIME / LUỸ KẾ</strong> để hệ thống nhận diện đúng bảng thi đua. Kiểm tra lại xem có dán nhầm sang ô khác, dán nhầm sheet, hay dán nhầm danh sách BOSS vào đây không.
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setStoreValidationError(null)}
+                className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Đã Hiểu - Kiểm Tra Lại Dữ Liệu Đã Dán
               </button>
             </div>
           </div>

@@ -477,7 +477,7 @@ export function validateStoreHeaders(text: string): BossValidationResult {
   const normalizeHeader = (h: string): string =>
     (h || '')
       .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/[\u0300-\u036f]/g, '')
       .replace(/đ/g, 'd')
       .replace(/Đ/g, 'D')
       .toUpperCase()
