@@ -225,11 +225,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const toggleStoreSelection = (storeKey: string) => {
     setSelectedStoreIds((prev) => {
       const next = new Set(prev);
-      if (next.has(storeKey)) {
-        next.delete(storeKey);
-      } else {
+      const isAdding = !next.has(storeKey);
+      if (isAdding) {
         next.add(storeKey);
+      } else {
+        next.delete(storeKey);
       }
+
+      // If user checks/selects a store while in compare mode or while searching:
+      // Automatically clear the search input to instantly reveal the full comparison list!
+      if (isAdding && (isFilterToSelected || searchTerm)) {
+        setSearchTerm('');
+        setIsFilterToSelected(true);
+      }
+
       return next;
     });
   };
@@ -1206,7 +1215,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 {isFilterToSelected ? (
                   <>
                     <EyeOff className="w-3.5 h-3.5" />
-                    <span>Hiện tất cả siêu thị ({storesToDisplay.length})</span>
+                    <span>Hiện tất cả siêu thị</span>
                   </>
                 ) : (
                   <>
