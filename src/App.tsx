@@ -939,6 +939,7 @@ export default function App() {
         onClose={() => setIsTagBossModalOpen(false)}
         stores={activeStores}
         timeModeName={timeMode === 'realtime' ? 'Realtime' : 'Luỹ kế'}
+        lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
       />
 
       {/* Super Admin User Management Modal */}
