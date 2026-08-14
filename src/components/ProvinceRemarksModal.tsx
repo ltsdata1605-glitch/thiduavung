@@ -61,7 +61,7 @@ export function generateProvinceRemarksText(params: {
   const channelInfo = channelLabel && channelLabel !== 'All Kênh' ? `📡 Kênh: ${channelLabel}\n` : '';
 
   return `${header}
-${channelInfo}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${channelInfo}━━━━━━━━━━━━━━
 📊 KẾT QUẢ VÙNG:
 🎯 Target: ${formatInt(totalSummary.target)} | ${modeIcon} Thực đạt: ${formatInt(totalSummary.achieved)} (${Math.round(totalSummary.rate)}%)
 ${totalSummaryLine}
@@ -71,7 +71,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT 3 TỈNH CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 💪🏼 Quyết tâm bứt phá mục tiêu hôm nay! 🔥`;
 }
 

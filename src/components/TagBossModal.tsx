@@ -270,7 +270,7 @@ export function generateReportRemarksText(params: {
       .join('\n');
 
     return `${modeIcon} ${modeTitle} - BẢNG XẾP HẠNG THI ĐUA CÁC TỈNH VÙNG TNB - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TOÀN VÙNG: ${vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${vungRate}%)
 🎯 Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
 
@@ -279,7 +279,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ CÁC TỈNH CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   } else {
     // SIÊU THỊ Tab or Specific Province: Store ranking
@@ -312,7 +312,7 @@ ${botLines || 'Đang cập nhật'}
     const scopeTitle = isSpecificProvince ? `TỈNH ${provinceName}` : 'TOÀN VÙNG TNB';
 
     return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ ${scopeTitle} - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ ${scopeTitle}:
 🎯 Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
 
@@ -321,7 +321,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   }
 }
@@ -598,7 +598,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       .join('\n');
 
     return `${modeIcon} ${modeTitle} - BẢNG XẾP HẠNG THI ĐUA CÁC TỈNH VÙNG TNB - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
 
@@ -607,7 +607,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ CÁC TỈNH CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   }, [
     provinceRanking,
@@ -650,7 +650,7 @@ ${botLines || 'Đang cập nhật'}
       .join('\n');
 
     return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ TOÀN VÙNG TNB - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
 
@@ -659,7 +659,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   }, [
     storeRanking,
@@ -701,7 +701,7 @@ ${botLines || 'Đang cập nhật'}
       .join('\n');
 
     return `${modeIcon} TÓM TẮT KẾT QUẢ THI ĐUA TỈNH TNB - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
 
@@ -710,7 +710,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT 3 TỈNH CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh các ngành hàng trọng điểm để về đích xuất sắc! 💪🏼🔥`;
   }, [
     provinceRanking,
@@ -756,7 +756,7 @@ ${botLines || 'Đang cập nhật'}
       .join('\n');
 
     return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ TỈNH ${provinceName} - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${provinceName}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 
@@ -765,7 +765,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   }, [
     storeRanking,
@@ -795,13 +795,13 @@ ${botLines || 'Đang cập nhật'}
       .join('\n');
 
     return `⚠️ DANH SÁCH SIÊU THỊ CẦN TĂNG TỐC - TỈNH ${provinceName} - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${provinceName}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 
 🚨 DANH SÁCH SIÊU THỊ CẦN CẢI THIỆN TIẾN ĐỘ:
 ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Siêu thị chủ động bám sát kế hoạch ngày, đẩy mạnh tư vấn để về đích xuất sắc! 💪🏼🔥`;
   }, [
     storeRanking,
@@ -844,7 +844,7 @@ ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
       .join('\n');
 
     return `${modeIcon} TÓM TẮT KẾT QUẢ THI ĐUA TỈNH ${provinceName} - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${provinceName}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 
@@ -853,7 +853,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT SIÊU THỊ CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để về đích xuất sắc! 💪🏼🔥`;
   }, [
     storeRanking,

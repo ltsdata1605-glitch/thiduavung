@@ -140,7 +140,7 @@ export function generateProvinceDetailRemarksText(params: {
   const header = `${modeIcon} ${modeTitle} - ${province.toUpperCase()} • ${catName.toUpperCase()} - ${fullTime}`;
 
   return `${header}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 📊 KẾT QUẢ TỈNH ${province.toUpperCase()}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 ${totalSummaryLine}
@@ -150,7 +150,7 @@ ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT 20% SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
 }
 

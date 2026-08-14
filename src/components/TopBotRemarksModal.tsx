@@ -113,13 +113,13 @@ export function generateTopBotRemarksText(params: {
   const header = `${modeIcon} ${modeTitle} - TOP/BOT ${scopeLabel}${catName.toUpperCase()} - ${fullTime}`;
 
   return `${header}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 🌟 TOP SIÊU THỊ DẪN ĐẦU (Tối đa 10 ST):
 ${topLines || 'Đang cập nhật'}
 
 ⚠️ BOT SIÊU THỊ CẦN TĂNG TỐC (Tối đa 10 ST có Target):
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━
 👉 Đề nghị các Boss chỉ đạo quyết liệt, tư vấn kèm gói giải pháp để bứt phá mục tiêu! 💪🏼🔥`;
 }
 

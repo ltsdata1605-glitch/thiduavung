@@ -29,7 +29,7 @@ export interface FirebaseDataPayload {
 // Realtime/Luỹ Kế are further split by Tỉnh vs Vùng scope — they're pasted
 // into two separate boxes in the UI and must persist independently instead
 // of overwriting each other.
-type DocKey =
+export type DocKey =
   | 'realtime_stores_tinh'
   | 'realtime_stores_vung'
   | 'luyke_stores_tinh'
@@ -308,13 +308,24 @@ export async function saveGroupSummaryCardsToFirebase(cards: any[], updatedBy: s
   return saveDataset('group_summary_cards', cards, updatedBy);
 }
 
+export interface FirebaseUpdateMeta {
+  // False for the very first snapshot each listener delivers on attach
+  // (that's just normal initial load, not a "someone else changed this"
+  // event) — true for every snapshot after that, i.e. a genuine remote
+  // change pushed while this device already had the listener open.
+  isInitial: boolean;
+  docKey: DocKey;
+}
+
 /**
  * Subscribe to realtime changes in Firebase Firestore database.
  * Listens to each dataset's document (or chunk subcollection, for the store
  * datasets) independently so one large dataset never blocks or drops
  * updates from the others.
  */
-export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPayload) => void): () => void {
+export function subscribeToFirebaseData(
+  onDataReceived: (data: FirebaseDataPayload, meta: FirebaseUpdateMeta) => void
+): () => void {
   if (!db) {
     console.warn('Firestore instance not ready. Using local cache only.');
     return () => {};
@@ -322,6 +333,9 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
 
   const unsubscribers = (Object.keys(FIELD_BY_DOC) as DocKey[]).map((docKey) => {
     const field = FIELD_BY_DOC[docKey];
+    // Captured per docKey by this listener's own closure — the first
+    // snapshot flips it, every later one for this same docKey sees it true.
+    let hasSeenFirstSnapshot = false;
 
     if (CHUNKED_STORE_DOC_KEYS.has(docKey)) {
       const chunksRef = collection(db!, COLLECTION, docKey, 'chunks');
@@ -336,6 +350,8 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
           // 700+ row table and re-stringify the local cache a second time
           // for no reason, right while the save is still in progress.
           if (snap.metadata.hasPendingWrites) return;
+          const isInitial = !hasSeenFirstSnapshot;
+          hasSeenFirstSnapshot = true;
           if (snap.empty) {
             // Not chunked yet — this dataset may still hold data saved
             // before this dataset started being chunked (single-document
@@ -346,7 +362,7 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
               if (raw?.data && Array.isArray(raw.data) && raw.data.length > 0) {
                 const partial: Partial<FirebaseDataPayload> = { [field]: raw.data } as Partial<FirebaseDataPayload>;
                 writeLocalCache(partial);
-                onDataReceived(partial);
+                onDataReceived(partial, { isInitial, docKey });
               }
             });
             return;
@@ -360,7 +376,7 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
           const merged = chunks.flatMap((c) => c.data);
           const partial: Partial<FirebaseDataPayload> = { [field]: merged } as Partial<FirebaseDataPayload>;
           writeLocalCache(partial);
-          onDataReceived(partial);
+          onDataReceived(partial, { isInitial, docKey });
         },
         (error) => {
           console.warn(`Firestore subscription notice [${docKey}] (using local cache):`, error);
@@ -375,6 +391,8 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
         // Same reasoning as the chunked-collection listener above: don't
         // reprocess our own not-yet-confirmed write.
         if (docSnap.metadata.hasPendingWrites) return;
+        const isInitial = !hasSeenFirstSnapshot;
+        hasSeenFirstSnapshot = true;
         if (docSnap.exists()) {
           const raw = docSnap.data();
           const partial: Partial<FirebaseDataPayload> = {
@@ -383,7 +401,7 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
             updatedBy: raw.updatedBy,
           } as Partial<FirebaseDataPayload>;
           writeLocalCache(partial);
-          onDataReceived(partial);
+          onDataReceived(partial, { isInitial, docKey });
         }
       },
       (error) => {

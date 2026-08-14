@@ -205,8 +205,7 @@ export async function exportElementAsImage(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-  const { elementsToHide = ['.export-hide'], scale = isMobileDevice ? 1.5 : 2 } = options;
+  const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
 
   // Measure the FULL content width including all horizontally scrolled columns.
   // The table is nested inside a .overflow-x-auto scroll container — we must
@@ -214,13 +213,10 @@ export async function exportElementAsImage(
   // card wrapper whose width is clamped to the viewport.
   const scrollContainer = element.querySelector<HTMLElement>('.overflow-x-auto');
   const tableEl = element.querySelector<HTMLElement>('table');
-  const innerWidth = Math.max(
-    tableEl?.scrollWidth ?? 0,
-    scrollContainer?.scrollWidth ?? 0,
-    element.scrollWidth,
-    element.offsetWidth
-  );
-  const fullScrollWidth = innerWidth;
+  const liveTableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
+  const liveScrollWidth = scrollContainer ? Math.ceil(Math.max(scrollContainer.scrollWidth, scrollContainer.offsetWidth)) : 0;
+  const liveElementWidth = Math.ceil(Math.max(element.scrollWidth, element.offsetWidth));
+  const fullContentWidth = Math.max(liveTableWidth, liveScrollWidth, liveElementWidth, 600);
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -257,16 +253,26 @@ export async function exportElementAsImage(
     container.style.setProperty('overflow', 'visible', 'important');
     container.style.setProperty('max-height', 'none', 'important');
     container.style.setProperty('height', 'auto', 'important');
-    container.style.setProperty('width', 'max-content', 'important');
+    container.style.setProperty('width', `${fullContentWidth}px`, 'important');
     container.style.setProperty('max-width', 'none', 'important');
   });
 
-  // Allow clone to shrink-wrap naturally to content width without empty margins
-  clone.style.setProperty('width', 'max-content', 'important');
-  clone.style.setProperty('max-width', 'none', 'important');
-  clone.style.setProperty('min-width', 'auto', 'important');
-  clone.style.setProperty('display', 'inline-block', 'important');
+  clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+    table.style.setProperty('width', `${fullContentWidth}px`, 'important');
+    table.style.setProperty('min-width', `${fullContentWidth}px`, 'important');
+    table.style.setProperty('max-width', `${fullContentWidth}px`, 'important');
+  });
+
+  // Set clone dimensions explicitly to full content width
+  clone.style.setProperty('width', `${fullContentWidth}px`, 'important');
+  clone.style.setProperty('min-width', `${fullContentWidth}px`, 'important');
+  clone.style.setProperty('max-width', `${fullContentWidth}px`, 'important');
+  clone.style.setProperty('height', 'auto', 'important');
+  clone.style.setProperty('min-height', 'auto', 'important');
+  clone.style.setProperty('max-height', 'none', 'important');
+  clone.style.setProperty('display', 'block', 'important');
   clone.style.setProperty('box-sizing', 'border-box', 'important');
+  clone.style.setProperty('background-color', '#ffffff', 'important');
 
   // Sticky columns only need to stay pinned during live scrolling — flatten
   // them so they render in normal flow in the exported image
@@ -301,13 +307,19 @@ export async function exportElementAsImage(
     }
   });
 
+  // Use fixed offscreen container with opacity 0 at origin to guarantee GPU/WebKit layout
   const captureContainer = document.createElement('div');
-  captureContainer.style.position = 'absolute';
-  captureContainer.style.left = '-9999px';
+  captureContainer.style.position = 'fixed';
+  captureContainer.style.left = '0';
   captureContainer.style.top = '0';
-  captureContainer.style.width = 'max-content';
-  captureContainer.style.maxWidth = 'none';
-  captureContainer.style.display = 'inline-block';
+  captureContainer.style.zIndex = '-9999';
+  captureContainer.style.opacity = '0';
+  captureContainer.style.pointerEvents = 'none';
+  captureContainer.style.width = `${fullContentWidth}px`;
+  captureContainer.style.minWidth = `${fullContentWidth}px`;
+  captureContainer.style.maxWidth = `${fullContentWidth}px`;
+  captureContainer.style.display = 'block';
+  captureContainer.style.backgroundColor = '#ffffff';
   captureContainer.appendChild(clone);
   document.body.appendChild(captureContainer);
 
@@ -317,50 +329,33 @@ export async function exportElementAsImage(
     fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    // Reset height constraints so grid-stretched cards don't leave empty whitespace
-    clone.style.setProperty('height', 'auto', 'important');
-    clone.style.setProperty('min-height', 'auto', 'important');
-    clone.style.setProperty('max-height', 'none', 'important');
-    clone.style.setProperty('padding-bottom', '4px', 'important');
-
+    // Re-measure after DOM attachment
     const tableInClone = clone.querySelector('table');
-    const actualTableWidth = tableInClone ? Math.ceil(tableInClone.getBoundingClientRect().width || tableInClone.scrollWidth || tableInClone.offsetWidth) : 0;
-    const cloneRect = clone.getBoundingClientRect();
-    const width = actualTableWidth > 0 ? actualTableWidth : Math.ceil(cloneRect.width || clone.scrollWidth);
+    const actualTableWidth = tableInClone ? Math.ceil(Math.max(tableInClone.scrollWidth, tableInClone.offsetWidth, tableInClone.getBoundingClientRect().width)) : 0;
+    const finalWidth = Math.max(fullContentWidth, actualTableWidth, 600);
 
     // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
-    if (width > 0) {
-      clone.style.setProperty('width', `${width}px`, 'important');
-      clone.style.setProperty('max-width', `${width}px`, 'important');
-      captureContainer.style.setProperty('width', `${width}px`, 'important');
-      captureContainer.style.setProperty('max-width', `${width}px`, 'important');
+    clone.style.setProperty('width', `${finalWidth}px`, 'important');
+    clone.style.setProperty('min-width', `${finalWidth}px`, 'important');
+    clone.style.setProperty('max-width', `${finalWidth}px`, 'important');
+    captureContainer.style.setProperty('width', `${finalWidth}px`, 'important');
+    captureContainer.style.setProperty('min-width', `${finalWidth}px`, 'important');
+    captureContainer.style.setProperty('max-width', `${finalWidth}px`, 'important');
 
-      clone.querySelectorAll<HTMLElement>('div, section, header, [id*="root"]').forEach((div) => {
-        if (div.closest('table')) return; // Never resize elements inside tables
-        if (div.classList.contains('w-full') || div.style.width === '100%') {
-          div.style.setProperty('width', `${width}px`, 'important');
-          div.style.setProperty('max-width', `${width}px`, 'important');
-          div.style.setProperty('box-sizing', 'border-box', 'important');
-        }
-      });
-    }
+    clone.querySelectorAll<HTMLElement>('div, section, header, [id*="root"]').forEach((div) => {
+      if (div.closest('table')) return; // Never resize elements inside tables
+      if (div.classList.contains('w-full') || div.style.width === '100%') {
+        div.style.setProperty('width', `${finalWidth}px`, 'important');
+        div.style.setProperty('max-width', `${finalWidth}px`, 'important');
+        div.style.setProperty('box-sizing', 'border-box', 'important');
+      }
+    });
 
-    // Calculate exact content height without extra empty padding
-    let actualContentHeight = 0;
-    const children = Array.from(clone.children) as HTMLElement[];
-    if (children.length > 0) {
-      children.forEach((child) => {
-        const childRect = child.getBoundingClientRect();
-        const childBottom = (child.offsetTop || 0) + (childRect.height || child.offsetHeight || 0);
-        if (childBottom > actualContentHeight) {
-          actualContentHeight = childBottom;
-        }
-      });
-    }
-
-    const height = actualContentHeight > 0
-      ? Math.ceil(actualContentHeight + 4)
-      : Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height));
+    // Calculate exact content height reliably
+    const cloneScrollHeight = Math.ceil(clone.scrollHeight);
+    const cloneOffsetHeight = Math.ceil(clone.offsetHeight);
+    const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
+    const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
 
     let finalScale = scale;
     if (height * scale > 16000) {
@@ -371,7 +366,7 @@ export async function exportElementAsImage(
     const blob = await htmlToImage.toBlob(clone, {
       pixelRatio: finalScale,
       backgroundColor: '#ffffff',
-      width,
+      width: finalWidth,
       height,
     });
 
@@ -397,8 +392,7 @@ export async function exportGroupSpecificElement(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
-  const { elementsToHide = ['.export-hide'], scale = isMobileDevice ? 1.5 : 2 } = options;
+  const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -427,20 +421,7 @@ export async function exportGroupSpecificElement(
     });
   }
 
-  // Force clone and all child wrapper containers to fit content tightly without extra right padding
-  clone.style.setProperty('width', 'max-content', 'important');
-  clone.style.setProperty('max-width', 'none', 'important');
-  clone.style.setProperty('display', 'inline-block', 'important');
-
-  clone.querySelectorAll<HTMLElement>('div, section, main, header, container, [id*="root"]').forEach((div) => {
-    div.style.setProperty('width', 'max-content', 'important');
-    div.style.setProperty('max-width', 'none', 'important');
-    div.style.setProperty('min-width', 'auto', 'important');
-    div.style.setProperty('margin-left', '0', 'important');
-    div.style.setProperty('margin-right', '0', 'important');
-  });
-
-  // Expand containers and force tight table width fit
+  // Allow inner containers to expand naturally to fit group columns
   clone.querySelectorAll<HTMLElement>('.overflow-x-auto, .overflow-y-auto, [class*="max-h-"]').forEach((container) => {
     container.style.setProperty('overflow', 'visible', 'important');
     container.style.setProperty('max-height', 'none', 'important');
@@ -471,15 +452,22 @@ export async function exportGroupSpecificElement(
 
   clone.querySelectorAll<HTMLElement>('.sticky').forEach((el) => {
     el.style.setProperty('position', 'static', 'important');
+    el.style.setProperty('left', 'auto', 'important');
+    el.style.setProperty('top', 'auto', 'important');
   });
 
+  // Use fixed offscreen container with opacity 0 at origin to guarantee GPU/WebKit layout
   const captureContainer = document.createElement('div');
-  captureContainer.style.position = 'absolute';
-  captureContainer.style.left = '-9999px';
+  captureContainer.style.position = 'fixed';
+  captureContainer.style.left = '0';
   captureContainer.style.top = '0';
+  captureContainer.style.zIndex = '-9999';
+  captureContainer.style.opacity = '0';
+  captureContainer.style.pointerEvents = 'none';
   captureContainer.style.width = 'max-content';
   captureContainer.style.maxWidth = 'none';
-  captureContainer.style.display = 'inline-block';
+  captureContainer.style.display = 'block';
+  captureContainer.style.backgroundColor = '#ffffff';
   captureContainer.appendChild(clone);
   document.body.appendChild(captureContainer);
 
@@ -490,36 +478,34 @@ export async function exportGroupSpecificElement(
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     const tableEl = clone.querySelector('table');
-    const tableWidth = tableEl ? Math.ceil(tableEl.getBoundingClientRect().width || tableEl.scrollWidth || tableEl.offsetWidth) : 0;
-    
-    // Explicitly constrain clone, captureContainer, and all child div containers to tableWidth
-    if (tableWidth > 0) {
-      clone.style.setProperty('width', `${tableWidth}px`, 'important');
-      clone.style.setProperty('max-width', `${tableWidth}px`, 'important');
-      clone.style.setProperty('min-width', `${tableWidth}px`, 'important');
-      captureContainer.style.setProperty('width', `${tableWidth}px`, 'important');
-      captureContainer.style.setProperty('max-width', `${tableWidth}px`, 'important');
+    const tableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
+    const finalWidth = tableWidth > 0 ? tableWidth : Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, 600));
 
-      clone.querySelectorAll<HTMLElement>('div, section, main, header, container, [id*="root"]').forEach((div) => {
-        div.style.setProperty('width', `${tableWidth}px`, 'important');
-        div.style.setProperty('max-width', `${tableWidth}px`, 'important');
-        div.style.setProperty('box-sizing', 'border-box', 'important');
-      });
+    // Explicitly constrain clone, captureContainer, and all child div containers to finalWidth
+    clone.style.setProperty('width', `${finalWidth}px`, 'important');
+    clone.style.setProperty('min-width', `${finalWidth}px`, 'important');
+    clone.style.setProperty('max-width', `${finalWidth}px`, 'important');
+    captureContainer.style.setProperty('width', `${finalWidth}px`, 'important');
+    captureContainer.style.setProperty('min-width', `${finalWidth}px`, 'important');
+    captureContainer.style.setProperty('max-width', `${finalWidth}px`, 'important');
 
-      // Ensure top title bar flex containers don't push title text to the right after export-hide elements are removed
-      clone.querySelectorAll<HTMLElement>('.justify-between, .justify-start').forEach((el) => {
-        el.style.setProperty('justify-content', 'flex-start', 'important');
-        el.style.setProperty('gap', '12px', 'important');
-      });
-    }
+    clone.querySelectorAll<HTMLElement>('div, section, main, header, container, [id*="root"]').forEach((div) => {
+      if (div.closest('table')) return;
+      div.style.setProperty('width', `${finalWidth}px`, 'important');
+      div.style.setProperty('max-width', `${finalWidth}px`, 'important');
+      div.style.setProperty('box-sizing', 'border-box', 'important');
+    });
 
-    // See the identical note in exportElementAsImage — scrollHeight/rect
-    // already reflect the fully-expanded clone; scanning every descendant's
-    // getBoundingClientRect() just to find the max bottom forces a reflow
-    // per element, which is the real cost on a large exported table.
-    const rect = clone.getBoundingClientRect();
-    const width = tableWidth > 0 ? tableWidth : Math.ceil(rect.width || clone.scrollWidth);
-    const height = Math.ceil(Math.max(clone.scrollHeight, rect.height) + 4);
+    // Ensure top title bar flex containers don't push title text to the right after export-hide elements are removed
+    clone.querySelectorAll<HTMLElement>('.justify-between, .justify-start').forEach((el) => {
+      el.style.setProperty('justify-content', 'flex-start', 'important');
+      el.style.setProperty('gap', '12px', 'important');
+    });
+
+    const cloneScrollHeight = Math.ceil(clone.scrollHeight);
+    const cloneOffsetHeight = Math.ceil(clone.offsetHeight);
+    const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
+    const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
 
     let finalScale = scale;
     if (height * scale > 16000) {
@@ -530,7 +516,7 @@ export async function exportGroupSpecificElement(
     const blob = await htmlToImage.toBlob(clone, {
       pixelRatio: finalScale,
       backgroundColor: '#ffffff',
-      width,
+      width: finalWidth,
       height,
     });
 

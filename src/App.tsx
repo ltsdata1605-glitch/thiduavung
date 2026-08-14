@@ -31,6 +31,7 @@ import {
   getIndexedDbCache,
   clearAllLocalCache,
   waitForInitialSync,
+  type DocKey,
 } from './services/storeService';
 import { usePersistedState } from './hooks/usePersistedState';
 import { exportElementAsImage, exportCategoryGroupImages } from './services/imageExport';
@@ -216,7 +217,7 @@ export default function App() {
   const [isTagBossModalOpen, setIsTagBossModalOpen] = useState(false);
   const [isUserMgmtModalOpen, setIsUserMgmtModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [toastBanner, setToastBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [toastBanner, setToastBanner] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [showSummarySection, setShowSummarySection] = useState(false);
   // Export Loading Overlay state
   const [exportModalState, setExportModalState] = useState<{
@@ -247,9 +248,37 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Human-readable labels for the datasets worth telling the user about when
+  // they change remotely (i.e. saved from another device/session). Settings,
+  // filters, category config etc. update too often/quietly to be worth a toast.
+  const REMOTE_UPDATE_LABELS: Partial<Record<DocKey, string>> = {
+    realtime_stores_tinh: 'Realtime Tỉnh',
+    realtime_stores_vung: 'Realtime Vùng',
+    luyke_stores_tinh: 'Luỹ Kế Tỉnh',
+    luyke_stores_vung: 'Luỹ Kế Vùng',
+    boss_assignments: 'Danh sách BOSS',
+  };
+
+  // Coalesces same-batch remote updates (a single save on another device
+  // typically touches 2+ docs, e.g. store data + settings, that each fire
+  // this listener within milliseconds of each other) into ONE toast instead
+  // of one per doc.
+  const pendingRemoteLabelsRef = useRef<Set<string>>(new Set());
+  const remoteUpdateToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const notifyRemoteUpdate = (label: string) => {
+    pendingRemoteLabelsRef.current.add(label);
+    if (remoteUpdateToastTimerRef.current) clearTimeout(remoteUpdateToastTimerRef.current);
+    remoteUpdateToastTimerRef.current = setTimeout(() => {
+      const labels = Array.from(pendingRemoteLabelsRef.current);
+      pendingRemoteLabelsRef.current.clear();
+      if (labels.length === 0) return;
+      showInfoToast(`🔄 Dữ liệu vừa được cập nhật từ thiết bị khác: ${labels.join(', ')} — màn hình đã tự làm mới.`);
+    }, 600);
+  };
+
   // Subscribe to Firebase Firestore Realtime Database updates
   useEffect(() => {
-    const unsubscribe = subscribeToFirebaseData((payload) => {
+    const unsubscribe = subscribeToFirebaseData((payload, meta) => {
       if (payload.realtimeStoresTinh && payload.realtimeStoresTinh.length > 0) {
         setRealtimeStoresTinh(payload.realtimeStoresTinh);
       }
@@ -287,6 +316,13 @@ export default function App() {
         try {
           localStorage.setItem('tnb_summary_cards', JSON.stringify(payload.groupSummaryCards));
         } catch {}
+      }
+
+      // Only notify for genuine remote pushes — not this listener's own
+      // initial snapshot on attach, which is just normal first load.
+      if (!meta.isInitial) {
+        const label = REMOTE_UPDATE_LABELS[meta.docKey];
+        if (label) notifyRemoteUpdate(label);
       }
     });
 
@@ -724,6 +760,14 @@ export default function App() {
     setTimeout(() => setToastBanner(null), 12000);
   };
 
+  // Passive notice that another device/session just pushed new data — no
+  // confetti (this wasn't the user's own action) but kept up long enough to
+  // actually notice on a phone that isn't being stared at.
+  const showInfoToast = (msg: string) => {
+    setToastBanner({ type: 'info', text: msg });
+    setTimeout(() => setToastBanner(null), 6000);
+  };
+
   const handleLogout = () => {
     logoutUser();
     setCurrentUser(null);
@@ -989,10 +1033,10 @@ export default function App() {
         {toastBanner && (
           <div
             className={`${
-              toastBanner.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'
+              toastBanner.type === 'error' ? 'bg-red-600' : toastBanner.type === 'info' ? 'bg-sky-600' : 'bg-emerald-600'
             } text-white px-4 py-2 text-center text-xs font-bold shadow-md animate-fade-in flex items-center justify-center gap-2 shrink-0 z-50`}
           >
-            <span>{toastBanner.type === 'error' ? '⚠️' : '✨'} {toastBanner.text}</span>
+            <span>{toastBanner.type === 'error' ? '⚠️' : toastBanner.type === 'info' ? '🔄' : '✨'} {toastBanner.text}</span>
             {toastBanner.type === 'error' && (
               <button
                 type="button"
