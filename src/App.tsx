@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount } from './types';
 import { initialUserProfile, initialSettings } from './data/sampleData';
 import { getBossForStore, extractMst, BossAssignmentRecord } from './utils/parser';
@@ -28,6 +28,7 @@ import {
   getLocalCache,
   getIndexedDbCache,
   clearAllLocalCache,
+  waitForInitialSync,
 } from './services/storeService';
 import { usePersistedState } from './hooks/usePersistedState';
 import { exportElementAsImage, exportCategoryGroupImages } from './services/imageExport';
@@ -113,42 +114,42 @@ export default function App() {
     stepText: '',
   });
 
-  const triggerCloudSyncAnimation = (customSubText?: string) => {
+  // Keeps the loading modal open until the first real Firestore read has
+  // actually landed, instead of a fixed timer — on a slow connection (mobile
+  // data, cold Firestore read) the old fixed 1.75s timer could close before
+  // any data arrived, leaving the user staring at "0 dòng" with no sign
+  // anything was still loading. Capped by a safety timeout so an unreachable
+  // Firestore never traps the user behind a stuck loading screen.
+  const CLOUD_SYNC_TIMEOUT_MS = 15000;
+  const triggerCloudSyncAnimation = async (customSubText?: string) => {
     setCloudSyncState({
       isOpen: true,
-      progress: 25,
+      progress: 20,
       stepText: '⚡ 1. Đang kết nối máy chủ dữ liệu Firebase Cloud...',
       subText: customSubText,
     });
+    await new Promise((r) => setTimeout(r, 200));
 
-    setTimeout(() => {
-      setCloudSyncState((prev) => ({
-        ...prev,
-        progress: 60,
-        stepText: '📊 2. Đang tải & tính toán tỷ lệ % Realtime & Luỹ kế...',
-      }));
-    }, 450);
+    setCloudSyncState((prev) => ({
+      ...prev,
+      progress: 55,
+      stepText: '📊 2. Đang tải dữ liệu Realtime, Luỹ kế & danh sách Boss...',
+    }));
 
-    setTimeout(() => {
-      setCloudSyncState((prev) => ({
-        ...prev,
-        progress: 88,
-        stepText: '👥 3. Đang đồng bộ danh sách Boss & bộ lọc cá nhân...',
-      }));
-    }, 900);
+    await Promise.race([
+      waitForInitialSync(),
+      new Promise((resolve) => setTimeout(resolve, CLOUD_SYNC_TIMEOUT_MS)),
+    ]);
 
-    setTimeout(() => {
-      setCloudSyncState((prev) => ({
-        ...prev,
-        progress: 100,
-        stepText: '✨ 4. Đã hoàn tất tải dữ liệu! Đang mở bảng thi đua...',
-      }));
-    }, 1350);
+    setCloudSyncState((prev) => ({
+      ...prev,
+      progress: 100,
+      stepText: '✨ Đã tải xong dữ liệu! Đang mở bảng thi đua...',
+    }));
+    await new Promise((r) => setTimeout(r, 400));
 
-    setTimeout(() => {
-      setCloudSyncState((prev) => ({ ...prev, isOpen: false }));
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
-    }, 1750);
+    setCloudSyncState((prev) => ({ ...prev, isOpen: false }));
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
   };
 
   // Modals & Notifications
@@ -313,19 +314,38 @@ export default function App() {
     })();
   }, []);
 
-  // When switching into Siêu Thị scope with no province chosen yet ("Tất cả"),
-  // default to the first province instead of leaving the list unfiltered —
-  // a fresh switch into per-store view with hundreds of rows is not useful.
-  // Only fires on an actual scope transition (via the ref), so a province the
-  // user already picked — or an explicit "Tất cả" they chose while already in
-  // Siêu Thị — is left alone.
-  const prevEntityScopeRef = useRef(entityScope);
-  useEffect(() => {
+  // Siêu Thị and Nhóm are both per-store views (hundreds of rows) — opening
+  // either with no province chosen yet ("Tất cả") renders every store in the
+  // whole vùng at once, which is what caused the lag. Default to the first
+  // province instead. The ref starts at null (not the current entityScope),
+  // so this also covers loading straight into one of these scopes on a fresh
+  // account (persisted entityScope='vung'/'nhom' but selectedProvince never
+  // set) — not just switching tabs mid-session. A province the user already
+  // picked (persisted, or an explicit "Tất cả" chosen while already in one of
+  // these scopes) is left alone — that's the "mở lần sau lấy dữ liệu đã lưu"
+  // part of the requirement.
+  // useLayoutEffect (not useEffect) so this correction lands before the
+  // browser paints — with useEffect, React committed and painted the
+  // still-unfiltered ("Tất cả") render first, then this ran and triggered a
+  // second render/paint moments later. That's the visible "loads everything,
+  // then reloads by tỉnh" flash/lag the switch felt like.
+  const prevEntityScopeRef = useRef<EntityScope | null>(null);
+  useLayoutEffect(() => {
     if (prevEntityScopeRef.current !== entityScope) {
-      if (entityScope === 'vung' && selectedProvince === 'ALL') {
+      if ((entityScope === 'vung' || entityScope === 'nhom') && selectedProvince === 'ALL') {
         const stores = timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
         const firstProvince = Array.from(new Set(stores.map((s: StoreRecord) => s.tinh))).sort()[0];
         if (firstProvince) setSelectedProvince(firstProvince);
+      } else if (entityScope === 'sieuthi') {
+        // VÙNG (the overview/rollup-by-tỉnh scope — see the naming note near
+        // the HeaderBanner buttons) is meant to show every tỉnh at once, so a
+        // narrow filter carried over from Siêu Thị/Nhóm (one tỉnh, one kênh,
+        // one ngành hàng) would silently defeat that. Every time VÙNG is
+        // selected, clear back to "Tất cả" / all kênh checked.
+        setSelectedProvince('ALL');
+        setSelectedChannels(['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
+        setSelectedCategoryGroup('ALL');
+        setSelectedCategory('ALL');
       }
       prevEntityScopeRef.current = entityScope;
     }

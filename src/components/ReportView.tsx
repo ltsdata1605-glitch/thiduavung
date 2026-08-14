@@ -525,9 +525,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return s;
   }).map((s) => {
     const achievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(s, cat).rate ?? 0) >= 100).length;
-    const rate = (selectedCategoryGroup === 'ALL' && selectedCategory === 'ALL')
-      ? Math.round(s.rate || 0)
-      : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
+    // In VÙNG (province) view, TỶ LỆ is always:
+    //   (Số nhóm %HT Dự Kiến >= 100%) / (Tổng số nhóm thi đua) * 100
+    // regardless of whether a specific group is selected or "Tất cả"
+    const rate = isProvinceView
+      ? (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0)
+      : (selectedCategoryGroup === 'ALL' && selectedCategory === 'ALL')
+        ? Math.round(s.rate || 0)
+        : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
     return { ...s, rate };
   });
 
@@ -613,6 +618,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
   };
 
+  const frozenHeaderThClass = 'border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700';
+
   const activeChannelsText =
     selectedChannels.length === 5 || selectedChannels.length === 0
       ? 'TẤT CẢ KÊNH'
@@ -620,7 +627,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   // Dynamic Header Titles
   const mainHeaderTitle = (() => {
-    const modeStr = timeMode === 'luyke' ? 'LUỸ KẾ' : 'REALTIME';
+    const modeStr = isLuyke ? 'LUỸ KẾ' : 'REALTIME';
     if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
       return `${modeStr} THI ĐUA NHÓM ${selectedCategoryGroup.toUpperCase()}`;
     }
@@ -1122,7 +1129,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('rank')}
                   style={{ left: FROZEN_LEFT.stt, top: 0 }}
-                  className="sticky z-40 py-1.5 px-1 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[36px] select-none"
+                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[36px] select-none`}
                   title="Click để sắp xếp theo STT"
                 >
                   STT {(sortField === 'rank' || sortField === 'stt') ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1131,7 +1138,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('tinh')}
                   style={{ left: FROZEN_LEFT.tinh, top: 0 }}
-                  className="sticky z-40 py-1.5 px-2 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] select-none"
+                  className={`sticky z-40 py-1.5 px-2 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] select-none`}
                   title="Click để sắp xếp theo Tỉnh"
                 >
                   TỈNH {sortField === 'tinh' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1143,7 +1150,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       rowSpan={2}
                       onClick={() => handleSort('boss')}
                       style={{ left: FROZEN_LEFT.boss, top: 0 }}
-                      className="sticky z-40 py-1.5 px-2 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[100px] select-none"
+                      className={`sticky z-40 py-1.5 px-2 ${frozenHeaderThClass} align-middle text-center w-[100px] select-none`}
                       title="Click để sắp xếp theo Boss"
                     >
                       BOSS {sortField === 'boss' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1153,7 +1160,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       rowSpan={2}
                       onClick={() => handleSort('kenh')}
                       style={{ left: FROZEN_LEFT.kenh, top: 0 }}
-                      className="sticky z-40 py-1.5 px-1 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[60px] select-none"
+                      className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] select-none`}
                       title="Click để sắp xếp theo Kênh"
                     >
                       KÊNH {sortField === 'kenh' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1163,7 +1170,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       rowSpan={2}
                       onClick={() => handleSort('sieuthi')}
                       style={{ left: FROZEN_LEFT.sieuthi, top: 0 }}
-                      className="sticky z-40 py-1.5 px-2.5 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[280px] whitespace-normal break-words leading-[1.1] select-none"
+                      className={`sticky z-40 py-1.5 px-2.5 ${frozenHeaderThClass} align-middle text-center w-[280px] whitespace-normal break-words leading-[1.1] select-none`}
                       title="Click để sắp xếp theo Siêu Thị"
                     >
                       SIÊU THỊ {sortField === 'sieuthi' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1175,7 +1182,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('achieved')}
                   style={{ left: FROZEN_LEFT.dat, top: 0 }}
-                  className="sticky z-40 py-1.5 px-1 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[60px] whitespace-normal break-words leading-[1.1] font-extrabold select-none"
+                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
                   title="Click để sắp xếp theo Đạt"
                 >
                   ĐẠT {sortField === 'achieved' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1185,7 +1192,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('rate')}
                   style={{ left: FROZEN_LEFT.tyLe, top: 0 }}
-                  className="sticky z-40 py-1.5 px-1 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[54px] whitespace-normal break-words leading-[1.1] font-extrabold select-none"
+                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[54px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
                   title="Click để sắp xếp theo Tỷ lệ %"
                 >
                   TỶ LỆ % {sortField === 'rate' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1195,7 +1202,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('dtQdTb')}
                   style={{ left: FROZEN_LEFT.dtQdTb, top: 0 }}
-                  className="export-hide sticky z-40 py-1.5 px-1 border-r border-teal-900 bg-teal-800 text-white cursor-pointer hover:bg-teal-700 align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] font-extrabold select-none text-[10px]"
+                  className={`export-hide sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] font-extrabold select-none text-[10px]`}
                   title="Click để sắp xếp theo DTQĐ TB 5T2026"
                 >
                   DTQĐ TB 5T2026 {sortField === 'dtQdTb' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}

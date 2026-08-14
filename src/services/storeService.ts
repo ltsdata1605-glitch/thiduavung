@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { doc, setDoc, getDoc, collection, writeBatch, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection, writeBatch, onSnapshot } from 'firebase/firestore';
 import { StoreRecord, AppSettings } from '../types';
 import { BossAssignmentRecord } from '../utils/parser';
 import { idbGet, idbSet } from './indexedDbCache';
@@ -379,4 +379,35 @@ export function subscribeToFirebaseData(onDataReceived: (data: FirebaseDataPaylo
   });
 
   return () => unsubscribers.forEach((unsub) => unsub());
+}
+
+/**
+ * Resolves once the first real read of every dataset has come back from
+ * Firestore (populated or genuinely empty — either way, "checked"). Used to
+ * gate the post-login loading screen on *actual* data arrival instead of a
+ * fixed timer: the previous fixed-timer version could close before slower
+ * connections (mobile data, cold Firestore reads) had delivered anything,
+ * leaving the user staring at "0 dòng" with no indication more was coming.
+ * This is a one-time imperative read; the live onSnapshot listeners set up
+ * by subscribeToFirebaseData keep running independently and are what
+ * actually keeps React state updated afterward.
+ */
+export async function waitForInitialSync(): Promise<void> {
+  if (!db) return;
+  const docKeys = Object.keys(FIELD_BY_DOC) as DocKey[];
+  await Promise.all(
+    docKeys.map(async (docKey) => {
+      try {
+        if (CHUNKED_STORE_DOC_KEYS.has(docKey)) {
+          await getDocs(collection(db!, COLLECTION, docKey, 'chunks'));
+        } else {
+          await getDoc(doc(db!, COLLECTION, docKey));
+        }
+      } catch (e) {
+        // Swallow — a failed initial read just means this particular gate
+        // resolves without data; the reactive subscription's own retry/error
+        // handling is unaffected, and the caller has its own timeout net.
+      }
+    })
+  );
 }

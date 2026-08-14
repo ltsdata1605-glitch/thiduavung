@@ -172,12 +172,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isSuperAdmin && onOpenUserManagement && (
           <button
             onClick={onOpenUserManagement}
-            className={`w-full flex items-center py-2.5 rounded-xl font-bold bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition-all cursor-pointer ${
-              isCollapsed ? 'justify-center px-0' : 'px-3 gap-2.5'
+            className={`w-full flex items-center py-3 rounded-xl font-medium transition-all duration-200 group relative text-slate-600 hover:bg-slate-100 hover:text-slate-900 ${
+              isCollapsed ? 'justify-center px-0' : 'px-3 gap-3'
             }`}
           >
-            <Shield className="w-4 h-4 text-amber-600 shrink-0" />
-            {!isCollapsed && <span className="text-xs truncate">Quản Lý Tài Khoản</span>}
+            <Shield className="w-5 h-5 shrink-0 text-slate-500 group-hover:text-blue-600 transition-transform duration-200 group-hover:scale-110" />
+
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0 text-left">
+                <div className="text-sm font-semibold leading-none">Quản Lý Tài Khoản</div>
+                <div className="text-[11px] mt-1 truncate text-slate-400">Phân quyền & Bảo mật</div>
+              </div>
+            )}
+
+            {/* Floating Tooltip on collapsed state */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap z-50 pointer-events-none shadow-xl border border-slate-700/50 flex items-center gap-1.5">
+                <span>Quản Lý Tài Khoản</span>
+                <span className="text-[10px] font-normal text-slate-400">(Phân quyền & Bảo mật)</span>
+              </div>
+            )}
           </button>
         )}
       </nav>

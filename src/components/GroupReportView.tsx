@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { StoreRecord, TimeMode, Channel } from '../types';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
@@ -12,7 +12,7 @@ import {
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
 import { ExportLoadingModal } from './ExportLoadingModal';
-import { Camera, Layers, MessageSquare } from 'lucide-react';
+import { Camera, Layers, MessageSquare, ChevronDown } from 'lucide-react';
 
 interface GroupReportViewProps {
   timeMode: TimeMode;
@@ -49,6 +49,97 @@ export function getChannelBadgeStyle(kenh: string): string {
   return 'bg-amber-100 text-amber-900 border border-amber-400 font-extrabold';
 }
 
+/** Reusable channel dropdown filter that pops over on click */
+const ChannelDropdownFilter: React.FC<{
+  selectedChannels: Channel[];
+  onChange: (channels: Channel[]) => void;
+  label?: string;
+}> = ({ selectedChannels, onChange, label = 'Kênh' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const allChannels: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
+
+  const toggleChannel = (k: Channel) => {
+    if (selectedChannels.includes(k)) {
+      if (selectedChannels.length > 1) {
+        onChange(selectedChannels.filter((c) => c !== k));
+      }
+    } else {
+      onChange([...selectedChannels, k]);
+    }
+  };
+
+  const selectAll = () => {
+    onChange(allChannels);
+  };
+
+  const displayText = useMemo(() => {
+    if (selectedChannels.length === allChannels.length) return 'Tất cả';
+    if (selectedChannels.length === 0) return 'Chọn kênh';
+    if (selectedChannels.length <= 2) return selectedChannels.join(', ');
+    return `${selectedChannels.length} Kênh`;
+  }, [selectedChannels]);
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-2.5 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 hover:bg-slate-50 focus:outline-hidden focus:ring-2 focus:ring-sky-500 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+      >
+        <span className="text-[11px] text-slate-400 font-bold uppercase">{label}:</span>
+        <span className="text-sky-700 font-extrabold">{displayText}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2.5 space-y-1.5 animate-in fade-in zoom-in-95 duration-100">
+          <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 px-1">
+            <span className="text-[11px] font-extrabold text-slate-600 uppercase">Chọn kênh ({selectedChannels.length}/5)</span>
+            <button
+              type="button"
+              onClick={selectAll}
+              className="text-[10px] font-bold text-sky-600 hover:text-sky-800 cursor-pointer"
+            >
+              Chọn tất cả
+            </button>
+          </div>
+          <div className="space-y-1">
+            {allChannels.map((k) => {
+              const checked = selectedChannels.includes(k);
+              return (
+                <label
+                  key={k}
+                  className="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded-lg cursor-pointer text-xs font-bold text-slate-700 select-none transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleChannel(k)}
+                    className="w-3.5 h-3.5 rounded text-sky-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span>{getChannelLabel(k)}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const GroupReportView: React.FC<GroupReportViewProps> = ({
   timeMode,
   lastUpdated,
@@ -79,6 +170,12 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
   const [activeCategory, setActiveCategory] = useState<string>(
     selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT')
+  );
+
+  // BỘ LỌC TỈNH CHO CẢ 3 BẢNG
+  const [selectedProvinceCard1, setSelectedProvinceCard1] = usePersistedState<string>(
+    'tnb_card1_province',
+    'ALL'
   );
 
   const [selectedProvinceCard, setSelectedProvinceCard] = usePersistedState<string>(
@@ -114,26 +211,30 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
   const [exportingId, setExportingId] = useState<string | null>(null);
 
-  // Sync state when parent filter dropdowns change
-  useEffect(() => {
-    if (selectedCategory && selectedCategory !== 'ALL') {
-      setActiveCategory(selectedCategory);
-    } else if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
-      setActiveCategory(selectedCategoryGroup);
-    }
-  }, [selectedCategory, selectedCategoryGroup]);
+  const bannerBgClass = 'bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 border-sky-500';
+  const tableHeaderBgClass = 'bg-sky-600 text-white';
+  const tableHeaderBorderClass = 'border-sky-500';
+  const tableFooterBgClass = 'bg-sky-600 text-white border-t-2 border-sky-700';
 
-  useEffect(() => {
-    if (selectedProvince && selectedProvince !== 'ALL') {
-      setSelectedProvinceCard(selectedProvince);
+  // CARD 1's title bar sits above a narrow 6-column table (~350-500px). The
+  // card is width: fit-content, so a long ngành hàng name in the title —
+  // left free to size at its own one-line width — would stretch the whole
+  // card (table included) to match instead of wrapping. Measuring the
+  // table's actual rendered width and capping the title bar to it forces the
+  // title to wrap onto multiple lines instead, keeping the table's own width
+  // as the one thing driving the card's size. useLayoutEffect (not
+  // useEffect) so the cap applies before paint — no flash of the stretched
+  // layout first.
+  const summaryTableRef = useRef<HTMLTableElement>(null);
+  const [summaryTitleMaxWidth, setSummaryTitleMaxWidth] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (summaryTableRef.current) {
+      setSummaryTitleMaxWidth(summaryTableRef.current.offsetWidth);
     }
-  }, [selectedProvince]);
+  });
 
-  useEffect(() => {
-    if (selectedChannels && selectedChannels.length > 0) {
-      setChannelsCard1(selectedChannels);
-    }
-  }, [selectedChannels]);
+  // NO useEffect sync from header filters — header bộ lọc KHÔNG tác dụng
+  // xuống các bộ lọc bên dưới. Mỗi card tự quản lý state riêng.
 
   const isExcludedChannel = (k: string = ''): boolean => {
     const u = (k || '').toUpperCase();
@@ -166,6 +267,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   const provinceSummaryRows = useMemo(() => {
     const map = new Map<string, { target: number; achieved: number; rate: number }>();
     stores.forEach((s) => {
+      if (selectedProvinceCard1 !== 'ALL' && s.tinh !== selectedProvinceCard1) return;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
       if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
       if (channelsCard1.length > 0 && !channelsCard1.includes(effectiveKenh as Channel)) return;
@@ -199,7 +301,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
       }
       return { ...row, tag };
     });
-  }, [stores, activeCategory, channelsCard1, bossAssignments]);
+  }, [stores, activeCategory, channelsCard1, selectedProvinceCard1, bossAssignments]);
 
   const totalSummary = useMemo(() => {
     const t = provinceSummaryRows.reduce((a, b) => a + b.target, 0);
@@ -272,6 +374,16 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     return topBotMode === 'percent' ? `${val}%` : `${val} SIÊU THỊ`;
   }, [topBotMode, topBotValue]);
 
+  const toggleChannelCard1 = (k: Channel) => {
+    if (channelsCard1.includes(k)) {
+      if (channelsCard1.length > 1) {
+        setChannelsCard1(channelsCard1.filter((c) => c !== k));
+      }
+    } else {
+      setChannelsCard1([...channelsCard1, k]);
+    }
+  };
+
   const toggleChannelCard2 = (k: Channel) => {
     if (channelsCard2.includes(k)) {
       if (channelsCard2.length > 1) {
@@ -339,13 +451,38 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
       {/* CARD 1: Regional Province Summary (Top Left Card) */}
       <div className="w-fit min-w-[350px] bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-province-summary">
-        {/* Control Bar with Export Button on Right — EXCLUDED FROM EXPORTED PNG */}
-        <div className="export-hide p-2 bg-slate-50 border-b border-slate-200 flex items-center justify-end rounded-none">
+        {/* Control Bar with Province + Channel Filter + Export Button — EXCLUDED FROM EXPORTED PNG */}
+        <div className="export-hide p-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 rounded-none">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* BỘ LỌC TỈNH */}
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</span>
+              <select
+                value={selectedProvinceCard1}
+                onChange={(e) => setSelectedProvinceCard1(e.target.value)}
+                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">Tất cả</option>
+                {allAvailableProvinces.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* BỘ LỌC KÊNH (Dropdown bấm vào mới show) */}
+            <ChannelDropdownFilter
+              selectedChannels={channelsCard1}
+              onChange={setChannelsCard1}
+            />
+          </div>
+
           <button
             onClick={() => handleExportCard('nhom-card-province-summary', `Tong_Quan_${activeCategory}.png`)}
             disabled={exportingId === 'nhom-card-province-summary'}
             title="Xuất ảnh"
-            className="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-none shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
+            className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
           >
             <Camera className="w-4 h-4" />
           </button>
@@ -354,25 +491,45 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
         {/* Content Captured in Image: Header Banner + Table */}
         <div className="w-full p-3">
           {/* Header Banner - Size chữ lớn (text-lg sm:text-xl), khe hở mb-3 sang trọng */}
-          <div className="w-full mb-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 text-white py-3 px-3 text-center shadow-2xs border border-sky-500 rounded-none">
-            <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs">
-              {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'} • {getShortCategoryName(activeCategory).toUpperCase()}
+          <div
+            className={`mx-auto w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}
+            style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
+          >
+            <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs break-words inline-flex flex-wrap items-center justify-center gap-1.5">
+              <span className="relative inline-flex items-center gap-1 group cursor-pointer">
+                <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
+                  {getShortCategoryName(activeCategory).toUpperCase()}
+                </span>
+                <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
+                <select
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  title="Nhấn vào để đổi ngành hàng / nhóm"
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                >
+                  {allCategoryNames.map((cat) => (
+                    <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
+                      {getShortCategoryName(cat)}
+                    </option>
+                  ))}
+                </select>
+              </span>
             </h3>
             <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
-              Update: {formattedTimeStr} || {channelLabelCard1}
+              {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabelCard1}
             </div>
           </div>
 
           {/* Table */}
           <div className="w-full overflow-x-auto">
-            <table className="w-full text-xs font-sans border-separate border-spacing-0 border border-slate-200">
+            <table ref={summaryTableRef} className="w-full text-xs font-sans border-separate border-spacing-0 border border-slate-200">
               <thead>
-                <tr className="bg-sky-600 text-white font-bold uppercase text-[11px] rounded-none">
-                  <th className="py-2 px-2 text-center border-r border-sky-500 whitespace-nowrap">STT</th>
-                  <th className="py-2 px-2.5 text-left border-r border-sky-500 whitespace-nowrap">TỈNH</th>
-                  <th className="py-2 px-2.5 text-center border-r border-sky-500 whitespace-nowrap">TARGET</th>
-                  <th className="py-2 px-2.5 text-center border-r border-sky-500 whitespace-nowrap">REAL</th>
-                  <th className="py-2 px-2.5 text-center border-r border-sky-500 whitespace-nowrap">%HT</th>
+                <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
+                  <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
+                  <th className={`py-2 px-2.5 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
+                  <th className={`py-2 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TARGET</th>
+                  <th className={`py-2 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>REAL</th>
+                  <th className={`py-2 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>%HT</th>
                   <th className="py-2 px-2.5 text-center whitespace-nowrap">T/B</th>
                 </tr>
               </thead>
@@ -398,12 +555,12 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-sky-600 text-white font-bold text-xs rounded-none border-t-2 border-sky-700">
-                  <td className="py-2.5 px-2 text-center border-r border-sky-500 whitespace-nowrap font-extrabold"></td>
-                  <td className="py-2.5 px-2.5 text-left border-r border-sky-500 whitespace-nowrap font-extrabold">Tổng</td>
-                  <td className="py-2.5 px-2.5 text-center border-r border-sky-500 whitespace-nowrap font-extrabold">{totalSummary.target.toLocaleString('vi-VN')}</td>
-                  <td className="py-2.5 px-2.5 text-center border-r border-sky-500 whitespace-nowrap font-extrabold">{totalSummary.achieved.toLocaleString('vi-VN')}</td>
-                  <td className="py-2.5 px-2.5 text-center border-r border-sky-500 whitespace-nowrap font-extrabold">{Math.round(totalSummary.rate)}%</td>
+                <tr className={`${tableFooterBgClass} font-bold text-xs rounded-none`}>
+                  <td className={`py-2.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}></td>
+                  <td className={`py-2.5 px-2.5 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>Tổng</td>
+                  <td className={`py-2.5 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.target.toLocaleString('vi-VN')}</td>
+                  <td className={`py-2.5 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.achieved.toLocaleString('vi-VN')}</td>
+                  <td className={`py-2.5 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.rate)}%</td>
                   <td className="py-2.5 px-2.5 text-center font-extrabold whitespace-nowrap"></td>
                 </tr>
               </tfoot>
@@ -416,41 +573,37 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* CARD 2: Selected Province Detailed Breakdown (Bottom Left Card) */}
         <div className="w-full bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-province-detail">
-          {/* Controls Bar — BỘ LỌC KÊNH RIÊNG CHO BẢNG 2 */}
-          <div className="export-hide p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 rounded-none">
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedProvinceCard}
-                onChange={(e) => setSelectedProvinceCard(e.target.value)}
-                className="px-2.5 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-sky-700 focus:outline-none cursor-pointer"
-              >
-                {allAvailableProvinces.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex items-center gap-1.5 ml-2">
-                {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((k) => (
-                  <label key={k} className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={channelsCard2.includes(k)}
-                      onChange={() => toggleChannelCard2(k)}
-                      className="w-3.5 h-3.5 rounded-none text-sky-600 focus:ring-0 cursor-pointer"
-                    />
-                    {getChannelLabel(k)}
-                  </label>
-                ))}
+          {/* Controls Bar — BỘ LỌC TỈNH & KÊNH CHO BẢNG 2 */}
+          <div className="export-hide p-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 rounded-none">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* BỘ LỌC TỈNH */}
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</span>
+                <select
+                  value={selectedProvinceCard}
+                  onChange={(e) => setSelectedProvinceCard(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer shadow-2xs"
+                >
+                  {allAvailableProvinces.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* BỘ LỌC KÊNH (Dropdown bấm vào mới show) */}
+              <ChannelDropdownFilter
+                selectedChannels={channelsCard2}
+                onChange={setChannelsCard2}
+              />
             </div>
 
             <button
               onClick={() => handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`)}
               disabled={exportingId === 'nhom-card-province-detail'}
               title="Xuất ảnh"
-              className="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-none shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
+              className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
             >
               <Camera className="w-4 h-4" />
             </button>
@@ -459,12 +612,30 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
           {/* Content Captured in Image: Header Banner + Unified Table */}
           <div className="w-full p-3">
             {/* Header Banner - Size chữ lớn (text-lg sm:text-xl), khe hở mb-3 sang trọng */}
-            <div className="w-full mb-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 text-white py-3 px-3 text-center shadow-2xs border border-sky-500 rounded-none">
-              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs">
-                {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'} • {selectedProvinceCard.toUpperCase()} • {getShortCategoryName(activeCategory).toUpperCase()}
+            <div className={`w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}>
+              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5">
+                <span>{selectedProvinceCard.toUpperCase()} •</span>
+                <span className="relative inline-flex items-center gap-1 group cursor-pointer">
+                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
+                    {getShortCategoryName(activeCategory).toUpperCase()}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
+                  <select
+                    value={activeCategory}
+                    onChange={(e) => setActiveCategory(e.target.value)}
+                    title="Nhấn vào để đổi ngành hàng / nhóm"
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                  >
+                    {allCategoryNames.map((cat) => (
+                      <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
+                        {getShortCategoryName(cat)}
+                      </option>
+                    ))}
+                  </select>
+                </span>
               </h3>
               <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
-                Update: {formattedTimeStr} || {channelLabelCard2}
+                {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabelCard2}
               </div>
             </div>
 
@@ -529,44 +700,39 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
           </div>
         </div>
 
-        {/* CARD 3: Top / Bot Leaderboard (Bottom Right Card) - BỔ SUNG BỘ LỌC TỈNH, BỘ LỌC KÊNH & BỘ LỌC SỐ LƯỢNG / % */}
+        {/* CARD 3: Top / Bot Leaderboard (Bottom Right Card) */}
         <div className="w-full bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-topbot-leaderboard">
           {/* Controls Bar — BỘ LỌC TỈNH, KÊNH & BỘ LỌC SỐ LƯỢNG / % CHO BẢNG 3 */}
-          <div className="export-hide p-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 rounded-none">
+          <div className="export-hide p-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 rounded-none">
             <div className="flex flex-wrap items-center gap-2">
               {/* BỘ LỌC TỈNH CHO BẢNG TOP/BOT */}
-              <select
-                value={selectedProvinceCard3}
-                onChange={(e) => setSelectedProvinceCard3(e.target.value)}
-                className="px-2.5 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-sky-700 focus:outline-none cursor-pointer"
-              >
-                <option value="ALL">Tất cả Tỉnh</option>
-                {allAvailableProvinces.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex items-center gap-1.5 ml-1">
-                {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((k) => (
-                  <label key={k} className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={channelsCard3.includes(k)}
-                      onChange={() => toggleChannelCard3(k)}
-                      className="w-3.5 h-3.5 rounded-none text-sky-600 focus:ring-0 cursor-pointer"
-                    />
-                    {getChannelLabel(k)}
-                  </label>
-                ))}
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</span>
+                <select
+                  value={selectedProvinceCard3}
+                  onChange={(e) => setSelectedProvinceCard3(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer shadow-2xs"
+                >
+                  <option value="ALL">Tất cả</option>
+                  {allAvailableProvinces.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* BỘ LỌC KÊNH (Dropdown bấm vào mới show) */}
+              <ChannelDropdownFilter
+                selectedChannels={channelsCard3}
+                onChange={setChannelsCard3}
+              />
             </div>
 
             {/* BỘ LỌC TUỲ CHỌN SỐ LƯỢNG HOẶC % TOP/BOT */}
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <span className="text-[11px] font-bold text-slate-600">Tiêu chí:</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase">Tiêu chí:</span>
                 <select
                   value={topBotMode}
                   onChange={(e) => {
@@ -575,7 +741,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                     if (newMode === 'percent' && topBotValue > 100) setTopBotValue(20);
                     else if (newMode === 'count' && topBotValue > 50) setTopBotValue(5);
                   }}
-                  className="px-2 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-sky-700 focus:outline-none cursor-pointer"
+                  className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer shadow-2xs"
                 >
                   <option value="percent">% (Phần trăm)</option>
                   <option value="count">Số lượng (Siêu thị)</option>
@@ -596,7 +762,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       setTopBotValue(0);
                     }
                   }}
-                  className="w-14 px-2 py-1 bg-white border border-slate-300 rounded-none text-xs font-bold text-slate-800 text-center focus:outline-none focus:border-sky-500"
+                  className="w-14 px-2 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 text-center focus:outline-hidden focus:ring-2 focus:ring-sky-500 shadow-2xs"
                   placeholder={topBotMode === 'percent' ? '20' : '5'}
                 />
                 <span className="text-xs font-bold text-slate-600">{topBotMode === 'percent' ? '%' : 'ST'}</span>
@@ -606,7 +772,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                 onClick={() => handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`)}
                 disabled={exportingId === 'nhom-card-topbot-leaderboard'}
                 title="Xuất ảnh xếp hạng"
-                className="p-2 bg-sky-600 hover:bg-sky-700 text-white rounded-none shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ml-1"
+                className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ml-1"
               >
                 <Camera className="w-4 h-4" />
               </button>
@@ -616,12 +782,30 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
           {/* Content Captured in Image: Header Banner + Top/Bot Tables */}
           <div className="w-full p-3">
             {/* Header Banner - Dynamic Title theo Tỉnh, % hoặc Số lượng */}
-            <div className="w-full mb-3 bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 text-white py-3 px-3 text-center shadow-2xs border border-sky-500 rounded-none">
-              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs">
-                BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} %HT {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} • {getShortCategoryName(activeCategory).toUpperCase()}
+            <div className={`w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}>
+              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5">
+                <span>BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} %HT {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} •</span>
+                <span className="relative inline-flex items-center gap-1 group cursor-pointer">
+                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
+                    {getShortCategoryName(activeCategory).toUpperCase()}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
+                  <select
+                    value={activeCategory}
+                    onChange={(e) => setActiveCategory(e.target.value)}
+                    title="Nhấn vào để đổi ngành hàng / nhóm"
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                  >
+                    {allCategoryNames.map((cat) => (
+                      <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
+                        {getShortCategoryName(cat)}
+                      </option>
+                    ))}
+                  </select>
+                </span>
               </h3>
               <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
-                Update: {formattedTimeStr} || {channelLabelCard3}
+                {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabelCard3}
               </div>
             </div>
 
@@ -630,14 +814,14 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               {topBotLeaderboard.top20.length > 0 ? (
                 <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
                   <thead>
-                    <tr className="bg-sky-600 text-white font-bold uppercase text-[11px] rounded-none">
-                      <th className="py-2 px-1 text-center border-r border-sky-500 whitespace-nowrap">STT</th>
-                      <th className="py-2 px-2 text-left border-r border-sky-500 whitespace-nowrap">TỈNH</th>
-                      <th className="py-2 px-2 text-left border-r border-sky-500 whitespace-nowrap">BOSS</th>
-                      <th className="py-2 px-1 text-center border-r border-sky-500 whitespace-nowrap">KÊNH</th>
-                      <th className="py-2 px-2 text-left border-r border-sky-500 whitespace-nowrap">SIÊU THỊ</th>
-                      <th className="py-2 px-1.5 text-center border-r border-sky-500 whitespace-nowrap">TAR</th>
-                      <th className="py-2 px-1.5 text-center border-r border-sky-500 whitespace-nowrap">REAL</th>
+                    <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
+                      <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
+                      <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
+                      <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>BOSS</th>
+                      <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>KÊNH</th>
+                      <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>SIÊU THỊ</th>
+                      <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TAR</th>
+                      <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>REAL</th>
                       <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
                     </tr>
                   </thead>
@@ -672,7 +856,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
             </div>
 
             {/* Bot Section Header */}
-            <div className="bg-slate-700 text-white p-2 text-center font-bold text-xs uppercase rounded-none mt-3 border-x border-t border-slate-700">
+            <div className="bg-rose-200 text-rose-800 p-2 text-center font-bold text-xs uppercase rounded-none mt-3 border-x border-t border-rose-300">
               DANH SÁCH BOT {topBotLabelText} THẤP NHẤT
             </div>
 
@@ -681,14 +865,14 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               {topBotLeaderboard.bot20.length > 0 ? (
                 <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
                   <thead>
-                    <tr className="bg-slate-800 text-white font-bold uppercase text-[11px] rounded-none">
-                      <th className="py-2 px-1 text-center border-r border-slate-700 whitespace-nowrap">STT</th>
-                      <th className="py-2 px-2 text-left border-r border-slate-700 whitespace-nowrap">TỈNH</th>
-                      <th className="py-2 px-2 text-left border-r border-slate-700 whitespace-nowrap">BOSS</th>
-                      <th className="py-2 px-1 text-center border-r border-slate-700 whitespace-nowrap">KÊNH</th>
-                      <th className="py-2 px-2 text-left border-r border-slate-700 whitespace-nowrap">SIÊU THỊ</th>
-                      <th className="py-2 px-1.5 text-center border-r border-slate-700 whitespace-nowrap">TAR</th>
-                      <th className="py-2 px-1.5 text-center border-r border-slate-700 whitespace-nowrap">REAL</th>
+                    <tr className="bg-rose-100 text-rose-700 font-bold uppercase text-[11px] rounded-none">
+                      <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">STT</th>
+                      <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">TỈNH</th>
+                      <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">BOSS</th>
+                      <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">KÊNH</th>
+                      <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">SIÊU THỊ</th>
+                      <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">TAR</th>
+                      <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">REAL</th>
                       <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
                     </tr>
                   </thead>

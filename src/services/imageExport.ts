@@ -16,7 +16,7 @@ function fixOklchColors(root: HTMLElement) {
   const cvs = document.createElement('canvas');
   cvs.width = 1;
   cvs.height = 1;
-  const ctx = cvs.getContext('2d');
+  const ctx = cvs.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
 
   function resolveOklch(val: string): string | null {
@@ -96,8 +96,58 @@ function waitForImages(element: HTMLElement): Promise<void[]> {
   );
 }
 
-/** Download a Blob as a file. */
-export function downloadBlob(blob: Blob, filename: string) {
+const isMobileUserAgent = () =>
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+/** True if the browser can share files via the native OS share sheet (Web Share API Level 2). */
+function canShareFiles(): boolean {
+  if (!navigator.share || !navigator.canShare) return false;
+  try {
+    const testFile = new File(['test'], 'test.png', { type: 'image/png' });
+    return navigator.canShare({ files: [testFile] });
+  } catch {
+    return false;
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError';
+}
+
+/** Open the native OS share sheet (Zalo, Messenger, Save to Photos, AirDrop, ...) for a PNG blob. */
+async function shareBlob(blob: Blob, filename: string): Promise<boolean> {
+  try {
+    const file = new File([blob], filename, { type: 'image/png' });
+    const title = filename.replace(/\.png$/i, '').replace(/_/g, ' ');
+    const shareData = { files: [file], title, text: title };
+
+    if (navigator.canShare && navigator.canShare(shareData)) {
+      await navigator.share(shareData);
+      return true;
+    }
+    downloadBlob(blob, filename, true);
+    return false;
+  } catch (error) {
+    if (isAbortError(error)) return false; // user cancelled the share sheet — not a failure
+    console.error('Lỗi khi chia sẻ ảnh:', error);
+    downloadBlob(blob, filename, true);
+    return false;
+  }
+}
+
+/**
+ * Hand a Blob off to the user: on mobile, open the native OS share sheet
+ * (so it can go straight to Zalo/Messenger/Save to Photos, matching how
+ * export works in the sister BI dashboard) since a plain `<a download>` on
+ * mobile just drops the file into Downloads/Files with no share prompt.
+ * Desktop keeps the regular file-download link. `forceDownload` bypasses the
+ * share sheet (used by shareBlob's own fallback so it doesn't recurse).
+ */
+export function downloadBlob(blob: Blob, filename: string, forceDownload = false) {
+  if (!forceDownload && isMobileUserAgent() && canShareFiles()) {
+    void shareBlob(blob, filename);
+    return;
+  }
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.download = filename;
@@ -234,24 +284,29 @@ export async function exportElementAsImage(
     fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
+    // scrollHeight/offsetHeight already account for the fully-expanded clone
+    // (overflow containers were forced to "visible" above) — walking every
+    // descendant to find the max getBoundingClientRect().bottom, like an
+    // earlier version of this function did, forces a synchronous layout
+    // reflow per element. For a 700+ row export table that's thousands of
+    // forced reflows just to measure height, which is most of what made
+    // large exports feel slow.
     const cloneRect = clone.getBoundingClientRect();
-    const cloneTop = cloneRect.top;
-
-    // Calculate maximum bottom coordinate of all child elements inside clone
-    let maxChildBottom = 0;
-    clone.querySelectorAll<HTMLElement>('*').forEach((child) => {
-      const b = child.getBoundingClientRect().bottom - cloneTop;
-      if (b > maxChildBottom) maxChildBottom = b;
-    });
-
     const width = Math.max(fullScrollWidth, Math.ceil(cloneRect.width || clone.scrollWidth));
-    const height = Math.ceil(
-      Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height, maxChildBottom) + 32
-    );
+    const height = Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height) + 32);
+
+    // html-to-image rasterizes via an SVG <foreignObject> whose dimensions
+    // are capped by the browser's max canvas size (commonly ~16-32k px on
+    // one axis) — an uncapped scale on a very tall table export can silently
+    // fail past that. Clamp scale down (never below 1) instead of erroring.
+    let finalScale = scale;
+    if (height * scale > 16000) {
+      finalScale = Math.max(1, 16000 / height);
+    }
 
     const htmlToImage = await import('html-to-image');
     const blob = await htmlToImage.toBlob(clone, {
-      pixelRatio: scale,
+      pixelRatio: finalScale,
       backgroundColor: '#ffffff',
       width,
       height,
@@ -338,7 +393,7 @@ export async function exportGroupSpecificElement(
     cell.style.setProperty('min-width', 'auto', 'important');
   });
 
-  clone.querySelectorAll<HTMLElement>('.max-w-\\[52px\\], .max-w-\\[65px\\], .max-w-\\[50px\\]').forEach((el) => {
+  clone.querySelectorAll<HTMLElement>('[class*="max-w-"]').forEach((el) => {
     el.style.setProperty('max-width', 'none', 'important');
     el.style.setProperty('width', 'auto', 'important');
   });
@@ -387,20 +442,22 @@ export async function exportGroupSpecificElement(
       });
     }
 
+    // See the identical note in exportElementAsImage — scrollHeight/rect
+    // already reflect the fully-expanded clone; scanning every descendant's
+    // getBoundingClientRect() just to find the max bottom forces a reflow
+    // per element, which is the real cost on a large exported table.
     const rect = clone.getBoundingClientRect();
-    const cloneTop = rect.top;
-    let maxChildBottom = 0;
-    clone.querySelectorAll<HTMLElement>('*').forEach((child) => {
-      const b = child.getBoundingClientRect().bottom - cloneTop;
-      if (b > maxChildBottom) maxChildBottom = b;
-    });
-
     const width = tableWidth > 0 ? tableWidth : Math.ceil(rect.width || clone.scrollWidth);
-    const height = Math.ceil(Math.max(clone.scrollHeight, rect.height, maxChildBottom) + 32);
+    const height = Math.ceil(Math.max(clone.scrollHeight, rect.height) + 32);
+
+    let finalScale = scale;
+    if (height * scale > 16000) {
+      finalScale = Math.max(1, 16000 / height);
+    }
 
     const htmlToImage = await import('html-to-image');
     const blob = await htmlToImage.toBlob(clone, {
-      pixelRatio: scale,
+      pixelRatio: finalScale,
       backgroundColor: '#ffffff',
       width,
       height,
