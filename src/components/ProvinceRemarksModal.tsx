@@ -15,6 +15,66 @@ interface ProvinceRemarksModalProps {
   channelLabel: string;
 }
 
+// Helper: format integer numbers without decimals
+const formatInt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
+
+export function generateProvinceRemarksText(params: {
+  categoryName: string;
+  timeMode: TimeMode;
+  lastUpdated?: string;
+  formattedTimeStr: string;
+  rows: { tinh: string; target: number; achieved: number; rate: number }[];
+  totalSummary: { target: number; achieved: number; rate: number };
+  channelLabel: string;
+}): string {
+  const { categoryName, timeMode, lastUpdated, formattedTimeStr, rows = [], totalSummary = { target: 0, achieved: 0, rate: 0 }, channelLabel = '' } = params;
+
+  const fullTime = lastUpdated || `${formattedTimeStr} NGÀY 13/8/2026`;
+  const modeIcon = timeMode === 'realtime' ? '⚡' : '📈';
+  const modeTitle = timeMode === 'realtime' ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
+  const header = `${modeIcon} ${modeTitle} - ${categoryName.toUpperCase()} - ${fullTime}`;
+
+  const remaining = totalSummary.target - totalSummary.achieved;
+  const isSurpassed = remaining <= 0 && totalSummary.target > 0;
+  const totalSummaryLine = isSurpassed
+    ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${Math.round(totalSummary.rate)}%) - Hoàn thành xuất sắc mục tiêu! 🚀`
+    : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
+
+  // Top 3 provinces
+  const top3 = rows.slice(0, 3);
+  const topLines = top3
+    .map((r, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+      return `${medal} #${i + 1} ${r.tinh}: ${formatInt(r.achieved)} / ${formatInt(r.target)} (${Math.round(r.rate)}%)`;
+    })
+    .join('\n');
+
+  // Bot 3 provinces
+  const bot3 = rows.slice(-3).reverse();
+  const botLines = bot3
+    .map((r) => {
+      const rank = rows.findIndex((item) => item.tinh === r.tinh) + 1;
+      return `🔻 #${rank} ${r.tinh}: ${formatInt(r.achieved)} / ${formatInt(r.target)} (${Math.round(r.rate)}%)`;
+    })
+    .join('\n');
+
+  const channelInfo = channelLabel && channelLabel !== 'All Kênh' ? `📡 Kênh: ${channelLabel}\n` : '';
+
+  return `${header}
+${channelInfo}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ VÙNG:
+🎯 Target: ${formatInt(totalSummary.target)} | ${modeIcon} Thực đạt: ${formatInt(totalSummary.achieved)} (${Math.round(totalSummary.rate)}%)
+${totalSummaryLine}
+
+🏆 TOP 3 TỈNH DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT 3 TỈNH CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💪🏼 Quyết tâm bứt phá mục tiêu hôm nay! 🔥`;
+}
+
 export const ProvinceRemarksModal: React.FC<ProvinceRemarksModalProps> = ({
   isOpen,
   onClose,
@@ -29,62 +89,20 @@ export const ProvinceRemarksModal: React.FC<ProvinceRemarksModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [customText, setCustomText] = useState('');
 
-  // Formats full time string (vd: "19:59:24 NGÀY 13/8/2026")
-  const fullTime = lastUpdated || `${formattedTimeStr} NGÀY 13/8/2026`;
-
   useEffect(() => {
     if (!isOpen) return;
-
-    // Helper: format integer numbers without decimals
-    const formatInt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
-
-    const modeIcon = timeMode === 'realtime' ? '⚡' : '📈';
-    const modeTitle = timeMode === 'realtime' ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
-    const header = `${modeIcon} ${modeTitle} - ${categoryName.toUpperCase()} - ${fullTime}`;
-
-    const remaining = totalSummary.target - totalSummary.achieved;
-    const isSurpassed = remaining <= 0 && totalSummary.target > 0;
-    const totalSummaryLine = isSurpassed
-      ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${Math.round(totalSummary.rate)}%) - Hoàn thành xuất sắc mục tiêu! 🚀`
-      : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
-
-    // Top 3 provinces
-    const top3 = rows.slice(0, 3);
-    const topLines = top3
-      .map((r, i) => {
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
-        return `${medal} #${i + 1} ${r.tinh}: ${formatInt(r.achieved)} / ${formatInt(r.target)} (${Math.round(r.rate)}%)`;
-      })
-      .join('\n');
-
-    // Bot 3 provinces
-    const bot3 = rows.slice(-3).reverse();
-    const botLines = bot3
-      .map((r) => {
-        const rank = rows.findIndex((item) => item.tinh === r.tinh) + 1;
-        return `🔻 #${rank} ${r.tinh}: ${formatInt(r.achieved)} / ${formatInt(r.target)} (${Math.round(r.rate)}%)`;
-      })
-      .join('\n');
-
-    const channelInfo = channelLabel && channelLabel !== 'All Kênh' ? `📡 Kênh: ${channelLabel}\n` : '';
-
-    const text = `${header}
-${channelInfo}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ VÙNG:
-🎯 Target: ${formatInt(totalSummary.target)} | ${modeIcon} Thực đạt: ${formatInt(totalSummary.achieved)} (${Math.round(totalSummary.rate)}%)
-${totalSummaryLine}
-
-🏆 TOP 3 TỈNH DẪN ĐẦU:
-${topLines || 'Đang cập nhật'}
-
-⚠️ BOT 3 TỈNH CẦN TĂNG TỐC:
-${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💪🏼 Quyết tâm bứt phá mục tiêu hôm nay! 🔥`;
-
+    const text = generateProvinceRemarksText({
+      categoryName,
+      timeMode,
+      lastUpdated,
+      formattedTimeStr,
+      rows,
+      totalSummary,
+      channelLabel,
+    });
     setCustomText(text);
     setCopied(false);
-  }, [isOpen, categoryName, timeMode, fullTime, rows, totalSummary, channelLabel]);
+  }, [isOpen, categoryName, timeMode, lastUpdated, formattedTimeStr, rows, totalSummary, channelLabel]);
 
   if (!isOpen) return null;
 

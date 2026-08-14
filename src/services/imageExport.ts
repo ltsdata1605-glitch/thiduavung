@@ -114,12 +114,12 @@ function isAbortError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError';
 }
 
-/** Open the native OS share sheet (Zalo, Messenger, Save to Photos, AirDrop, ...) for a PNG blob. */
+/** Open the native OS share sheet (Zalo, Messenger, Line, Teams, Save to Photos, AirDrop, ...) for a PNG blob. */
 async function shareBlob(blob: Blob, filename: string): Promise<boolean> {
   try {
     const file = new File([blob], filename, { type: 'image/png' });
-    const title = filename.replace(/\.png$/i, '').replace(/_/g, ' ');
-    const shareData = { files: [file], title, text: title };
+    // IMPORTANT: Only pass files without title or text so messaging apps (Line, Zalo, Teams) ONLY send the pure image file!
+    const shareData: ShareData = { files: [file] };
 
     if (navigator.canShare && navigator.canShare(shareData)) {
       await navigator.share(shareData);
@@ -137,13 +137,18 @@ async function shareBlob(blob: Blob, filename: string): Promise<boolean> {
 
 /**
  * Hand a Blob off to the user: on mobile, open the native OS share sheet
- * (so it can go straight to Zalo/Messenger/Save to Photos, matching how
- * export works in the sister BI dashboard) since a plain `<a download>` on
- * mobile just drops the file into Downloads/Files with no share prompt.
- * Desktop keeps the regular file-download link. `forceDownload` bypasses the
- * share sheet (used by shareBlob's own fallback so it doesn't recurse).
+ * (so it can go straight to Line/Zalo/Messenger/Save to Photos) with pure image.
+ * If remarkTextToCopy is provided, automatically copy that remark to clipboard.
  */
-export function downloadBlob(blob: Blob, filename: string, forceDownload = false) {
+export function downloadBlob(blob: Blob, filename: string, forceDownload = false, remarkTextToCopy?: string) {
+  if (remarkTextToCopy) {
+    try {
+      void navigator.clipboard.writeText(remarkTextToCopy);
+    } catch (e) {
+      console.warn('Could not copy remark to clipboard', e);
+    }
+  }
+
   if (!forceDownload && isMobileUserAgent() && canShareFiles()) {
     void shareBlob(blob, filename);
     return;
@@ -163,6 +168,8 @@ export interface ExportElementOptions {
   elementsToHide?: string[];
   /** Export scale multiplier — higher = sharper but heavier. */
   scale?: number;
+  /** Remark text to automatically copy to clipboard on export */
+  remarkTextToCopy?: string;
 }
 
 /** Suppress all scrollbars in a DOM subtree so no scrollbar thumbs appear in PNG. */
@@ -328,7 +335,7 @@ export async function exportElementAsImage(
     });
 
     if (!blob) throw new Error('html-to-image trả về rỗng.');
-    downloadBlob(blob, filename);
+    downloadBlob(blob, filename, false, options.remarkTextToCopy);
     return blob;
   } catch (error) {
     console.error(`Lỗi khi xuất ảnh "${filename}":`, error);
@@ -479,7 +486,7 @@ export async function exportGroupSpecificElement(
     });
 
     if (!blob) throw new Error('html-to-image trả về rỗng.');
-    downloadBlob(blob, filename);
+    downloadBlob(blob, filename, false, options.remarkTextToCopy);
     return blob;
   } catch (error) {
     console.error(`Lỗi khi xuất ảnh "${filename}":`, error);

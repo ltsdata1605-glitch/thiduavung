@@ -13,9 +13,9 @@ import {
 import { exportElementAsImage } from '../services/imageExport';
 import { saveGroupSummaryCardsToFirebase, getLocalCache } from '../services/storeService';
 import { ExportLoadingModal } from './ExportLoadingModal';
-import { ProvinceRemarksModal } from './ProvinceRemarksModal';
-import { ProvinceDetailRemarksModal } from './ProvinceDetailRemarksModal';
-import { TopBotRemarksModal } from './TopBotRemarksModal';
+import { ProvinceRemarksModal, generateProvinceRemarksText } from './ProvinceRemarksModal';
+import { ProvinceDetailRemarksModal, generateProvinceDetailRemarksText } from './ProvinceDetailRemarksModal';
+import { TopBotRemarksModal, generateTopBotRemarksText } from './TopBotRemarksModal';
 import { Camera, Layers, MessageSquare, ChevronDown, Plus, X, Search, Check } from 'lucide-react';
 
 interface GroupReportViewProps {
@@ -300,7 +300,7 @@ const ProvinceSummaryCard: React.FC<{
   formattedTimeStr: string;
   isExcludedChannel: (k?: string) => boolean;
   exportingId: string | null;
-  onExport: (elementId: string, filename: string) => void;
+  onExport: (elementId: string, filename: string, remarkTextToCopy?: string) => void;
 }> = ({
   config,
   onChangeChannels,
@@ -411,9 +411,20 @@ const ProvinceSummaryCard: React.FC<{
             </button>
           )}
           <button
-            onClick={() => onExport(elementId, `Tong_Quan_${config.category}.png`)}
+            onClick={() => {
+              const remarkText = generateProvinceRemarksText({
+                categoryName: resolveCategoryDisplayName(config.category, categoryDisplayNameMap),
+                timeMode,
+                lastUpdated,
+                formattedTimeStr,
+                rows: provinceSummaryRows,
+                totalSummary,
+                channelLabel,
+              });
+              onExport(elementId, `Tong_Quan_${config.category}.png`, remarkText);
+            }}
             disabled={exportingId === elementId}
-            title="Xuất ảnh"
+            title="Xuất ảnh & Tự động sao chép nhận xét"
             className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center"
           >
             <Camera className="w-4 h-4" />
@@ -796,12 +807,12 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     }
   };
 
-  const handleExportCard = async (elementId: string, filename: string) => {
+  const handleExportCard = async (elementId: string, filename: string, remarkTextToCopy?: string) => {
     const el = document.getElementById(elementId);
     if (!el) return;
     setExportingId(elementId);
     try {
-      await exportElementAsImage(el, filename);
+      await exportElementAsImage(el, filename, { remarkTextToCopy });
     } catch (err) {
       console.error('Export error:', err);
     } finally {
@@ -906,9 +917,23 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               </button>
 
               <button
-                onClick={() => handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`)}
+                onClick={() => {
+                  const remarkText = generateProvinceDetailRemarksText({
+                    province: selectedProvinceCard,
+                    category: activeCategory,
+                    categoryDisplayNameMap,
+                    timeMode,
+                    lastUpdated,
+                    formattedTimeStr,
+                    stores,
+                    selectedChannels: channelsCard2,
+                    bossAssignments,
+                    isExcludedChannel,
+                  });
+                  handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`, remarkText);
+                }}
                 disabled={exportingId === 'nhom-card-province-detail'}
-                title="Xuất ảnh"
+                title="Xuất ảnh & Tự động sao chép nhận xét"
                 className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
               >
                 <Camera className="w-4 h-4" />
@@ -1075,9 +1100,23 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               </button>
 
               <button
-                onClick={() => handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`)}
+                onClick={() => {
+                  const remarkText = generateTopBotRemarksText({
+                    provinceScope: selectedProvinceCard3,
+                    category: activeCategory,
+                    categoryDisplayNameMap,
+                    timeMode,
+                    lastUpdated,
+                    formattedTimeStr,
+                    stores,
+                    selectedChannels: channelsCard3,
+                    bossAssignments,
+                    isExcludedChannel,
+                  });
+                  handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`, remarkText);
+                }}
                 disabled={exportingId === 'nhom-card-topbot-leaderboard'}
-                title="Xuất ảnh xếp hạng"
+                title="Xuất ảnh xếp hạng & Tự động sao chép nhận xét"
                 className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ml-1"
               >
                 <Camera className="w-4 h-4" />

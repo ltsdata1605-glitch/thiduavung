@@ -40,6 +40,120 @@ interface ProvinceDetailRemarksModalProps {
   isExcludedChannel: (k?: string) => boolean;
 }
 
+export function generateProvinceDetailRemarksText(params: {
+  province: string;
+  category: string;
+  categoryDisplayNameMap?: Record<string, string>;
+  timeMode: TimeMode;
+  lastUpdated?: string;
+  formattedTimeStr: string;
+  stores: StoreRecord[];
+  selectedChannels: Channel[];
+  bossAssignments: BossAssignmentRecord[];
+  isExcludedChannel: (k?: string) => boolean;
+}): string {
+  const {
+    province,
+    category,
+    categoryDisplayNameMap = {},
+    timeMode,
+    lastUpdated,
+    formattedTimeStr,
+    stores = [],
+    selectedChannels = [],
+    bossAssignments = [],
+    isExcludedChannel,
+  } = params;
+
+  const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
+  const fullTime = lastUpdated || `${formattedTimeStr} NGÀY 13/8/2026`;
+  const formatInt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
+
+  // 1. Filter stores in this province & selected channels
+  const provStores = stores.filter((s) => {
+    if (s.tinh !== province) return false;
+    const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
+    if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
+    return true;
+  });
+
+  // Compute metrics for each store
+  const storeMetrics = provStores.map((s) => {
+    const data = getCategoryData(s, category);
+    const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
+    const bossTag = formatBossTag(boss);
+    const target = data.target || 0;
+    const achieved = data.achieved || 0;
+    const rate = target > 0 ? (achieved / target) * 100 : 0;
+    return {
+      storeName: formatStoreDisplayName(s.sieuthi),
+      boss,
+      bossTag,
+      target,
+      achieved,
+      rate,
+    };
+  });
+
+  // Total province metrics
+  const totalTarget = storeMetrics.reduce((a, b) => a + b.target, 0);
+  const totalAchieved = storeMetrics.reduce((a, b) => a + b.achieved, 0);
+  const totalRate = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
+  const remaining = totalTarget - totalAchieved;
+  const isSurpassed = remaining <= 0 && totalTarget > 0;
+  const totalSummaryLine = isSurpassed
+    ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${totalRate}%) - Hoàn thành xuất sắc mục tiêu!`
+    : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
+
+  // Sort all stores descending by rate for overall ranking
+  const sortedAll = [...storeMetrics].sort((a, b) => b.rate - a.rate);
+  const totalCount = sortedAll.length;
+
+  // Top 20% stores of the province (at least 1, max top 20%)
+  const topCount = Math.max(1, Math.round(totalCount * 0.2));
+  const topStores = sortedAll.slice(0, topCount);
+
+  const topLines = topStores
+    .map((s, idx) => {
+      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+      const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
+      return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
+    })
+    .join('\n');
+
+  // BOT 20%
+  const storesWithTarget = sortedAll.filter((s) => s.target > 0);
+  const botCount = Math.max(1, Math.round(storesWithTarget.length * 0.2));
+  const botStores = storesWithTarget.slice(-botCount).reverse();
+
+  const botLines = botStores
+    .map((s) => {
+      const rank = sortedAll.findIndex((item) => item.storeName === s.storeName) + 1;
+      const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
+      return `🔻 #${rank} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
+    })
+    .join('\n');
+
+  const modeIcon = timeMode === 'realtime' ? '⚡' : '📈';
+  const modeTitle = timeMode === 'realtime' ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
+  const header = `${modeIcon} ${modeTitle} - ${province.toUpperCase()} • ${catName.toUpperCase()} - ${fullTime}`;
+
+  return `${header}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TỈNH ${province.toUpperCase()}:
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
+${totalSummaryLine}
+
+🏆 TOP 20% SIÊU THỊ DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT 20% SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+}
+
 export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProps> = ({
   isOpen,
   onClose,
@@ -56,109 +170,32 @@ export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProp
 }) => {
   const [copied, setCopied] = useState(false);
   const [customText, setCustomText] = useState('');
-
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
-  const fullTime = lastUpdated || `${formattedTimeStr} NGÀY 13/8/2026`;
 
   useEffect(() => {
     if (!isOpen) return;
-
-    const formatInt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
-
-    // 1. Filter stores in this province & selected channels
-    const provStores = stores.filter((s) => {
-      if (s.tinh !== province) return false;
-      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
-      if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
-      return true;
+    const text = generateProvinceDetailRemarksText({
+      province,
+      category,
+      categoryDisplayNameMap,
+      timeMode,
+      lastUpdated,
+      formattedTimeStr,
+      stores,
+      selectedChannels,
+      bossAssignments,
+      isExcludedChannel,
     });
-
-    // Compute metrics for each store
-    const storeMetrics = provStores.map((s) => {
-      const data = getCategoryData(s, category);
-      const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
-      const bossTag = formatBossTag(boss);
-      const target = data.target || 0;
-      const achieved = data.achieved || 0;
-      const rate = target > 0 ? (achieved / target) * 100 : 0;
-      return {
-        storeName: formatStoreDisplayName(s.sieuthi),
-        boss,
-        bossTag,
-        target,
-        achieved,
-        rate,
-      };
-    });
-
-    // Total province metrics
-    const totalTarget = storeMetrics.reduce((a, b) => a + b.target, 0);
-    const totalAchieved = storeMetrics.reduce((a, b) => a + b.achieved, 0);
-    const totalRate = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
-    const remaining = totalTarget - totalAchieved;
-    const isSurpassed = remaining <= 0 && totalTarget > 0;
-    const totalSummaryLine = isSurpassed
-      ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${totalRate}%) - Hoàn thành xuất sắc mục tiêu!`
-      : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
-
-    // Sort all stores descending by rate for overall ranking
-    const sortedAll = [...storeMetrics].sort((a, b) => b.rate - a.rate);
-    const totalCount = sortedAll.length;
-
-    // Top 20% stores of the province (at least 1, max top 20%)
-    const topCount = Math.max(1, Math.round(totalCount * 0.2));
-    const topStores = sortedAll.slice(0, topCount);
-
-    const topLines = topStores
-      .map((s, idx) => {
-        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
-        const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-        return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
-      })
-      .join('\n');
-
-    // BOT 20%: "Các siêu thị không có Target đồng nghĩa với các siêu thị không kinh doanh ngành hàng đang thi đua. Nên khi tag tên BOTTOM 20% sẽ loại bỏ các siêu thị đó ra"
-    const storesWithTarget = sortedAll.filter((s) => s.target > 0);
-    const botCount = Math.max(1, Math.round(storesWithTarget.length * 0.2));
-    // Pick from the lowest rate up
-    const botStores = storesWithTarget.slice(-botCount).reverse();
-
-    const botLines = botStores
-      .map((s) => {
-        const rank = sortedAll.findIndex((item) => item.storeName === s.storeName) + 1;
-        const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-        return `🔻 #${rank} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
-      })
-      .join('\n');
-
-    const modeIcon = timeMode === 'realtime' ? '⚡' : '📈';
-    const modeTitle = timeMode === 'realtime' ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
-    const header = `${modeIcon} ${modeTitle} - ${province.toUpperCase()} • ${catName.toUpperCase()} - ${fullTime}`;
-
-    const text = `${header}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ TỈNH ${province.toUpperCase()}:
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
-
-🏆 TOP 20% SIÊU THỊ DẪN ĐẦU:
-${topLines || 'Đang cập nhật'}
-
-⚠️ BOT 20% SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
-${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
-
     setCustomText(text);
     setCopied(false);
   }, [
     isOpen,
     province,
     category,
-    catName,
+    categoryDisplayNameMap,
     timeMode,
-    fullTime,
+    lastUpdated,
+    formattedTimeStr,
     stores,
     selectedChannels,
     bossAssignments,

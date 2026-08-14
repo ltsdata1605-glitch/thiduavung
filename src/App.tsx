@@ -7,7 +7,7 @@ import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
 import { UpdateDataView } from './components/UpdateDataView';
 import { SettingsView } from './components/SettingsView';
-import { TagBossModal } from './components/TagBossModal';
+import { TagBossModal, generateReportRemarksText } from './components/TagBossModal';
 import { LoginView } from './components/LoginView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { UserManagementModal } from './components/UserManagementModal';
@@ -807,12 +807,22 @@ export default function App() {
       // Let ReportView re-render with pagination bypassed before capturing.
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_RutGon_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const blob = await exportElementAsImage(el, filename);
+      const remarkText = generateReportRemarksText({
+        stores: activeStores,
+        selectedProvince,
+        selectedChannels,
+        selectedCategory,
+        bossAssignments,
+        timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
+        lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
+        entityScope,
+      });
+      const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText });
       if (!blob) {
         showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
         return;
       }
-      showToast('Đã xuất báo cáo tóm tắt thi đua!');
+      showToast('Đã xuất báo cáo & tự động sao chép nhận xét!');
     } finally {
       setIsExportingAllRows(false);
       setExportModalState({ isOpen: false });
@@ -835,12 +845,22 @@ export default function App() {
     try {
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_TongHop_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const blob = await exportElementAsImage(el, filename);
+      const remarkText = generateReportRemarksText({
+        stores: activeStores,
+        selectedProvince,
+        selectedChannels,
+        selectedCategory,
+        bossAssignments,
+        timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
+        lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
+        entityScope,
+      });
+      const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText });
       if (!blob) {
         showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
         return;
       }
-      showToast('Đã xuất đầy đủ bảng xếp hạng thi đua toàn vùng TNB!');
+      showToast('Đã xuất đầy đủ bảng xếp hạng & tự động sao chép nhận xét!');
     } finally {
       setIsExportingAllRows(false);
       setExportModalState({ isOpen: false });
@@ -875,6 +895,17 @@ export default function App() {
       ce: 'CE & GD',
     };
 
+    const remarkText = generateReportRemarksText({
+      stores: activeStores,
+      selectedProvince,
+      selectedChannels,
+      selectedCategory,
+      bossAssignments,
+      timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
+      lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
+      entityScope,
+    });
+
     setIsExportingAllRows(true);
     try {
       if (target === 'by_groups') {
@@ -889,12 +920,12 @@ export default function App() {
           const targetEl = document.getElementById('report-export-root');
           if (targetEl) {
             const filename = `Bang_Xep_Hang_Nhom_${grp.replace(/[^a-zA-Z0-9]/g, '_')}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-            const blob = await exportElementAsImage(targetEl, filename);
+            const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
             if (blob) exportedCount++;
           }
         }
         if (exportedCount > 0) {
-          showToast('✨ Đã xuất tự động 3 ảnh bộ báo cáo theo từng nhóm Ngành Hàng (ICT, Dịch Vụ, CE & GD)!');
+          showToast('✨ Đã xuất tự động 3 ảnh bộ báo cáo & tự động sao chép nhận xét!');
         } else {
           showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
         }
@@ -904,9 +935,9 @@ export default function App() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Tat_Ca_38_Nganh_Hang_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportElementAsImage(targetEl, filename);
+          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
           if (blob) {
-            showToast('✨ Đã xuất 1 tấm ảnh đầy đủ bảng xếp hạng tất cả ngành hàng!');
+            showToast('✨ Đã xuất 1 tấm ảnh đầy đủ bảng xếp hạng & tự động sao chép nhận xét!');
           } else {
             showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
           }
@@ -918,9 +949,9 @@ export default function App() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Nhom_${grp.replace(/[^a-zA-Z0-9]/g, '_')}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportElementAsImage(targetEl, filename);
+          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
           if (blob) {
-            showToast('✨ Đã xuất 1 tấm ảnh báo cáo nhóm ngành hàng!');
+            showToast('✨ Đã xuất 1 tấm ảnh báo cáo nhóm & tự động sao chép nhận xét!');
           } else {
             showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
           }

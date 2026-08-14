@@ -33,6 +33,299 @@ interface TagBossModalProps {
   lastUpdated?: string;
 }
 
+export function generateReportRemarksText(params: {
+  stores: StoreRecord[];
+  selectedProvince?: string;
+  selectedChannels?: Channel[];
+  selectedCategory?: string;
+  bossAssignments?: BossAssignmentRecord[];
+  timeModeName?: string;
+  lastUpdated?: string;
+  entityScope?: 'sieuthi' | 'vung' | 'nhom';
+}): string {
+  const {
+    stores = [],
+    selectedProvince = 'ALL',
+    selectedChannels = [],
+    selectedCategory = 'ALL',
+    bossAssignments = [],
+    timeModeName = 'Luỹ kế',
+    lastUpdated,
+    entityScope = 'sieuthi',
+  } = params;
+
+  const isLuyKe = !timeModeName.toLowerCase().includes('real');
+  const safeStores = stores || [];
+  const modeIcon = isLuyKe ? '📈' : '⚡';
+  const modeTitle = isLuyKe ? 'CẬP NHẬT LUỸ KẾ' : 'CẬP NHẬT REALTIME';
+  const fullTime = lastUpdated || `19:59:24 NGÀY 13/8/2026`;
+
+  const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
+  const provinceName = isSpecificProvince ? selectedProvince.toUpperCase() : '';
+
+  const filteredStores = safeStores.filter((s) => {
+    if (isSpecificProvince && s.tinh !== selectedProvince) return false;
+    const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
+    if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
+    return true;
+  });
+
+  const set = new Set<string>();
+  filteredStores.forEach((s) => {
+    if (s.categoryMap) {
+      Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
+    }
+  });
+  const activeCategoryList = Array.from(set);
+  const totalCatCount = activeCategoryList.length || 38;
+
+  // Province ranking
+  const map = new Map<string, {
+    target: number;
+    achieved: number;
+    storesCount: number;
+    catTotals: Record<string, { target: number; achieved: number; rateSum: number; count: number }>;
+  }>();
+
+  safeStores.forEach((s) => {
+    const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
+    if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
+
+    const tinh = s.tinh || 'Khác';
+    const cur = map.get(tinh) || { target: 0, achieved: 0, storesCount: 0, catTotals: {} };
+    cur.target += (s.target || 0);
+    cur.achieved += (s.achieved || 0);
+    cur.storesCount += 1;
+
+    if (s.categoryMap) {
+      Object.entries(s.categoryMap).forEach(([cat, data]) => {
+        const c = cur.catTotals[cat] || { target: 0, achieved: 0, rateSum: 0, count: 0 };
+        c.target += (data.target || 0);
+        c.achieved += (data.achieved || 0);
+        c.rateSum += (data.rate || 0);
+        c.count += 1;
+        cur.catTotals[cat] = c;
+      });
+    }
+
+    map.set(tinh, cur);
+  });
+
+  const provinceRanking = Array.from(map.entries())
+    .map(([tinh, stat]) => {
+      let achievedCategories = 0;
+      if (activeCategoryList.length > 0) {
+        activeCategoryList.forEach((cat) => {
+          const c = stat.catTotals[cat];
+          if (c) {
+            const catRate = isLuyKe
+              ? (c.count > 0 ? Math.round(c.rateSum / c.count) : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0))
+              : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0));
+
+            if (catRate >= 100) achievedCategories += 1;
+          }
+        });
+      }
+
+      const rate =
+        selectedCategory !== 'ALL'
+          ? stat.target > 0
+            ? Math.round((stat.achieved / stat.target) * 100)
+            : 0
+          : activeCategoryList.length > 0
+          ? Math.round((achievedCategories / activeCategoryList.length) * 100)
+          : stat.target > 0
+          ? Math.round((stat.achieved / stat.target) * 100)
+          : 0;
+
+      return {
+        tinh,
+        target: stat.target,
+        achieved: stat.achieved,
+        achievedCategories,
+        rate,
+        storesCount: stat.storesCount,
+      };
+    })
+    .sort((a, b) => {
+      if (b.achievedCategories !== a.achievedCategories) {
+        return b.achievedCategories - a.achievedCategories;
+      }
+      return b.rate - a.rate;
+    });
+
+  // Region metrics
+  const regionCatTotals: Record<string, { target: number; achieved: number; rateSum: number; count: number }> = {};
+  let totalTargetVal = 0;
+  let totalAchievedVal = 0;
+
+  safeStores.forEach((s) => {
+    const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
+    if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
+
+    totalTargetVal += (s.target || 0);
+    totalAchievedVal += (s.achieved || 0);
+
+    if (s.categoryMap) {
+      Object.entries(s.categoryMap).forEach(([cat, data]) => {
+        const c = regionCatTotals[cat] || { target: 0, achieved: 0, rateSum: 0, count: 0 };
+        c.target += (data.target || 0);
+        c.achieved += (data.achieved || 0);
+        c.rateSum += (data.rate || 0);
+        c.count += 1;
+        regionCatTotals[cat] = c;
+      });
+    }
+  });
+
+  let vungAchievedCatCount = 0;
+  if (activeCategoryList.length > 0) {
+    activeCategoryList.forEach((cat) => {
+      const c = regionCatTotals[cat];
+      if (c) {
+        const catRate = isLuyKe
+          ? (c.count > 0 ? Math.round(c.rateSum / c.count) : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0))
+          : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0));
+        if (catRate >= 100) vungAchievedCatCount += 1;
+      }
+    });
+  }
+
+  const vungRate = totalCatCount > 0 ? Math.round((vungAchievedCatCount / totalCatCount) * 100) : 0;
+
+  // Store ranking
+  const storeRanking = [...filteredStores]
+    .map((s) => {
+      const target = s.target || 0;
+      const achieved = s.achieved || 0;
+
+      let achievedCategories = 0;
+      if (activeCategoryList.length > 0) {
+        activeCategoryList.forEach((cat) => {
+          const data = getCategoryData(s, cat);
+          if ((data.rate || 0) >= 100) {
+            achievedCategories += 1;
+          }
+        });
+      }
+
+      const rate =
+        selectedCategory !== 'ALL'
+          ? target > 0
+            ? Math.round((achieved / target) * 100)
+            : 0
+          : activeCategoryList.length > 0
+          ? Math.round((achievedCategories / activeCategoryList.length) * 100)
+          : s.rate !== undefined
+          ? Math.round(s.rate)
+          : target > 0
+          ? Math.round((achieved / target) * 100)
+          : 0;
+
+      return {
+        tinh: s.tinh,
+        storeName: formatStoreDisplayName(s.sieuthi),
+        target,
+        achieved,
+        achievedCategories,
+        rate,
+      };
+    })
+    .sort((a, b) => {
+      if (b.achievedCategories !== a.achievedCategories) {
+        return b.achievedCategories - a.achievedCategories;
+      }
+      return b.rate - a.rate;
+    });
+
+  if (entityScope === 'sieuthi' && !isSpecificProvince) {
+    // VÙNG Tab: Province ranking
+    const half = Math.ceil(provinceRanking.length / 2);
+    const topTinhs = provinceRanking.slice(0, half);
+    const botTinhs = provinceRanking.slice(half).reverse();
+
+    const topLines = topTinhs
+      .map((p, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
+            : `${p.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+      })
+      .join('\n');
+
+    const botLines = botTinhs
+      .map((p) => {
+        const rank = provinceRanking.findIndex((item) => item.tinh === p.tinh) + 1;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
+            : `${p.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+      })
+      .join('\n');
+
+    return `${modeIcon} ${modeTitle} - BẢNG XẾP HẠNG THI ĐUA CÁC TỈNH VÙNG TNB - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TOÀN VÙNG: ${vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${vungRate}%)
+🎯 Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+
+🏆 TOP TỈNH DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ CÁC TỈNH CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+  } else {
+    // SIÊU THỊ Tab or Specific Province: Store ranking
+    const top10 = storeRanking.slice(0, 10);
+    const storesWithTarget = storeRanking.filter((s) => s.target > 0);
+    const bot10 = storesWithTarget.slice(-10).reverse();
+
+    const topLines = top10
+      .map((s, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    const botLines = bot10
+      .map((s) => {
+        const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    const scopeTitle = isSpecificProvince ? `TỈNH ${provinceName}` : 'TOÀN VÙNG TNB';
+
+    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ ${scopeTitle} - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ ${scopeTitle}:
+🎯 Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+
+🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+  }
+}
+
 export const TagBossModal: React.FC<TagBossModalProps> = ({
   isOpen,
   onClose,
