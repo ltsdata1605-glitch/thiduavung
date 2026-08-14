@@ -31,8 +31,29 @@ service cloud.firestore {
       return isActiveUser() && myRole() == 'super_admin';
     }
 
+    // Only Super Admin / Admin may write the actual competition data
+    // (Realtime, Luỹ Kế, BOSS list, settings) — Editor/Viewer are view-only
+    // for that. This is the real enforcement boundary; the app UI also
+    // hides the "Cập nhật" screen for these roles, but that's cosmetic
+    // without this rule backing it.
+    function isAdminOrAbove() {
+      return isActiveUser() && myRole() in ['super_admin', 'admin'];
+    }
+
+    // Editor keeps write access to its own self-service docs under
+    // competition_tracker (its saved filter selection, its profile prefs,
+    // Nhóm/category display config) — only the actual competition-data doc
+    // IDs (see isCompetitionDataDoc below) are restricted to isAdminOrAbove().
     function isEditorOrAbove() {
       return isActiveUser() && myRole() in ['super_admin', 'admin', 'editor'];
+    }
+
+    function isCompetitionDataDoc(docId) {
+      return docId in [
+        'realtime_stores_tinh', 'realtime_stores_vung',
+        'luyke_stores_tinh', 'luyke_stores_vung',
+        'boss_assignments', 'settings'
+      ];
     }
 
     // Account profiles / password hashes — the crown jewels this whole
@@ -61,7 +82,7 @@ service cloud.firestore {
     // assignments, settings, user preferences).
     match /competition_tracker/{docId} {
       allow read: if isActiveUser();
-      allow write: if isEditorOrAbove();
+      allow write: if isCompetitionDataDoc(docId) ? isAdminOrAbove() : isEditorOrAbove();
 
       // Large per-store datasets (Realtime/Luỹ Kế Siêu Thị) are split into
       // chunk documents here — a single doc can exceed Firestore's 1MiB
@@ -70,7 +91,7 @@ service cloud.firestore {
       // own explicit grant matching the parent's.
       match /chunks/{chunkId} {
         allow read: if isActiveUser();
-        allow write: if isEditorOrAbove();
+        allow write: if isAdminOrAbove();
       }
     }
 

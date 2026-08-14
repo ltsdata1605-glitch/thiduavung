@@ -210,14 +210,26 @@ export default function App() {
     await new Promise((r) => setTimeout(r, 400));
 
     setCloudSyncState((prev) => ({ ...prev, isOpen: false }));
-    confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
+
+    // Read the freshest local cache (kept live by the onSnapshot listeners,
+    // unlike React state which may not have re-rendered into this closure
+    // yet) to tell a genuinely-empty server apart from data that's simply
+    // still in flight — no confetti and a warning banner instead when the
+    // account just logged in to find nothing has been uploaded at all.
+    const freshCache = getLocalCache();
+    const stillEmpty = !freshCache.realtimeStoresTinh?.length && !freshCache.luykeStoresTinh?.length;
+    if (stillEmpty) {
+      showWarningToast('📭 Hệ thống chưa có dữ liệu thi đua nào. Vui lòng chờ Super Admin/Admin cập nhật dữ liệu Realtime & Luỹ kế.');
+    } else {
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
+    }
   };
 
   // Modals & Notifications
   const [isTagBossModalOpen, setIsTagBossModalOpen] = useState(false);
   const [isUserMgmtModalOpen, setIsUserMgmtModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [toastBanner, setToastBanner] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [toastBanner, setToastBanner] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; text: string } | null>(null);
   const [showSummarySection, setShowSummarySection] = useState(false);
   // Export Loading Overlay state
   const [exportModalState, setExportModalState] = useState<{
@@ -482,6 +494,18 @@ export default function App() {
     }
   }, [entityScope, selectedProvince, timeMode, realtimeStoresVung, luykeStoresVung]);
 
+  // Defense in depth: the Sidebar already hides the "Cập nhật" menu item for
+  // Editor/Viewer, but a stale persisted tab (from before a role downgrade,
+  // or a role change on another device) could otherwise still land them on
+  // it directly on load — bounce back to Report in that case.
+  useEffect(() => {
+    if (!currentUser) return;
+    const canUpdateData = currentUser.role === 'super_admin' || currentUser.role === 'admin';
+    if (activeTab === 'update' && !canUpdateData) {
+      setActiveTab('report');
+    }
+  }, [activeTab, currentUser]);
+
   // Show login screen if user is unauthenticated
   if (!currentUser) {
     return (
@@ -617,6 +641,12 @@ export default function App() {
   // and Admin — Editor/Viewer accounts never see this figure anywhere
   // (Report tables, BOSS list, or the toolbar toggle).
   const canViewDtQdTb = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+
+  // Only Super Admin / Admin may paste & sync new data — everyone else is
+  // view-only. Mirrors the Sidebar's own menu-item gating as a render-time
+  // guard, so the Update tab's content never even briefly flashes for a
+  // role that shouldn't have it.
+  const canUpdateData = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
   // Helper to format exact timestamp like "12:37:00 NGÀY 09/8/2026"
   const getFormattedNow = () => {
@@ -772,6 +802,15 @@ export default function App() {
   const showInfoToast = (msg: string) => {
     setToastBanner({ type: 'info', text: msg });
     setTimeout(() => setToastBanner(null), 6000);
+  };
+
+  // Persistent-ish notice (needs a manual close, like errors) that the
+  // account just logged in / opened the app and there's genuinely no data
+  // on the server yet — as opposed to silently showing an empty report with
+  // no explanation of why.
+  const showWarningToast = (msg: string) => {
+    setToastBanner({ type: 'warning', text: msg });
+    setTimeout(() => setToastBanner(null), 12000);
   };
 
   const handleLogout = () => {
@@ -1039,11 +1078,19 @@ export default function App() {
         {toastBanner && (
           <div
             className={`${
-              toastBanner.type === 'error' ? 'bg-red-600' : toastBanner.type === 'info' ? 'bg-sky-600' : 'bg-emerald-600'
+              toastBanner.type === 'error'
+                ? 'bg-red-600'
+                : toastBanner.type === 'warning'
+                ? 'bg-amber-500'
+                : toastBanner.type === 'info'
+                ? 'bg-sky-600'
+                : 'bg-emerald-600'
             } text-white px-4 py-2 text-center text-xs font-bold shadow-md animate-fade-in flex items-center justify-center gap-2 shrink-0 z-50`}
           >
-            <span>{toastBanner.type === 'error' ? '⚠️' : toastBanner.type === 'info' ? '🔄' : '✨'} {toastBanner.text}</span>
-            {toastBanner.type === 'error' && (
+            <span>
+              {toastBanner.type === 'error' ? '⚠️' : toastBanner.type === 'warning' ? '📭' : toastBanner.type === 'info' ? '🔄' : '✨'} {toastBanner.text}
+            </span>
+            {(toastBanner.type === 'error' || toastBanner.type === 'warning') && (
               <button
                 type="button"
                 onClick={() => setToastBanner(null)}
@@ -1125,7 +1172,7 @@ export default function App() {
             </ErrorBoundary>
           )}
 
-          {activeTab === 'update' && (
+          {activeTab === 'update' && canUpdateData && (
             <UpdateDataView
               onUpdateRealtimeData={handleUpdateRealtimeData}
               onUpdateLuyKeData={handleUpdateLuyKeData}

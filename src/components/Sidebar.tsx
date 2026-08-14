@@ -39,6 +39,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsCollapsed,
 }) => {
   const isSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.accountId === '3717';
+  // Only Super Admin / Admin may paste & sync new data — Editor/Viewer never
+  // see the "Cập nhật" menu at all (data flows one way: they only view what
+  // these two roles upload).
+  const canUpdateData = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
   const menuItems = [
     {
@@ -49,14 +53,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'HOT',
       badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
     },
-    {
-      id: 'update' as ViewTab,
-      label: 'Cập nhật',
-      subLabel: 'Dán Realtime & Luỹ kế',
-      icon: UploadCloud,
-      badge: 'Mới',
-      badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-    },
+    ...(canUpdateData
+      ? [
+          {
+            id: 'update' as ViewTab,
+            label: 'Cập nhật',
+            subLabel: 'Dán Realtime & Luỹ kế',
+            icon: UploadCloud,
+            badge: 'Mới',
+            badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
+          },
+        ]
+      : []),
     {
       id: 'settings' as ViewTab,
       label: 'Cài đặt',
