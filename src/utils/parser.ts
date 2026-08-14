@@ -913,6 +913,22 @@ export function getStoreCodeOnly(sieuthi: string = ''): string {
 }
 
 /**
+ * Extracts ONLY the friendly store name / street name / location from a store string.
+ * Example: "ĐML_STR_STR - 99 Hùng Vương" => "99 Hùng Vương"
+ * Example: "ĐML_LAN_BLU - Nguyễn Hữu Thọ" => "Nguyễn Hữu Thọ"
+ * Example: "8853 - ĐMS_LAN_DHU - Mỹ Quý Tây" => "Mỹ Quý Tây"
+ * Example: "908 - ĐML_AGI_LXU - 129 Trần Hưng Đạo" => "129 Trần Hưng Đạo"
+ */
+export function getStoreShortName(sieuthi: string = ''): string {
+  if (!sieuthi) return '';
+  const parts = sieuthi.trim().split(/\s*-\s*/);
+  if (parts.length >= 2) {
+    return parts[parts.length - 1].trim();
+  }
+  return sieuthi.trim();
+}
+
+/**
  * Helper to calculate total DTQĐ TB 5T2026 for a given province directly from bossAssignments.
  */
 export function getDtQdTbForProvince(

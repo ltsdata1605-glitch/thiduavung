@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
 import { GroupReportView } from './GroupReportView';
 import { 
   Trophy, 
@@ -229,8 +229,8 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
         {/* Table Header: Stores Info */}
         <thead>
           <tr className="bg-slate-900 text-white divide-x divide-slate-800">
-            <th className="p-3.5 font-black uppercase text-xs sm:text-sm tracking-wider w-64 min-w-[260px] sticky left-0 z-20 bg-slate-900 shadow-md">
-              <div className="flex items-center gap-2">
+            <th className="p-2.5 font-black uppercase text-xs tracking-wider w-60 min-w-[240px] sticky left-0 z-20 bg-slate-900 shadow-md">
+              <div className="flex items-center gap-1.5">
                 <Scale className="w-4 h-4 text-amber-400" />
                 <span>CHỈ SỐ / NGÀNH HÀNG</span>
               </div>
@@ -242,36 +242,36 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               return (
                 <th
                   key={storeKey || idx}
-                  className="p-3.5 text-center min-w-[200px] max-w-[260px] bg-slate-900"
+                  className="p-2.5 text-center min-w-[180px] max-w-[240px] bg-slate-900"
                 >
-                  <div className="flex flex-col items-center gap-1.5">
+                  <div className="flex flex-col items-center gap-1">
                     <div className="flex items-center justify-between w-full gap-1">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-5 h-5 rounded-full bg-sky-500 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+                        <span className="w-4 h-4 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
                           #{idx + 1}
                         </span>
-                        <span data-store-name={s.sieuthi} className="store-name-cell font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
-                          {getStoreCodeOnly(s.sieuthi)}
+                        <span className="font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
+                          {getStoreShortName(s.sieuthi)}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => onRemoveStore(storeKey)}
-                        className="p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0"
+                        className="export-hide p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0"
                         title="Bỏ siêu thị này khỏi so sánh"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-1">
-                      <span className="px-2 py-0.5 bg-slate-800 text-slate-200 rounded-md text-[10px] font-extrabold border border-slate-700">
+                      <span className="px-1.5 py-0.5 bg-slate-800 text-slate-200 rounded-md text-[10px] font-extrabold border border-slate-700">
                         {s.tinh}
                       </span>
-                      <span className="px-2 py-0.5 bg-sky-950 text-sky-300 rounded-md text-[10px] font-extrabold border border-sky-800">
+                      <span className="px-1.5 py-0.5 bg-sky-950 text-sky-300 rounded-md text-[10px] font-extrabold border border-sky-800">
                         {kenh}
                       </span>
                       {boss && boss !== 'Chưa phân công' && (
-                        <span className="px-2 py-0.5 bg-purple-950 text-purple-300 rounded-md text-[10px] font-extrabold border border-purple-800 truncate max-w-[120px]">
+                        <span className="px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded-md text-[10px] font-extrabold border border-purple-800 truncate max-w-[120px]">
                           {boss}
                         </span>
                       )}
@@ -281,7 +281,7 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               );
             })}
             {isTwoStores && (
-              <th className="p-3.5 text-center min-w-[140px] max-w-[180px] bg-slate-950 text-amber-300 font-black text-xs uppercase tracking-wider">
+              <th className="p-2.5 text-center min-w-[130px] max-w-[170px] bg-slate-950 text-amber-300 font-black text-xs uppercase tracking-wider">
                 CHÊNH LỆCH
               </th>
             )}
@@ -289,7 +289,7 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
 
           {/* Metric Row 1: Tổng Ngành Đạt (>= 100%) */}
           <tr className="bg-amber-50 font-black text-slate-900 border-b border-amber-200 divide-x divide-amber-200">
-            <td className="p-3 font-black text-xs uppercase text-amber-950 sticky left-0 z-10 bg-amber-50 shadow-xs">
+            <td className="p-2 font-black text-xs uppercase text-amber-950 sticky left-0 z-10 bg-amber-50 shadow-xs">
               <div className="flex items-center justify-between">
                 <span>🎯 SỐ NGÀNH ĐẠT</span>
                 <span className="text-[10px] text-amber-700 font-bold">(&ge; 100%)</span>
@@ -299,10 +299,10 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               const count = s.achievedCategories || 0;
               const rate = totalCatCount > 0 ? Math.round((count / totalCatCount) * 100) : 0;
               return (
-                <td key={idx} className="p-3 text-center font-black text-sm text-slate-900">
+                <td key={idx} className="p-2 text-center font-black text-xs sm:text-sm text-slate-900">
                   <span className="text-emerald-700">{count}</span>
                   <span className="text-slate-400">/{totalCatCount}</span>
-                  <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <span className="ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300">
                     {rate}%
                   </span>
                 </td>
@@ -316,7 +316,7 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               const rate2 = totalCatCount > 0 ? Math.round((count2 / totalCatCount) * 100) : 0;
               const diffRate = rate1 - rate2;
               return (
-                <td className="p-3 text-center font-black text-xs bg-amber-100/60">
+                <td className="p-2 text-center font-black text-xs bg-amber-100/60">
                   {diff > 0 ? (
                     <span className="text-emerald-800 font-black">
                       #1 hơn +{diff} ngành ({diffRate > 0 ? `+${diffRate}%` : `${diffRate}%`})
@@ -334,17 +334,17 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
           </tr>
 
           {/* Metric Row 2: DTQĐ TB 5T2026 */}
-          <tr className="bg-slate-100 font-black text-slate-900 border-b-2 border-slate-300 divide-x divide-slate-300">
-            <td className="p-3 font-black text-xs uppercase text-slate-800 sticky left-0 z-10 bg-slate-100 shadow-xs">
+          <tr className="bg-slate-100 font-black text-slate-900 border-b border-slate-300 divide-x divide-slate-300">
+            <td className="p-2 font-black text-xs uppercase text-slate-800 sticky left-0 z-10 bg-slate-100 shadow-xs">
               📊 DTQĐ TB 5T2026
             </td>
             {stores.map((s, idx) => {
-              const dtQd = resolveDtQd(s.sieuthi);
+              const dtQdNum = parseDtQdTbNum(resolveDtQd(s.sieuthi));
               return (
-                <td key={idx} className="p-3 text-center font-black text-xs text-slate-800">
-                  {dtQd && dtQd !== '-' ? (
-                    <span className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg shadow-2xs font-extrabold text-slate-900">
-                      {dtQd} {typeof dtQd === 'number' || !isNaN(Number(dtQd)) ? 'tỷ' : ''}
+                <td key={idx} className="p-2 text-center font-black text-xs text-slate-800">
+                  {dtQdNum > 0 ? (
+                    <span className="px-2 py-0.5 bg-white border border-slate-300 rounded-lg shadow-2xs font-extrabold text-slate-900">
+                      {formatDtQdTb(dtQdNum)}
                     </span>
                   ) : '-'}
                 </td>
@@ -353,12 +353,12 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
             {isTwoStores && (() => {
               const dt1 = parseDtQdTbNum(resolveDtQd(stores[0].sieuthi));
               const dt2 = parseDtQdTbNum(resolveDtQd(stores[1].sieuthi));
-              const diffDt = dt1 - dt2;
+              const diffDt = Math.round(dt1 - dt2);
               return (
-                <td className="p-3 text-center font-bold text-xs bg-slate-200/70">
+                <td className="p-2 text-center font-bold text-xs bg-slate-200/70">
                   {diffDt !== 0 ? (
                     <span className="font-extrabold text-slate-800">
-                      {diffDt > 0 ? `#1 hơn +${diffDt.toFixed(3)} tỷ` : `#2 hơn +${Math.abs(diffDt).toFixed(3)} tỷ`}
+                      {diffDt > 0 ? `#1 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ` : `#2 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ`}
                     </span>
                   ) : '-'}
                 </td>
@@ -376,10 +376,10 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                 <tr className={`${group.style.band} font-black border-y border-slate-300 shadow-2xs`}>
                   <td
                     colSpan={stores.length + (isTwoStores ? 2 : 1)}
-                    className="py-2.5 px-4 font-black uppercase text-xs tracking-wider sticky left-0 z-10"
+                    className="py-1.5 px-3 font-black uppercase text-xs tracking-wider sticky left-0 z-10"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-slate-900/30"></span>
+                      <span className="w-2 h-2 rounded-full bg-slate-900/30"></span>
                       <span>{group.groupName} ({group.cats.length} ngành hàng)</span>
                     </div>
                   </td>
@@ -407,10 +407,10 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                       }`}
                     >
                       {/* Column 1: Category Name */}
-                      <td className={`py-2.5 px-3.5 font-bold text-xs text-slate-800 sticky left-0 z-10 shadow-xs ${isEven ? 'bg-white' : 'bg-slate-50'}`}>
-                        <div className="flex items-center gap-2">
+                      <td className={`py-1 px-3 font-bold text-xs text-slate-800 sticky left-0 z-10 shadow-xs ${isEven ? 'bg-white' : 'bg-slate-50'}`}>
+                        <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-slate-400 font-mono w-4 shrink-0">#{cIdx + 1}</span>
-                          <span className="font-black text-slate-900 tracking-tight" title={catDisplayName}>
+                          <span className="font-extrabold text-slate-900 tracking-tight" title={catDisplayName}>
                             {catDisplayName}
                           </span>
                         </div>
@@ -427,9 +427,9 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                           : 'text-rose-700 font-black bg-rose-50 border border-rose-300';
 
                         return (
-                          <td key={sIdx} className="py-2.5 px-3 text-center">
+                          <td key={sIdx} className="py-1 px-2.5 text-center">
                             {valueDisplayMode === 'percent' ? (
-                              <span className={`inline-block px-3 py-1 rounded-xl text-xs font-black shadow-2xs ${rateColorClass}`}>
+                              <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-black shadow-2xs ${rateColorClass}`}>
                                 {Math.round(val.rate)}%
                               </span>
                             ) : (
@@ -455,23 +455,23 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                         const diff = Math.round(r1 - r2);
                         if (r1 === 0 && r2 === 0) {
                           return (
-                            <td className="py-2.5 px-3 text-center text-slate-400 text-xs">
+                            <td className="py-1 px-2.5 text-center text-slate-400 text-xs">
                               -
                             </td>
                           );
                         }
                         if (diff === 0) {
                           return (
-                            <td className="py-2.5 px-3 text-center text-slate-500 font-bold text-xs">
+                            <td className="py-1 px-2.5 text-center text-slate-500 font-bold text-xs">
                               Bằng nhau
                             </td>
                           );
                         }
                         const isStore1Better = diff > 0;
                         return (
-                          <td className="py-2.5 px-3 text-center">
+                          <td className="py-1 px-2.5 text-center">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black shadow-2xs ${
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black shadow-2xs ${
                                 isStore1Better
                                   ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                                   : 'bg-sky-100 text-sky-800 border border-sky-300'
@@ -1362,7 +1362,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
         {/* Comparison Floating / Highlight Bar (when 1 or more stores are selected) */}
         {!isProvinceView && selectedStoreIds.size > 0 && (
-          <div className="mx-3.5 mb-3 p-2.5 bg-gradient-to-r from-slate-900 via-sky-900 to-indigo-950 text-white rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-3 animate-fade-in border border-sky-600/50">
+          <div className="export-hide mx-3.5 mb-3 p-2.5 bg-gradient-to-r from-slate-900 via-sky-900 to-indigo-950 text-white rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-3 animate-fade-in border border-sky-600/50">
             <div className="flex items-center gap-2.5">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs">
                 {selectedStoreIds.size}

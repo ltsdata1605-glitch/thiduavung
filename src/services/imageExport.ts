@@ -272,6 +272,8 @@ export async function exportElementAsImage(
   // them so they render in normal flow in the exported image
   clone.querySelectorAll<HTMLElement>('.sticky').forEach((el) => {
     el.style.setProperty('position', 'static', 'important');
+    el.style.setProperty('left', 'auto', 'important');
+    el.style.setProperty('top', 'auto', 'important');
   });
 
   // Convert Recharts SVGs to inline <img> if present
@@ -326,7 +328,7 @@ export async function exportElementAsImage(
     const cloneRect = clone.getBoundingClientRect();
     const width = actualTableWidth > 0 ? actualTableWidth : Math.ceil(cloneRect.width || clone.scrollWidth);
 
-    // Apply exact width to clone, captureContainer and all full-width headers
+    // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
     if (width > 0) {
       clone.style.setProperty('width', `${width}px`, 'important');
       clone.style.setProperty('max-width', `${width}px`, 'important');
@@ -334,6 +336,7 @@ export async function exportElementAsImage(
       captureContainer.style.setProperty('max-width', `${width}px`, 'important');
 
       clone.querySelectorAll<HTMLElement>('div, section, header, [id*="root"]').forEach((div) => {
+        if (div.closest('table')) return; // Never resize elements inside tables
         if (div.classList.contains('w-full') || div.style.width === '100%') {
           div.style.setProperty('width', `${width}px`, 'important');
           div.style.setProperty('max-width', `${width}px`, 'important');
