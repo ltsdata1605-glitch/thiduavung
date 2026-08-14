@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount } from './types';
 import { initialUserProfile, initialSettings } from './data/sampleData';
 import { getBossForStore, extractMst, BossAssignmentRecord } from './utils/parser';
@@ -378,29 +378,97 @@ export default function App() {
     );
   }
 
+  // Helper to extract number of days in month from timestamp text
+  const daysInMonth = useMemo(() => {
+    const text = timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe;
+    if (text) {
+      const m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) {
+        const month = parseInt(m[2], 10);
+        const year = parseInt(m[3], 10);
+        return new Date(year, month, 0).getDate();
+      }
+    }
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
+
   // Get active stores depending on TimeMode & Scope (Vùng vs Siêu Thị / Tỉnh)
-  const activeStores = timeMode === 'realtime'
-    ? (entityScope === 'sieuthi' ? realtimeStoresTinh : realtimeStoresVung)
-    : (entityScope === 'sieuthi' ? luykeStoresTinh : luykeStoresVung);
+  // Both Tab VÙNG and Tab SIÊU THỊ use the store-level dataset so data calculates dynamically per KÊNH
+  const activeStores = useMemo(() => {
+    const rawStores = timeMode === 'realtime'
+      ? (realtimeStoresVung.length > 0 ? realtimeStoresVung : realtimeStoresTinh)
+      : (luykeStoresVung.length > 0 ? luykeStoresVung : luykeStoresTinh);
+
+    // If in Realtime mode, compute Target Ngày = Target Tháng (từ Luỹ Kế Siêu Thị) / số ngày trong tháng
+    if (timeMode === 'realtime' && luykeStoresVung.length > 0) {
+      const luykeByMst = new Map<string, StoreRecord>();
+      const luykeByName = new Map<string, StoreRecord>();
+      luykeStoresVung.forEach((ls) => {
+        const mst = extractMst(ls.sieuthi);
+        if (mst) luykeByMst.set(mst, ls);
+        luykeByName.set(ls.sieuthi.toLowerCase().trim(), ls);
+      });
+
+      return rawStores.map((s) => {
+        const mst = extractMst(s.sieuthi);
+        const lStore = (mst ? luykeByMst.get(mst) : undefined) || luykeByName.get(s.sieuthi.toLowerCase().trim());
+        if (!lStore) return s;
+
+        const monthlyTotalTarget = lStore.target || 0;
+        const dailyTotalTarget = daysInMonth > 0 && monthlyTotalTarget > 0 ? Number((monthlyTotalTarget / daysInMonth).toFixed(2)) : s.target;
+        const totalAchieved = s.achieved || 0;
+        const totalRate = dailyTotalTarget > 0 ? Number(((totalAchieved / dailyTotalTarget) * 100).toFixed(1)) : s.rate;
+
+        const newCategoryMap: Record<string, { target: number; achieved: number; rate: number }> = {};
+        const allCats = new Set([
+          ...Object.keys(s.categoryMap || {}),
+          ...Object.keys(lStore.categoryMap || {}),
+        ]);
+
+        allCats.forEach((cat) => {
+          const sCat = s.categoryMap?.[cat] || { target: 0, achieved: 0, rate: 0 };
+          const lCat = lStore.categoryMap?.[cat];
+          const monthlyTarget = lCat?.target || 0;
+          const dailyTarget = daysInMonth > 0 && monthlyTarget > 0 ? Number((monthlyTarget / daysInMonth).toFixed(2)) : sCat.target;
+          const achieved = sCat.achieved || 0;
+          const rate = dailyTarget > 0 ? Number(((achieved / dailyTarget) * 100).toFixed(1)) : (sCat.rate || 0);
+
+          newCategoryMap[cat] = {
+            target: dailyTarget,
+            achieved,
+            rate,
+          };
+        });
+
+        return {
+          ...s,
+          target: dailyTotalTarget,
+          rate: totalRate,
+          categoryMap: newCategoryMap,
+        };
+      });
+    }
+
+    return rawStores;
+  }, [timeMode, realtimeStoresVung, realtimeStoresTinh, luykeStoresVung, luykeStoresTinh, daysInMonth]);
 
   // Extract unique provinces & bosses for filter dropdowns
   const provinceList = Array.from(new Set(activeStores.map((s) => s.tinh))).sort();
-  const bossList = Array.from(
+  const bossList: string[] = (Array.from(
     new Set([
       ...activeStores.map((s) => getBossForStore(s.sieuthi, bossAssignments, s.boss)),
       ...bossAssignments.map((b) => b.boss).filter(Boolean),
     ])
-  ).sort();
+  ) as string[]).sort();
 
-  // The "Ngành hàng" filter's option list always comes from Realtime Thi Đua
-  // Tỉnh specifically — that's the one box pasted with the full per-category
-  // BI breakdown (categoryMap on every record). The other 3 boxes (Siêu Thị,
-  // Luỹ Kế) are typically flat per-store data without that breakdown, so
-  // deriving the list from `activeStores` (whichever is currently being
-  // viewed) made the filter fall back to a generic 12-item list instead of
-  // the real ~38 ngành hàng whenever a non-Tỉnh/non-Realtime view was open.
   const parsedCategoryNames = Array.from(
-    new Set(realtimeStoresTinh.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])))
+    new Set([
+      ...realtimeStoresVung.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
+      ...realtimeStoresTinh.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
+      ...luykeStoresVung.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
+      ...luykeStoresTinh.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
+    ])
   ).sort();
 
   const dynamicCategoryOptions = parsedCategoryNames.map((name) => ({

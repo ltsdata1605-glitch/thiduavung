@@ -400,23 +400,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
         return Array.from(byTinh.entries()).map(([tinh, agg], idx) => {
           const categoryMap: Record<string, { target: number; achieved: number; rate: number }> = {};
           Object.entries(agg.catTotals).forEach(([cat, c]) => {
-            // Average the per-store rates (already correctly sourced from
-            // "% HT Dự Kiến" at parse time) rather than recomputing from
-            // achieved/target, which reflects day-to-date completion, not
-            // the projected month-end % this column is supposed to show.
-            const rate = c.count > 0
-              ? Math.round(c.rateSum / c.count)
-              : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0);
+            // For Realtime: calculate % from daily target vs realtime achieved (or average per-store rate)
+            // For Luỹ Kế: average the per-store rates (sourced from % HT Dự Kiến)
+            const rate = timeMode === 'realtime'
+              ? (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0))
+              : (c.count > 0 ? Math.round(c.rateSum / c.count) : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0));
 
             categoryMap[cat] = {
-              target: c.target,
-              achieved: c.achieved,
+              target: Number(c.target.toFixed(2)),
+              achieved: Number(c.achieved.toFixed(2)),
               rate,
             };
           });
 
-          const provinceBossTotal = getDtQdTbForProvince(tinh, bossAssignments);
-          const dtQdTbVal = provinceBossTotal > 0 ? provinceBossTotal : agg.dtQdTbVal;
+          const dtQdTbVal = agg.dtQdTbVal > 0 ? agg.dtQdTbVal : getDtQdTbForProvince(tinh, bossAssignments);
 
           return {
             stt: idx + 1,
@@ -425,14 +422,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
             boss: '',
             kenh: 'DML',
             sieuthi: tinh,
-            target: agg.target,
-            achieved: agg.achieved,
+            target: Number(agg.target.toFixed(2)),
+            achieved: Number(agg.achieved.toFixed(2)),
             dtQdTbVal,
-            // Same reasoning as the per-category rate above: average each
-            // store's own already-correct "% HT Dự Kiến"-based rate.
-            rate: agg.rateCount > 0
-              ? Math.round(agg.rateSum / agg.rateCount)
-              : (agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : 0),
+            rate: timeMode === 'realtime'
+              ? (agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : (agg.rateCount > 0 ? Math.round(agg.rateSum / agg.rateCount) : 0))
+              : (agg.rateCount > 0 ? Math.round(agg.rateSum / agg.rateCount) : (agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : 0)),
             rank: 0,
             categoryMap,
             ict: zeroMetric,
@@ -1508,7 +1503,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 const isSelected = selectedStoreIds.has(storeKey) || selectedStoreIds.has(store.sieuthi);
 
                 const rowBgClass = isSelected
-                  ? 'bg-sky-100/90 font-medium'
+                  ? 'bg-sky-100 font-medium'
                   : index % 2 === 0
                   ? 'bg-white'
                   : 'bg-slate-50';
