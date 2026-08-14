@@ -20,7 +20,9 @@ import {
   Smartphone,
   ShieldCheck,
   Tv,
-  Trash2
+  Trash2,
+  Search,
+  X
 } from 'lucide-react';
 
 const DEFAULT_CATEGORY_GROUP: Record<string, string> = {
@@ -73,6 +75,216 @@ const getCategoryGroup = (catLabel: string, map?: Record<string, string>): strin
   const defaultKey = Object.keys(DEFAULT_CATEGORY_GROUP).find((k) => k.toLowerCase() === catLabel.toLowerCase());
   if (defaultKey) return DEFAULT_CATEGORY_GROUP[defaultKey];
   return 'Chưa phân nhóm';
+};
+
+const CategoryMultiSelectFilter: React.FC<{
+  disabled?: boolean;
+  selectedCategory: string;
+  setSelectedCategory: (cat: string) => void;
+  filteredCategoryOptions: Array<{ id: string; label: string }>;
+  categoryDisplayNameMap: Record<string, string>;
+}> = ({
+  disabled,
+  selectedCategory,
+  setSelectedCategory,
+  filteredCategoryOptions,
+  categoryDisplayNameMap,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Parse current selection
+  const selectedList = React.useMemo(() => {
+    if (!selectedCategory || selectedCategory === 'ALL') return [];
+    return selectedCategory.split(',').map((s) => s.trim()).filter(Boolean);
+  }, [selectedCategory]);
+
+  const isAll = selectedList.length === 0 || selectedCategory === 'ALL';
+
+  // Close when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Filter options based on search query
+  const searchableOptions = React.useMemo(() => {
+    const realOptions = filteredCategoryOptions.filter((c) => c.id !== 'ALL');
+    if (!searchTerm.trim()) return realOptions;
+    const term = searchTerm.toLowerCase().trim();
+    return realOptions.filter((c) => {
+      const disp = resolveCategoryDisplayName(c.label || c.id, categoryDisplayNameMap).toLowerCase();
+      return disp.includes(term) || c.id.toLowerCase().includes(term);
+    });
+  }, [filteredCategoryOptions, searchTerm, categoryDisplayNameMap]);
+
+  const toggleCategory = (catId: string) => {
+    if (isAll) {
+      // If was ALL, and clicked a category, now select only this category
+      setSelectedCategory(catId);
+    } else {
+      const exists = selectedList.includes(catId);
+      let nextList: string[];
+      if (exists) {
+        nextList = selectedList.filter((id) => id !== catId);
+      } else {
+        nextList = [...selectedList, catId];
+      }
+
+      if (nextList.length === 0 || nextList.length === filteredCategoryOptions.filter((c) => c.id !== 'ALL').length) {
+        setSelectedCategory('ALL');
+      } else {
+        setSelectedCategory(nextList.join(','));
+      }
+    }
+  };
+
+  const handleSelectAll = () => {
+    setSelectedCategory('ALL');
+  };
+
+  const handleClearAll = () => {
+    setSelectedCategory('ALL');
+  };
+
+  // Compute trigger button label
+  const triggerLabel = React.useMemo(() => {
+    if (isAll) return 'Tất cả';
+    if (selectedList.length === 1) {
+      return resolveCategoryDisplayName(selectedList[0], categoryDisplayNameMap);
+    }
+    return `${selectedList.length} ngành hàng`;
+  }, [isAll, selectedList, categoryDisplayNameMap]);
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-auto min-w-[110px] max-w-[170px] bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs transition-all ${
+          disabled ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400' : 'hover:border-slate-300'
+        } ${!isAll ? 'border-sky-500 bg-sky-50 text-sky-900' : ''}`}
+        title="Chọn một hoặc nhiều ngành hàng"
+      >
+        <span className="truncate">{triggerLabel}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 top-full mt-1.5 w-72 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in text-left">
+          {/* Search Header */}
+          <div className="p-2.5 border-b border-slate-100 bg-slate-50/90 space-y-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm ngành hàng..."
+                className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-7 py-1 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 pt-0.5 px-1">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className={`hover:text-sky-600 cursor-pointer flex items-center gap-1 ${isAll ? 'text-sky-600 font-extrabold' : ''}`}
+              >
+                <Check className="w-3 h-3" /> Chọn tất cả
+              </button>
+              {!isAll && (
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="hover:text-rose-600 cursor-pointer text-slate-400"
+                >
+                  Khôi phục tất cả
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
+            {/* "Tất cả" option */}
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className={`w-full px-3 py-1.5 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                isAll ? 'bg-sky-50 text-sky-900 font-black' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>Tất cả ngành hàng</span>
+              {isAll && <Check className="w-3.5 h-3.5 text-sky-600 stroke-[2.5]" />}
+            </button>
+
+            {searchableOptions.map((c) => {
+              const displayName = resolveCategoryDisplayName(c.label || c.id, categoryDisplayNameMap);
+              const isChecked = !isAll && selectedList.includes(c.id);
+
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCategory(c.id)}
+                  className={`w-full px-3 py-1.5 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                    isChecked
+                      ? 'bg-sky-100 text-sky-950 font-black'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="truncate">{displayName}</span>
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
+                      isChecked
+                        ? 'bg-sky-600 border-sky-600 text-white'
+                        : isAll
+                        ? 'border-slate-200 bg-slate-100 text-slate-300'
+                        : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                  </span>
+                </button>
+              );
+            })}
+
+            {searchableOptions.length === 0 && (
+              <div className="p-4 text-center text-xs text-slate-400 font-semibold">
+                Không tìm thấy ngành hàng phù hợp
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 interface HeaderBannerProps {
@@ -389,22 +601,16 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </select>
           </div>
 
-          {/* Select Category Dropdown (Dynamically filtered by selected Nhóm N.Hàng) */}
+          {/* Select Category Dropdown (Dynamically filtered by selected Nhóm N.Hàng with Multi-Select and Search) */}
           <div className="flex items-center gap-1">
             <label className="text-[11px] font-bold text-slate-400 uppercase">Ngành hàng:</label>
-            <select
+            <CategoryMultiSelectFilter
               disabled={entityScope === 'nhom'}
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-            >
-              <option value="ALL">Tất cả</option>
-              {filteredCategoryOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.id === 'ALL' ? c.label : resolveCategoryDisplayName(c.label || c.id, categoryDisplayNameMap)}
-                </option>
-              ))}
-            </select>
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              filteredCategoryOptions={filteredCategoryOptions}
+              categoryDisplayNameMap={categoryDisplayNameMap}
+            />
           </div>
 
           {/* Toggle KPI Cards & Charts Section Button */}

@@ -492,13 +492,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Whichever category columns are actually shown in the table right now
   const baseDisplayedCategoryNames = selectedCategoryGroup !== 'ALL' ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;
 
-  const displayedCategoryNames = selectedCategory !== 'ALL'
+  const selectedCategoriesList = useMemo(() => {
+    if (!selectedCategory || selectedCategory === 'ALL') return [];
+    return selectedCategory.split(',').map((c) => c.trim()).filter(Boolean);
+  }, [selectedCategory]);
+
+  const displayedCategoryNames = selectedCategoriesList.length > 0
     ? baseDisplayedCategoryNames.filter((catName) => {
-        const selLower = selectedCategory.toLowerCase().trim();
         const catLower = catName.toLowerCase().trim();
-        if (catLower === selLower) return true;
-        if (catLower.includes(selLower) || selLower.includes(catLower)) return true;
-        return false;
+        return selectedCategoriesList.some((sel) => {
+          const selLower = sel.toLowerCase().trim();
+          return catLower === selLower || catLower.includes(selLower) || selLower.includes(catLower);
+        });
       })
     : baseDisplayedCategoryNames;
 
@@ -562,8 +567,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
         : (count > 0 ? Math.round(rateSum / count) : 0);
       return { ...s, target, achieved, rate };
     }
-    if (selectedCategory !== 'ALL') {
-      const catData = getCategoryData(s, selectedCategory);
+    if (selectedCategoriesList.length === 1) {
+      const catData = getCategoryData(s, selectedCategoriesList[0]);
       return {
         ...s,
         target: catData.target,
@@ -571,12 +576,31 @@ export const ReportView: React.FC<ReportViewProps> = ({
         rate: catData.rate,
       };
     }
+    if (selectedCategoriesList.length > 1) {
+      let target = 0;
+      let achieved = 0;
+      let rateSum = 0;
+      let count = 0;
+      selectedCategoriesList.forEach((cat) => {
+        const catData = getCategoryData(s, cat);
+        if (catData.target > 0 || catData.achieved > 0 || catData.rate > 0) {
+          target += catData.target;
+          achieved += catData.achieved;
+          rateSum += (catData.rate || 0);
+          count += 1;
+        }
+      });
+      const rate = (target > 0 && achieved > 0)
+        ? (isProvinceView ? Math.round((achieved / target) * 100) : Number(((achieved / target) * 100).toFixed(1)))
+        : (count > 0 ? Math.round(rateSum / count) : 0);
+      return { ...s, target, achieved, rate };
+    }
     return s;
   }).map((s) => {
     const achievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(s, cat).rate ?? 0) >= 100).length;
     // TỶ LỆ % is (Số ngành hàng đạt >= 100%) / (Tổng số ngành hàng hiển thị) * 100
     // e.g. 18/38 đạt => Tỷ lệ = 18/38 * 100 = 47%
-    const rate = selectedCategory !== 'ALL'
+    const rate = selectedCategoriesList.length === 1
       ? Math.round(s.rate || 0)
       : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
     return { ...s, rate };
@@ -726,15 +750,23 @@ export const ReportView: React.FC<ReportViewProps> = ({
     if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
       return `${modeStr} THI ĐUA NHÓM ${selectedCategoryGroup.toUpperCase()}`;
     }
-    if (selectedCategory && selectedCategory !== 'ALL') {
-      return `${modeStr} THI ĐUA NGÀNH HÀNG ${selectedCategory.toUpperCase()}`;
+    if (selectedCategoriesList.length === 1) {
+      const catName = resolveCategoryDisplayName(selectedCategoriesList[0], categoryDisplayNameMap).toUpperCase();
+      return `${modeStr} THI ĐUA NGÀNH HÀNG ${catName}`;
+    }
+    if (selectedCategoriesList.length > 1) {
+      return `${modeStr} THI ĐUA ${selectedCategoriesList.length} NGÀNH HÀNG ĐÃ CHỌN`;
     }
     return `${modeStr} THI ĐUA NGÀNH HÀNG THÁNG 08/2026`;
   })();
 
   const subHeaderTitle = (() => {
-    if (selectedCategory && selectedCategory !== 'ALL') {
-      return `CHỈ TÍNH THI ĐUA ${selectedCategory.toUpperCase()}`;
+    if (selectedCategoriesList.length === 1) {
+      const catName = resolveCategoryDisplayName(selectedCategoriesList[0], categoryDisplayNameMap).toUpperCase();
+      return `CHỈ TÍNH THI ĐUA ${catName}`;
+    }
+    if (selectedCategoriesList.length > 1) {
+      return `CHỈ TÍNH ${selectedCategoriesList.length} NGÀNH HÀNG ĐÃ CHỌN`;
     }
     if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
       return `CHỈ TÍNH THI ĐUA NHÓM ${selectedCategoryGroup.toUpperCase()}`;
