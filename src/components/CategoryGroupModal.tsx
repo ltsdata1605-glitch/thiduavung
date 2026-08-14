@@ -330,7 +330,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                 • Cột <span className="font-bold">STT (#1, #2...)</span> tự động nhảy số. Giữ biểu tượng <GripVertical className="w-3 h-3 inline text-slate-500" /> để kéo thả hoặc bấm <span className="font-bold">▲ / ▼</span> để di chuyển.
               </p>
               <p className="text-[11px] text-indigo-900 bg-amber-50/80 border border-amber-200 rounded-lg p-1.5 font-medium">
-                💡 <span className="font-bold text-amber-900">Quy tắc độ dài tiêu đề:</span> Nên đặt tên ngành hàng <span className="font-bold text-amber-900">dưới 20 ký tự</span> (vd: <span className="font-bold">GIẶT - SẤY - RỬA CHÉN, ĐIỆN LẠNH AQUA/HAIER</span>) để tiêu đề trên bảng Tab Nhóm luôn hiển thị đẹp trọn vẹn trên <span className="font-bold underline text-amber-900">1 dòng</span> duy nhất!
+                💡 <span className="font-bold text-amber-900">Độ dài tên ngành hàng:</span> Tiêu đề hỗ trợ độ dài lên đến <span className="font-bold text-amber-900">30 ký tự</span> hiển thị trên 1 dòng (vd: <span className="font-bold">MÁY GIẶT - SẤY - RỬA CHÉN, FLAGSHIP SAMSUNG S/Z...</span>).
               </p>
             </div>
           </div>
@@ -402,8 +402,8 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
 
               const currentVal = draftDisplayNameMap[cat.id] ?? getShortCategoryName(cat.label || cat.id);
               const charCount = currentVal.length;
-              const isWarning = charCount > 20;
-              const isDanger = charCount > 25;
+              const isWarning = charCount > 30;
+              const isDanger = charCount > 35;
 
               return (
                 <div
@@ -463,12 +463,12 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       <input
                         type="text"
-                        maxLength={35}
+                        maxLength={45}
                         value={currentVal}
                         draggable={false}
                         onKeyDown={(e) => e.stopPropagation()}
                         onChange={(e) => handleRenameCategory(cat.id, e.target.value)}
-                        title={`Tên gốc đầy đủ: ${cat.label}\nĐộ dài: ${charCount} ký tự (Khuyến nghị ≤ 20 ký tự để không bị xuống dòng)`}
+                        title={`Tên gốc đầy đủ: ${cat.label}\nĐộ dài: ${charCount} ký tự (Khuyến nghị ≤ 30 ký tự để luôn trên 1 dòng)`}
                         placeholder={getShortCategoryName(cat.label || cat.id)}
                         className={`min-w-0 flex-1 bg-transparent border rounded-lg px-2 py-0.5 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 truncate transition-all ${
                           isDanger
@@ -483,10 +483,10 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                       <span
                         title={
                           isDanger
-                            ? `Độ dài ${charCount} ký tự (Quá dài! Chắc chắn bị xuống 2 dòng trên bảng 4 cột)`
+                            ? `Độ dài ${charCount} ký tự (Khá dài > 35 ký tự, có nguy cơ tràn chữ trên bảng 4 cột)`
                             : isWarning
-                            ? `Độ dài ${charCount} ký tự (Dài! Có nguy cơ bị xuống dòng, khuyến nghị ≤ 20 ký tự)`
-                            : `Độ dài ${charCount}/20 ký tự (Tối ưu trên 1 dòng)`
+                            ? `Độ dài ${charCount} ký tự (Hơi dài > 30 ký tự, nên rút gọn dưới 30 ký tự)`
+                            : `Độ dài ${charCount}/30 ký tự (Độ dài đẹp trên 1 dòng)`
                         }
                         className={`text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5 select-none ${
                           isDanger
@@ -496,7 +496,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                             : 'text-slate-400 bg-slate-100/70 border border-slate-200'
                         }`}
                       >
-                        {charCount}/20
+                        {charCount}/30
                         {isWarning && <span>⚠️</span>}
                       </span>
 

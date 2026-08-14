@@ -283,16 +283,16 @@ const ProvinceSummaryCard: React.FC<{
         {(() => {
           const catDisplayName = resolveCategoryDisplayName(config.category, categoryDisplayNameMap).toUpperCase();
           const nameLength = catDisplayName.length;
-          const titleSizeClass = nameLength > 24 ? 'text-xs sm:text-[13px] tracking-tighter' : nameLength > 18 ? 'text-xs sm:text-sm tracking-tight' : 'text-sm sm:text-base tracking-wide';
+          const titleSizeClass = nameLength > 28 ? 'text-xs sm:text-[13px] tracking-tighter' : nameLength > 22 ? 'text-xs sm:text-sm tracking-tight' : 'text-sm sm:text-base tracking-wide';
 
           return (
             <div
               className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-2 text-center shadow-2xs border rounded-none`}
               style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
             >
-              <h3 className={`${titleSizeClass} font-black uppercase text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1`}>
+              <h3 className={`${titleSizeClass} font-black uppercase text-white text-center drop-shadow-xs flex items-center justify-center gap-1 max-w-full overflow-hidden`}>
                 <span className="relative inline-flex items-center gap-1 group cursor-pointer max-w-full">
-                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
+                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black whitespace-nowrap truncate max-w-full">
                     {catDisplayName}
                   </span>
                   <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
