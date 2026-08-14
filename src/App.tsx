@@ -30,7 +30,6 @@ import {
   getLocalCache,
   getIndexedDbCache,
   clearAllLocalCache,
-  waitForInitialSync,
   type DocKey,
 } from './services/storeService';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -182,6 +181,28 @@ export default function App() {
   // anything was still loading. Capped by a safety timeout so an unreachable
   // Firestore never traps the user behind a stuck loading screen.
   const CLOUD_SYNC_TIMEOUT_MS = 15000;
+
+  // Gates the loading modal on the SAME onSnapshot listeners the app already
+  // runs (see the "Subscribe to Firebase Firestore" effect below) instead of
+  // a separate getDoc/getDocs read per dataset — that older approach
+  // (waitForInitialSync) opened a second, fully redundant round of network
+  // requests in parallel with the listeners on every fresh device/login,
+  // roughly doubling Firestore round trips right when the connection is
+  // already the bottleneck. Only the 3 datasets the loading text promises
+  // ("Realtime, Luỹ kế & danh sách Boss") gate it — the rest still load via
+  // the same listeners just without blocking the modal on them.
+  const CRITICAL_SYNC_DOC_KEYS: DocKey[] = ['realtime_stores_tinh', 'luyke_stores_tinh', 'boss_assignments'];
+  const criticalDocsSeenRef = useRef<Set<DocKey>>(new Set());
+  const resolveCriticalSyncRef = useRef<(() => void) | null>(null);
+  const waitForCriticalSync = () =>
+    new Promise<void>((resolve) => {
+      if (CRITICAL_SYNC_DOC_KEYS.every((k) => criticalDocsSeenRef.current.has(k))) {
+        resolve();
+        return;
+      }
+      resolveCriticalSyncRef.current = resolve;
+    });
+
   const triggerCloudSyncAnimation = async (customSubText?: string) => {
     setCloudSyncState({
       isOpen: true,
@@ -198,7 +219,7 @@ export default function App() {
     }));
 
     await Promise.race([
-      waitForInitialSync(),
+      waitForCriticalSync(),
       new Promise((resolve) => setTimeout(resolve, CLOUD_SYNC_TIMEOUT_MS)),
     ]);
 
@@ -335,6 +356,17 @@ export default function App() {
       if (!meta.isInitial) {
         const label = REMOTE_UPDATE_LABELS[meta.docKey];
         if (label) notifyRemoteUpdate(label);
+      }
+
+      // First time THIS docKey has reported anything (initial or not) —
+      // resolves the cloud-sync loading modal's wait once all 3 critical
+      // datasets have checked in, without a second redundant read.
+      if (CRITICAL_SYNC_DOC_KEYS.includes(meta.docKey) && !criticalDocsSeenRef.current.has(meta.docKey)) {
+        criticalDocsSeenRef.current.add(meta.docKey);
+        if (CRITICAL_SYNC_DOC_KEYS.every((k) => criticalDocsSeenRef.current.has(k))) {
+          resolveCriticalSyncRef.current?.();
+          resolveCriticalSyncRef.current = null;
+        }
       }
     });
 
