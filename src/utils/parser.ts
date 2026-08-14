@@ -443,6 +443,92 @@ export function parseBossPastedData(text: string): {
 }
 
 /**
+ * Validates that pasted text (any of the 4 Realtime/Luỹ Kế Tỉnh/Vùng boxes)
+ * actually looks like a store competition table — i.e. has a recognizable
+ * TARGET/CHỈ TIÊU and/or ĐẠT/REALTIME/LUỸ KẾ column — before the expensive
+ * parse+save pipeline runs. Catches the common "pasted the wrong sheet /
+ * wrong box" mistake instead of silently producing 0 or garbage rows.
+ */
+export function validateStoreHeaders(text: string): BossValidationResult {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length === 0) {
+    return {
+      isValid: false,
+      errorMessage: 'Không có dữ liệu nào được dán.',
+      missingColumns: ['TARGET / CHỈ TIÊU', 'ĐẠT / REALTIME / LUỸ KẾ'],
+      extraColumns: [],
+      foundColumns: [],
+    };
+  }
+
+  const detectDelimiter = (line: string): string => {
+    if (line.includes('\t')) return '\t';
+    if (line.includes(',')) return ',';
+    return /\s{2,}/.source;
+  };
+  const splitLine = (line: string, delimiter: string): string[] => {
+    const parts = delimiter === /\s{2,}/.source ? line.split(new RegExp(delimiter)) : line.split(delimiter);
+    return parts.map((c) => c.trim().replace(/^["']|["']$/g, ''));
+  };
+  const normalizeHeader = (h: string): string =>
+    (h || '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toUpperCase()
+      .trim();
+
+  let headerCells: string[] | null = null;
+  let hasTarget = false;
+  let hasAchieved = false;
+
+  for (let i = 0; i < Math.min(50, lines.length); i++) {
+    const delimiter = detectDelimiter(lines[i]);
+    const cells = splitLine(lines[i], delimiter);
+    if (cells.length < 2) continue;
+    const normHeaders = cells.map(normalizeHeader);
+
+    const tTarget = normHeaders.some((h) => h.includes('CHI TIEU') || h.includes('KE HOACH') || h.includes('TARGET'));
+    const tAchieved = normHeaders.some(
+      (h) => h.includes('DAT') || h.includes('REALTIME') || h.includes('LUY KE') || h.includes('DOANH THU') || h.includes('DTLK') || h.includes('SLLK')
+    );
+    const tRate = normHeaders.some((h) => h.includes('DU KIEN') || h.includes('TY LE') || h.includes('%') || h.includes('HOAN THANH'));
+
+    if (tTarget || tAchieved || tRate) {
+      headerCells = cells;
+      hasTarget = tTarget;
+      hasAchieved = tAchieved;
+      break;
+    }
+  }
+
+  const foundColumns = (headerCells || splitLine(lines[0], detectDelimiter(lines[0]))).map((c) => c.toUpperCase()).filter(Boolean);
+
+  if (!headerCells || (!hasTarget && !hasAchieved)) {
+    return {
+      isValid: false,
+      errorMessage:
+        'Không tìm thấy cấu trúc cột dữ liệu thi đua hợp lệ (thiếu cả cột TARGET/CHỈ TIÊU và ĐẠT/REALTIME/LUỸ KẾ). Có thể bạn đã dán nhầm bảng khác.',
+      missingColumns: ['TARGET / CHỈ TIÊU', 'ĐẠT / REALTIME / LUỸ KẾ'],
+      extraColumns: [],
+      foundColumns,
+    };
+  }
+
+  return {
+    isValid: true,
+    missingColumns: [],
+    extraColumns: [],
+    foundColumns,
+  };
+}
+
+/**
  * Parses TSV/CSV string pasted directly from Excel or Google Sheets.
  * Handles headers like STT, TỈNH, BOSS, KÊNH, SIÊU THỊ, CHỈ TIÊU, ĐẠT, TỶ LỆ...
  */

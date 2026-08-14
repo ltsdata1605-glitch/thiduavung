@@ -419,12 +419,12 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                       {/* Store Columns */}
                       {storeValues.map((val, sIdx) => {
                         const isReached = val.rate >= 100;
-                        const isZero = val.rate === 0;
+                        const isZero = val.rate === 0 && val.achieved === 0;
                         const rateColorClass = isZero
-                          ? 'text-slate-400 bg-slate-100/50'
+                          ? 'text-slate-400 bg-slate-100/60 border border-slate-200'
                           : isReached
-                          ? 'text-emerald-700 font-black bg-emerald-50 border border-emerald-300'
-                          : 'text-rose-700 font-black bg-rose-50 border border-rose-300';
+                          ? 'text-emerald-800 font-black bg-emerald-50 border border-emerald-300'
+                          : 'text-rose-800 font-black bg-rose-50 border border-rose-300';
 
                         return (
                           <td key={sIdx} className="py-1 px-2.5 text-center">
@@ -433,12 +433,12 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                                 {Math.round(val.rate)}%
                               </span>
                             ) : (
-                              <div className="flex flex-col items-center">
-                                <span className="font-black text-xs text-slate-900">
+                              <div className={`inline-flex flex-col items-center px-2.5 py-0.5 rounded-lg shadow-2xs min-w-[70px] ${rateColorClass}`}>
+                                <span className="font-black text-xs leading-tight">
                                   {Math.round(val.achieved).toLocaleString('vi-VN')}
                                 </span>
                                 {val.target > 0 && (
-                                  <span className="text-[10px] text-slate-500 font-bold">
+                                  <span className={`text-[9.5px] font-bold leading-tight ${isReached ? 'text-emerald-600' : 'text-rose-600'}`}>
                                     /{Math.round(val.target).toLocaleString('vi-VN')} ({Math.round(val.rate)}%)
                                   </span>
                                 )}
@@ -450,6 +450,42 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
 
                       {/* Diff Column for 2 stores */}
                       {isTwoStores && (() => {
+                        if (valueDisplayMode === 'value') {
+                          const a1 = Math.round(storeValues[0].achieved || 0);
+                          const a2 = Math.round(storeValues[1].achieved || 0);
+                          const diffVal = a1 - a2;
+                          if (a1 === 0 && a2 === 0) {
+                            return (
+                              <td className="py-1 px-2.5 text-center text-slate-400 text-xs">
+                                -
+                              </td>
+                            );
+                          }
+                          if (diffVal === 0) {
+                            return (
+                              <td className="py-1 px-2.5 text-center text-slate-500 font-bold text-xs">
+                                Bằng nhau
+                              </td>
+                            );
+                          }
+                          const isStore1Better = diffVal > 0;
+                          return (
+                            <td className="py-1 px-2.5 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black shadow-2xs ${
+                                  isStore1Better
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-sky-100 text-sky-800 border border-sky-300'
+                                }`}
+                              >
+                                <span>{isStore1Better ? '#1 hơn' : '#2 hơn'}</span>
+                                <span>+{Math.abs(diffVal).toLocaleString('vi-VN')}</span>
+                              </span>
+                            </td>
+                          );
+                        }
+
+                        // Percent mode comparison
                         const r1 = storeValues[0].rate || 0;
                         const r2 = storeValues[1].rate || 0;
                         const diff = Math.round(r1 - r2);
