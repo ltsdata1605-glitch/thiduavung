@@ -1,5 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 
 const metaEnv = (import.meta as any).env || {};
@@ -24,7 +24,29 @@ try {
   } else {
     app = getApps()[0];
   }
-  db = getFirestore(app);
+  // Persistent IndexedDB-backed local cache: Firestore itself now caches
+  // every document/chunk it has ever seen, so on a REPEAT visit (same
+  // browser, which is the overwhelming majority of real usage — only a
+  // first-ever visit or a cleared browser is a true cold start) every
+  // onSnapshot listener resolves its first snapshot from disk in a few ms
+  // instead of waiting on a network round trip, before the live server
+  // update arrives moments later over the same listener. Without this,
+  // Firestore's default is memory-only cache — every fresh page load was a
+  // full network fetch of every dataset, every time, even on a device
+  // that had already synced everything an hour earlier. Multi-tab manager
+  // because users routinely have the report open in more than one tab.
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (cacheError) {
+    // Unlike the old getFirestore() (always idempotent), initializeFirestore
+    // throws if a Firestore instance already exists for this app — which
+    // happens under Vite HMR when this module re-runs against an app that's
+    // still registered from before the edit. Fall back to the existing
+    // instance instead of leaving db null and the whole app unable to boot.
+    db = getFirestore(app);
+  }
   auth = getAuth(app);
 } catch (error) {
   console.warn('Firebase initialization warning (using local fallback mode):', error);

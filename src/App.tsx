@@ -5,7 +5,13 @@ import { getBossForStore, extractMst, BossAssignmentRecord } from './utils/parse
 import { Sidebar } from './components/Sidebar';
 import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
-import { UpdateDataView } from './components/UpdateDataView';
+// Lazy-loaded: only Super Admin/Admin can ever open this tab (see
+// canUpdateData below), so Editor/Viewer sessions — the majority of
+// logins — never download or parse this chunk (it also pulls in xlsx's
+// caller code) at all.
+const UpdateDataView = React.lazy(() =>
+  import('./components/UpdateDataView').then((m) => ({ default: m.UpdateDataView }))
+);
 import { SettingsView } from './components/SettingsView';
 import { TagBossModal, generateReportRemarksText } from './components/TagBossModal';
 import { LoginView } from './components/LoginView';
@@ -1205,19 +1211,27 @@ export default function App() {
           )}
 
           {activeTab === 'update' && canUpdateData && (
-            <UpdateDataView
-              onUpdateRealtimeData={handleUpdateRealtimeData}
-              onUpdateLuyKeData={handleUpdateLuyKeData}
-              onUpdateBossData={handleUpdateBossData}
-              currentRealtimeStoresTinh={realtimeStoresTinh}
-              currentRealtimeStoresVung={realtimeStoresVung}
-              currentLuyKeStoresTinh={luykeStoresTinh}
-              currentLuyKeStoresVung={luykeStoresVung}
-              currentBossAssignments={bossAssignments}
-              lastUpdateRealtime={settings.lastUpdateRealtime}
-              lastUpdateLuyKe={settings.lastUpdateLuyKe}
-              canViewDtQdTb={canViewDtQdTb}
-            />
+            <React.Suspense
+              fallback={
+                <div className="flex items-center justify-center py-24 text-slate-400 text-sm font-semibold">
+                  Đang tải màn hình cập nhật dữ liệu...
+                </div>
+              }
+            >
+              <UpdateDataView
+                onUpdateRealtimeData={handleUpdateRealtimeData}
+                onUpdateLuyKeData={handleUpdateLuyKeData}
+                onUpdateBossData={handleUpdateBossData}
+                currentRealtimeStoresTinh={realtimeStoresTinh}
+                currentRealtimeStoresVung={realtimeStoresVung}
+                currentLuyKeStoresTinh={luykeStoresTinh}
+                currentLuyKeStoresVung={luykeStoresVung}
+                currentBossAssignments={bossAssignments}
+                lastUpdateRealtime={settings.lastUpdateRealtime}
+                lastUpdateLuyKe={settings.lastUpdateLuyKe}
+                canViewDtQdTb={canViewDtQdTb}
+              />
+            </React.Suspense>
           )}
 
           {activeTab === 'settings' && (

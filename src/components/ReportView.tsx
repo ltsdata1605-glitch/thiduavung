@@ -1,7 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
 import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
-import { GroupReportView } from './GroupReportView';
+// Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
+// instead of shipping ~1300 lines of Nhóm-only report code in the bundle
+// every user downloads to see the default VÙNG/SIÊU THỊ view.
+const GroupReportView = React.lazy(() =>
+  import('./GroupReportView').then((m) => ({ default: m.GroupReportView }))
+);
 import { 
   Trophy, 
   TrendingUp, 
@@ -647,7 +652,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Filter stores according to active user filters
   const hasSearch = Boolean(searchTerm.trim());
 
-  const filteredStores = stores.filter((s) => {
+  // This pipeline (filter → per-tỉnh rollup → per-category mapping → sort)
+  // touches every one of up to 700+ Siêu Thị rows against up to 38 ngành
+  // hàng columns each. Left as plain `const`s, it re-ran in full on *every*
+  // render of this component — including ones with nothing to do with the
+  // data at all (a checkbox click, a dropdown open, every keystroke while
+  // typing in the search box). useMemo below makes it only redo the work
+  // when something it actually reads has changed.
+  const filteredStores = useMemo(() => stores.filter((s) => {
     // Exclude stores with channel "OFF" or "LƯU ĐỘNG"
     const effectiveKenh = resolveKenh(s.sieuthi, s.kenh);
     const upperEffectiveKenh = (effectiveKenh || '').toString().toUpperCase().trim();
@@ -706,7 +718,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
 
     return true;
-  });
+  }), [
+    stores,
+    hasSearch,
+    searchTerm,
+    isFilterToSelected,
+    selectedStoreIds,
+    selectedChannels,
+    selectedProvince,
+    selectedBoss,
+    resolveKenh,
+    resolveBoss,
+  ]);
 
   // "VÙNG" scope shows one compact row per Tỉnh (rolling up every store in
   // that province) instead of one row per store — matches the BI region-level
@@ -717,7 +740,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // 'vung' string.
   const isProvinceView = entityScope === 'sieuthi';
 
-  const baseRows: StoreRecord[] = isProvinceView
+  const baseRows: StoreRecord[] = useMemo(() => (isProvinceView
     ? (() => {
         const byTinh = new Map<string, {
           target: number;
@@ -807,10 +830,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
           };
         });
       })()
-    : filteredStores;
+    : filteredStores), [isProvinceView, filteredStores, timeMode, bossAssignments, resolveDtQd]);
 
   // Ordered list of 38 categories grouped by categoryGroupMap (falling back to DEFAULT_CATEGORY_GROUP) and ordered by categoryOrderMap
-  const orderedHardcodedCategoryNames = (() => {
+  const orderedHardcodedCategoryNames = useMemo(() => (() => {
     const grouped = new Map<string, string[]>();
     ALL_HARDCODED_CATEGORY_NAMES.forEach((cat) => {
       const groupName = getCategoryGroup(cat, categoryGroupMap);
@@ -826,10 +849,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
       result.push(...catsInGroup);
     });
     return result;
-  })();
+  })(), [categoryGroupMap, categoryOrderMap]);
 
   // Ngành hàng belonging to the selected Nhóm (Category Group) — ordered by custom position ordering
-  const categoriesInSelectedGroup =
+  const categoriesInSelectedGroup = useMemo(() => (
     selectedCategoryGroup !== 'ALL'
       ? (() => {
           const selected = new Set(
@@ -841,7 +864,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
             (a, b) => (categoryOrderMap?.[a] ?? 999) - (categoryOrderMap?.[b] ?? 999)
           );
         })()
-      : [];
+      : []
+  ), [selectedCategoryGroup, categoryGroupMap, categoryOrderMap]);
 
   // Whichever category columns are actually shown in the table right now
   const baseDisplayedCategoryNames = selectedCategoryGroup !== 'ALL' ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;
@@ -851,15 +875,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return selectedCategory.split(',').map((c) => c.trim()).filter(Boolean);
   }, [selectedCategory]);
 
-  const displayedCategoryNames = selectedCategoriesList.length > 0
-    ? baseDisplayedCategoryNames.filter((catName) => {
-        const catLower = catName.toLowerCase().trim();
-        return selectedCategoriesList.some((sel) => {
-          const selLower = sel.toLowerCase().trim();
-          return catLower === selLower || catLower.includes(selLower) || selLower.includes(catLower);
-        });
-      })
-    : baseDisplayedCategoryNames;
+  const displayedCategoryNames = useMemo(() => (
+    selectedCategoriesList.length > 0
+      ? baseDisplayedCategoryNames.filter((catName) => {
+          const catLower = catName.toLowerCase().trim();
+          return selectedCategoriesList.some((sel) => {
+            const selLower = sel.toLowerCase().trim();
+            return catLower === selLower || catLower.includes(selLower) || selLower.includes(catLower);
+          });
+        })
+      : baseDisplayedCategoryNames
+  ), [selectedCategoriesList, baseDisplayedCategoryNames]);
 
   // Number of category columns actually rendered right now
   const categoryColumnCount = Math.max(displayedCategoryNames.length, 1);
@@ -903,7 +929,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Map store metrics if a specific category or category group is selected.
   // A Nhóm selection takes precedence over a single Ngành hàng selection —
   // they're two different granularities of the same filter, not meant to combine.
-  const storesToDisplay = baseRows.map((s) => {
+  const storesToDisplay = useMemo(() => baseRows.map((s) => {
     if (selectedCategoryGroup !== 'ALL') {
       let target = 0;
       let achieved = 0;
@@ -960,10 +986,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
       ? Math.round(s.rate || 0)
       : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
     return { ...s, rate, achievedCategories: achievedCount };
-  });
+  }), [
+    baseRows,
+    selectedCategoryGroup,
+    categoriesInSelectedGroup,
+    selectedCategoriesList,
+    isProvinceView,
+    displayedCategoryNames,
+  ]);
 
   // Sort stores
-  const sortedStores = [...storesToDisplay].sort((a, b) => {
+  const sortedStores = useMemo(() => [...storesToDisplay].sort((a, b) => {
     // 1. Sort by CỘT ĐẠT (achieved count or achieved revenue)
     if (sortField === 'achieved') {
       const aAchievedCount = displayedCategoryNames.length > 0
@@ -1063,7 +1096,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     // 3. Tỷ lệ % giảm dần
     return (b.rate || 0) - (a.rate || 0);
-  });
+  }), [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss]);
 
   // Paginate the Siêu Thị (per-store) view — Vùng rollup is already short
   // (one row per tỉnh) and never needs it. forceShowAllRows overrides this
@@ -1137,14 +1170,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return `CHỈ TÍNH KÊNH ${cleanChannels.join(', ')}`;
   })();
 
-  const totalDtQdTb = isProvinceView
-    ? sortedStores.reduce((acc, s) => acc + ((s as any).dtQdTbVal || 0), 0)
-    : sortedStores.reduce((acc, s) => acc + parseDtQdTbNum(resolveDtQd(s.sieuthi)), 0);
+  const totalDtQdTb = useMemo(() => (
+    isProvinceView
+      ? sortedStores.reduce((acc, s) => acc + ((s as any).dtQdTbVal || 0), 0)
+      : sortedStores.reduce((acc, s) => acc + parseDtQdTbNum(resolveDtQd(s.sieuthi)), 0)
+  ), [isProvinceView, sortedStores, resolveDtQd]);
 
   // Region-wide average rate per displayed ngành hàng — feeds the TỔNG CỘNG
   // row's per-category cells AND (for Vùng view) the region's overall ĐẠT/TỶ
-  // LỆ, so the KPI card and the table's total row always agree.
-  const categoryAverages = displayedCategoryNames.map((cName) => {
+  // LỆ, so the KPI card and the table's total row always agree. This is the
+  // other O(categories × rows) pass (up to 38 × 700+ = 26k+ getCategoryData
+  // calls, each allocating on its legacy-fallback path) — same reasoning as
+  // storesToDisplay/sortedStores above for why it needs to be memoized.
+  const categoryAverages = useMemo(() => displayedCategoryNames.map((cName) => {
     let totalT = 0, totalA = 0, rateSum = 0, count = 0;
     storesToDisplay.forEach((s) => {
       const catData = getCategoryData(s, cName);
@@ -1162,13 +1200,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
       ? Math.round(rateSum / count)
       : (totalT > 0 ? Math.round((totalA / totalT) * 100) : 0);
     return { cName, totalT, totalA, avgRate };
-  });
+  }), [displayedCategoryNames, storesToDisplay]);
 
   // TỔNG CỘNG row's "ĐẠT" cell counts Nhóm thi đua (ICT / Dịch vụ / CE & Gia
   // dụng — or the single filtered Nhóm N.Hàng) that reached >= 100% overall,
   // out of the total Nhóm shown — a coarser, group-level version of each
   // Tỉnh row's own ngành-hàng-level "ĐẠT" count.
-  const nhomTotalsForFooter = (() => {
+  const nhomTotalsForFooter = useMemo(() => {
     const buckets = new Map<string, { catRates: number[]; targetSum: number; achievedSum: number }>();
     categoryAverages.forEach(({ cName, totalT, totalA, avgRate }) => {
       const label = selectedCategoryGroup !== 'ALL' ? selectedCategoryGroup : getPresetGroupStyle(cName).label;
@@ -1187,7 +1225,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
         rate,
       };
     });
-  })();
+  }, [categoryAverages, selectedCategoryGroup]);
 
   // Calculate Region Totals
   const totalTarget = storesToDisplay.reduce((acc, s) => acc + s.target, 0);
@@ -1239,21 +1277,29 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   if (entityScope === 'nhom') {
     return (
-      <GroupReportView
-        timeMode={timeMode}
-        lastUpdated={lastUpdated}
-        stores={stores}
-        selectedChannels={selectedChannels}
-        selectedProvince={selectedProvince}
-        selectedBoss={selectedBoss}
-        selectedCategory={selectedCategory}
-        selectedCategoryGroup={selectedCategoryGroup}
-        categoryGroupMap={categoryGroupMap}
-        categoryOrderMap={categoryOrderMap}
-        categoryDisplayNameMap={categoryDisplayNameMap}
-        bossAssignments={bossAssignments}
-        onOpenTagBossModal={onOpenTagBossModal}
-      />
+      <React.Suspense
+        fallback={
+          <div className="flex items-center justify-center py-24 text-slate-400 text-sm font-semibold">
+            Đang tải báo cáo Nhóm...
+          </div>
+        }
+      >
+        <GroupReportView
+          timeMode={timeMode}
+          lastUpdated={lastUpdated}
+          stores={stores}
+          selectedChannels={selectedChannels}
+          selectedProvince={selectedProvince}
+          selectedBoss={selectedBoss}
+          selectedCategory={selectedCategory}
+          selectedCategoryGroup={selectedCategoryGroup}
+          categoryGroupMap={categoryGroupMap}
+          categoryOrderMap={categoryOrderMap}
+          categoryDisplayNameMap={categoryDisplayNameMap}
+          bossAssignments={bossAssignments}
+          onOpenTagBossModal={onOpenTagBossModal}
+        />
+      </React.Suspense>
     );
   }
 
