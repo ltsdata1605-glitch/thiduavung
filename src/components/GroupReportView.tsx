@@ -283,11 +283,12 @@ const ProvinceSummaryCard: React.FC<{
         {(() => {
           const catDisplayName = resolveCategoryDisplayName(config.category, categoryDisplayNameMap).toUpperCase();
           const nameLength = catDisplayName.length;
-          const titleSizeClass = nameLength > 28 ? 'text-xs sm:text-[13px] tracking-tighter' : nameLength > 22 ? 'text-xs sm:text-sm tracking-tight' : 'text-sm sm:text-base tracking-wide';
+          // Only reduce size if text is genuinely too long to fit (> 27 chars)
+          const titleSizeClass = nameLength > 32 ? 'text-xs sm:text-sm tracking-tight' : nameLength > 27 ? 'text-sm sm:text-base tracking-tight' : 'text-base sm:text-lg tracking-wide';
 
           return (
             <div
-              className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-2 text-center shadow-2xs border rounded-none`}
+              className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-1.5 text-center shadow-2xs border rounded-none`}
               style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
             >
               <h3 className={`${titleSizeClass} font-black uppercase text-white text-center drop-shadow-xs flex items-center justify-center gap-1 max-w-full overflow-hidden`}>
