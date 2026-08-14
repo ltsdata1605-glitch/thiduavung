@@ -14,6 +14,8 @@ import { exportElementAsImage } from '../services/imageExport';
 import { saveGroupSummaryCardsToFirebase, getLocalCache } from '../services/storeService';
 import { ExportLoadingModal } from './ExportLoadingModal';
 import { ProvinceRemarksModal } from './ProvinceRemarksModal';
+import { ProvinceDetailRemarksModal } from './ProvinceDetailRemarksModal';
+import { TopBotRemarksModal } from './TopBotRemarksModal';
 import { Camera, Layers, MessageSquare, ChevronDown, Plus, X } from 'lucide-react';
 
 interface GroupReportViewProps {
@@ -551,6 +553,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   const [topBotMode, setTopBotMode] = usePersistedState<'percent' | 'count'>('tnb_topbot_mode', 'percent');
   const [topBotValue, setTopBotValue] = usePersistedState<number>('tnb_topbot_value', 20);
 
+  const [isProvinceDetailRemarksOpen, setIsProvinceDetailRemarksOpen] = useState(false);
+  const [isTopBotRemarksOpen, setIsTopBotRemarksOpen] = useState(false);
+
   const [exportingId, setExportingId] = useState<string | null>(null);
 
   const bannerBgClass = 'bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 border-sky-500';
@@ -780,14 +785,25 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               />
             </div>
 
-            <button
-              onClick={() => handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`)}
-              disabled={exportingId === 'nhom-card-province-detail'}
-              title="Xuất ảnh"
-              className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
-            >
-              <Camera className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Nút Nhận xét TOP/BOT 20% cho tỉnh này */}
+              <button
+                onClick={() => setIsProvinceDetailRemarksOpen(true)}
+                title="Xem & Sao chép Nhận xét TOP/BOT 20% của tỉnh này"
+                className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`)}
+                disabled={exportingId === 'nhom-card-province-detail'}
+                title="Xuất ảnh"
+                className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Content Captured in Image: Header Banner + Unified Table */}
@@ -949,6 +965,15 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                 <span className="text-xs font-bold text-slate-600">{topBotMode === 'percent' ? '%' : 'ST'}</span>
               </div>
 
+              {/* Nút Nhận xét TOP/BOT (Tối đa 10 Top / 10 Bot) */}
+              <button
+                onClick={() => setIsTopBotRemarksOpen(true)}
+                title="Xem & Sao chép Nhận xét TOP/BOT (tối đa 10 ST mỗi nhóm)"
+                className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ml-1"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+
               <button
                 onClick={() => handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`)}
                 disabled={exportingId === 'nhom-card-topbot-leaderboard'}
@@ -1089,6 +1114,38 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Nhận xét Chi tiết Tỉnh (Card 2) */}
+      <ProvinceDetailRemarksModal
+        isOpen={isProvinceDetailRemarksOpen}
+        onClose={() => setIsProvinceDetailRemarksOpen(false)}
+        province={selectedProvinceCard}
+        category={activeCategory}
+        categoryDisplayNameMap={categoryDisplayNameMap}
+        timeMode={timeMode}
+        lastUpdated={lastUpdated}
+        formattedTimeStr={formattedTimeStr}
+        stores={stores}
+        selectedChannels={channelsCard2}
+        bossAssignments={bossAssignments}
+        isExcludedChannel={isExcludedChannel}
+      />
+
+      {/* Modal Nhận xét TOP/BOT (Card 3) */}
+      <TopBotRemarksModal
+        isOpen={isTopBotRemarksOpen}
+        onClose={() => setIsTopBotRemarksOpen(false)}
+        provinceScope={selectedProvinceCard3}
+        category={activeCategory}
+        categoryDisplayNameMap={categoryDisplayNameMap}
+        timeMode={timeMode}
+        lastUpdated={lastUpdated}
+        formattedTimeStr={formattedTimeStr}
+        stores={stores}
+        selectedChannels={channelsCard3}
+        bossAssignments={bossAssignments}
+        isExcludedChannel={isExcludedChannel}
+      />
 
       {/* Export Loading Overlay Modal */}
       <ExportLoadingModal
