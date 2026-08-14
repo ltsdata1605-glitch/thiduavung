@@ -300,6 +300,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     const storeKey = s.id || s.sieuthi;
 
+    // Search filter: When user types a search keyword, ALWAYS search across ALL stores & provinces
+    // (allows user to search and select store #3, #4... even while currently in comparison mode)
+    if (hasSearch) {
+      const term = searchTerm.toLowerCase().trim();
+      const matchSieuThi = s.sieuthi.toLowerCase().includes(term);
+      const matchTinh = s.tinh.toLowerCase().includes(term);
+      const matchBoss = s.boss.toLowerCase().includes(term);
+      const matchEffectiveBoss = resolveBoss(s.sieuthi, s.boss).toLowerCase().includes(term);
+      if (!matchSieuThi && !matchTinh && !matchBoss && !matchEffectiveBoss) return false;
+      return true;
+    }
+
+    // When NOT searching:
     // If user activated comparison mode, only show the selected stores
     if (isFilterToSelected && selectedStoreIds.size > 0) {
       return selectedStoreIds.has(storeKey) || selectedStoreIds.has(s.sieuthi);
@@ -324,15 +337,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
       }
     }
 
-    // Search filter: Searches across ALL provinces when user types a keyword
-    if (hasSearch) {
-      const term = searchTerm.toLowerCase();
-      const matchSieuThi = s.sieuthi.toLowerCase().includes(term);
-      const matchTinh = s.tinh.toLowerCase().includes(term);
-      const matchBoss = s.boss.toLowerCase().includes(term);
-      const matchEffectiveBoss = resolveBoss(s.sieuthi, s.boss).toLowerCase().includes(term);
-      if (!matchSieuThi && !matchTinh && !matchBoss && !matchEffectiveBoss) return false;
-    }
     return true;
   });
 
@@ -523,8 +527,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // <colgroup> widths below exactly, since sticky positioning needs a fixed
   // pixel left value per column, not a relative one.
   const FROZEN_LEFT = isProvinceView
-    ? { stt: 0, tinh: 36, dat: 116, tyLe: 176, dtQdTb: 230, total: 310 }
-    : { stt: 0, tinh: 36, boss: 116, kenh: 216, sieuthi: 270, dat: 550, tyLe: 610, dtQdTb: 664, total: 744 };
+    ? { stt: 0, tinh: 40, dat: 120, tyLe: 180, dtQdTb: 234, total: 314 }
+    : { stt: 0, tinh: 56, boss: 136, kenh: 236, sieuthi: 290, dat: 570, tyLe: 630, dtQdTb: 684, total: 764 };
 
   // Map store metrics if a specific category or category group is selected.
   // A Nhóm selection takes precedence over a single Ngành hàng selection —
@@ -1064,15 +1068,25 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
           {/* Quick Search Field & Action Buttons — forced onto 1 single horizontal line */}
           <div className="export-hide flex flex-nowrap items-center gap-2 overflow-x-auto max-w-full shrink-0 ml-auto">
-            <div className="relative w-44 xl:w-52 shrink-0">
+            <div className="relative w-48 xl:w-56 shrink-0">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Tìm Siêu thị, Tỉnh, Boss..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-slate-300 shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-slate-300 shadow-2xs"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  title="Xóa tìm kiếm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Nhận xét Button */}
@@ -1227,7 +1241,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
             <colgroup>
               {isProvinceView ? (
                 <>
-                  <col style={{ width: 36 }} />
+                  <col style={{ width: 40 }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
@@ -1235,10 +1249,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 </>
               ) : (
                 <>
-                  <col style={{ width: 36 }} />
+                  <col style={{ width: 56 }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 100 }} />
-                  <col style={{ width: 60 }} />
+                  <col style={{ width: 54 }} />
                   <col style={{ width: 280 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
@@ -1264,8 +1278,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('rank')}
                   style={{ left: FROZEN_LEFT.stt, top: 0 }}
-                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[36px] select-none`}
-                  title="Click để sắp xếp theo STT"
+                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center ${isProvinceView ? 'w-[40px]' : 'w-[56px]'} select-none`}
+                  title="Click để sắp xếp theo STT (Click vào STT từng dòng để chọn so sánh)"
                 >
                   STT {(sortField === 'rank' || sortField === 'stt') ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                 </th>
