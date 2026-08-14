@@ -284,16 +284,31 @@ export async function exportElementAsImage(
     fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    // scrollHeight/offsetHeight already account for the fully-expanded clone
-    // (overflow containers were forced to "visible" above) — walking every
-    // descendant to find the max getBoundingClientRect().bottom, like an
-    // earlier version of this function did, forces a synchronous layout
-    // reflow per element. For a 700+ row export table that's thousands of
-    // forced reflows just to measure height, which is most of what made
-    // large exports feel slow.
+    // Reset height constraints so grid-stretched cards don't leave empty whitespace
+    clone.style.setProperty('height', 'auto', 'important');
+    clone.style.setProperty('min-height', 'auto', 'important');
+    clone.style.setProperty('max-height', 'none', 'important');
+    clone.style.setProperty('padding-bottom', '4px', 'important');
+
     const cloneRect = clone.getBoundingClientRect();
     const width = Math.max(fullScrollWidth, Math.ceil(cloneRect.width || clone.scrollWidth));
-    const height = Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height) + 32);
+
+    // Calculate exact content height without extra empty padding
+    let actualContentHeight = 0;
+    const children = Array.from(clone.children) as HTMLElement[];
+    if (children.length > 0) {
+      children.forEach((child) => {
+        const childRect = child.getBoundingClientRect();
+        const childBottom = (child.offsetTop || 0) + (childRect.height || child.offsetHeight || 0);
+        if (childBottom > actualContentHeight) {
+          actualContentHeight = childBottom;
+        }
+      });
+    }
+
+    const height = actualContentHeight > 0
+      ? Math.ceil(actualContentHeight + 4)
+      : Math.ceil(Math.max(clone.scrollHeight, clone.offsetHeight, cloneRect.height));
 
     // html-to-image rasterizes via an SVG <foreignObject> whose dimensions
     // are capped by the browser's max canvas size (commonly ~16-32k px on
@@ -448,7 +463,7 @@ export async function exportGroupSpecificElement(
     // per element, which is the real cost on a large exported table.
     const rect = clone.getBoundingClientRect();
     const width = tableWidth > 0 ? tableWidth : Math.ceil(rect.width || clone.scrollWidth);
-    const height = Math.ceil(Math.max(clone.scrollHeight, rect.height) + 32);
+    const height = Math.ceil(Math.max(clone.scrollHeight, rect.height) + 4);
 
     let finalScale = scale;
     if (height * scale > 16000) {
