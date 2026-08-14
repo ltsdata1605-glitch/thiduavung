@@ -470,9 +470,11 @@ const ProvinceSummaryCard: React.FC<{
                 <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
                 <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
                 <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TARGET</th>
-                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>REAL</th>
+                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
+                  {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
+                </th>
                 <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>%HT</th>
-                <th className="py-2 px-2 text-center whitespace-nowrap">T/B</th>
+                <th className="py-2 px-2 text-center whitespace-nowrap">XH</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -947,7 +949,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                           <th className="py-2 px-1 text-center border-r border-white/20 whitespace-nowrap">KÊNH</th>
                           <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">SIÊU THỊ</th>
                           <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">TAR</th>
-                          <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">REAL</th>
+                          <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">
+                            {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
+                          </th>
                           <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
                         </tr>
                         {group.stores.map((s, idx) => {
@@ -1111,7 +1115,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>KÊNH</th>
                       <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>SIÊU THỊ</th>
                       <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TAR</th>
-                      <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>REAL</th>
+                      <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
+                        {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
+                      </th>
                       <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
                     </tr>
                   </thead>
@@ -1162,7 +1168,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">KÊNH</th>
                       <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">SIÊU THỊ</th>
                       <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">TAR</th>
-                      <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">REAL</th>
+                      <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">
+                        {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
+                      </th>
                       <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
                     </tr>
                   </thead>
