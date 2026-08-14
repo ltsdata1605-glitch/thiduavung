@@ -18,6 +18,7 @@ export interface FirebaseDataPayload {
   userFilters?: Record<string, any>;
   categoryGroups?: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
+  categoryDisplayNames?: Record<string, string>;
   lastUpdated?: string;
   updatedBy?: string;
 }
@@ -37,7 +38,8 @@ type DocKey =
   | 'user_preferences'
   | 'user_filters'
   | 'category_groups'
-  | 'category_orders';
+  | 'category_orders'
+  | 'category_display_names';
 
 const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
   realtime_stores_tinh: 'realtimeStoresTinh',
@@ -50,6 +52,7 @@ const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
   user_filters: 'userFilters',
   category_groups: 'categoryGroups',
   category_orders: 'categoryOrderMap',
+  category_display_names: 'categoryDisplayNames',
 };
 
 // Realtime/Luỹ Kế "Siêu Thị" scope carries a per-store categoryMap with one
@@ -292,6 +295,10 @@ export async function saveCategoryGroupsToFirebase(categoryGroups: Record<string
 
 export async function saveCategoryOrdersToFirebase(categoryOrders: Record<string, number>, updatedBy: string = 'Super Admin') {
   return saveDataset('category_orders', categoryOrders, updatedBy);
+}
+
+export async function saveCategoryDisplayNamesToFirebase(categoryDisplayNames: Record<string, string>, updatedBy: string = 'Super Admin') {
+  return saveDataset('category_display_names', categoryDisplayNames, updatedBy);
 }
 
 /**

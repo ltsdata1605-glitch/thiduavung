@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getShortCategoryName, formatCategoryHeaderTitle, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, resolveCategoryDisplayName, formatCategoryHeaderTitle, BossAssignmentRecord } from '../utils/parser';
 import { GroupReportView } from './GroupReportView';
 import { 
   Trophy, 
@@ -165,6 +165,7 @@ interface ReportViewProps {
   selectedCategoryGroup: string;
   categoryGroupMap: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
+  categoryDisplayNameMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
   showSummarySection?: boolean;
   onOpenTagBossModal?: () => void;
@@ -190,6 +191,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   selectedCategoryGroup,
   categoryGroupMap,
   categoryOrderMap = {},
+  categoryDisplayNameMap = {},
   bossAssignments = [],
   showSummarySection = true,
   onOpenTagBossModal,
@@ -767,6 +769,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
         selectedCategory={selectedCategory}
         selectedCategoryGroup={selectedCategoryGroup}
         categoryGroupMap={categoryGroupMap}
+        categoryDisplayNameMap={categoryDisplayNameMap}
         bossAssignments={bossAssignments}
         onOpenTagBossModal={onOpenTagBossModal}
       />
@@ -1244,7 +1247,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         className={`py-1 px-1 border-r ${style.cellBorder} ${style.cell} text-center w-[54px] max-w-[65px] align-middle font-bold text-[10px] uppercase cursor-pointer hover:brightness-95 transition-all select-none`}
                       >
                         <div className="max-w-[52px] mx-auto break-words whitespace-pre-line leading-[1.1] text-center flex flex-col items-center justify-center">
-                          <span>{formatCategoryHeaderTitle(getShortCategoryName(cat), 6)}</span>
+                          <span>{formatCategoryHeaderTitle(resolveCategoryDisplayName(cat, categoryDisplayNameMap), 6)}</span>
                           {isSorted && (
                             <span className="text-[9px] text-indigo-900 font-black mt-0.5">
                               {sortOrder === 'asc' ? '▲' : '▼'}

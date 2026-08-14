@@ -7,7 +7,7 @@ import {
   getChannelLabel,
   getCategoryData,
   formatStoreDisplayName,
-  getShortCategoryName,
+  resolveCategoryDisplayName,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
@@ -24,6 +24,7 @@ interface GroupReportViewProps {
   selectedCategory: string;
   selectedCategoryGroup: string;
   categoryGroupMap: Record<string, string>;
+  categoryDisplayNameMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
   onOpenTagBossModal?: () => void;
 }
@@ -157,6 +158,7 @@ const ProvinceSummaryCard: React.FC<{
   stores: StoreRecord[];
   bossAssignments: BossAssignmentRecord[];
   allCategoryNames: string[];
+  categoryDisplayNameMap: Record<string, string>;
   timeMode: TimeMode;
   formattedTimeStr: string;
   isExcludedChannel: (k?: string) => boolean;
@@ -170,6 +172,7 @@ const ProvinceSummaryCard: React.FC<{
   stores,
   bossAssignments,
   allCategoryNames,
+  categoryDisplayNameMap,
   timeMode,
   formattedTimeStr,
   isExcludedChannel,
@@ -277,34 +280,42 @@ const ProvinceSummaryCard: React.FC<{
       {/* Content Captured in Image: Header Banner + Table */}
       <div className="w-full p-2">
         {/* Header Banner */}
-        <div
-          className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-2 text-center shadow-2xs border rounded-none`}
-          style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
-        >
-          <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-white text-center drop-shadow-xs break-words inline-flex flex-wrap items-center justify-center gap-1.5">
-            <span className="relative inline-flex items-center gap-1 group cursor-pointer">
-              <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
-                {getShortCategoryName(config.category).toUpperCase()}
-              </span>
-              <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
-              <select
-                value={config.category}
-                onChange={(e) => onChangeCategory(e.target.value)}
-                title="Nhấn vào để đổi ngành hàng / nhóm"
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-              >
-                {allCategoryNames.map((cat) => (
-                  <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                    {getShortCategoryName(cat)}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </h3>
-          <div className="text-white/95 text-[11px] font-normal tracking-wide mt-1">
-            {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabel}
-          </div>
-        </div>
+        {(() => {
+          const catDisplayName = resolveCategoryDisplayName(config.category, categoryDisplayNameMap).toUpperCase();
+          const nameLength = catDisplayName.length;
+          const titleSizeClass = nameLength > 24 ? 'text-xs sm:text-[13px] tracking-tighter' : nameLength > 18 ? 'text-xs sm:text-sm tracking-tight' : 'text-sm sm:text-base tracking-wide';
+
+          return (
+            <div
+              className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-2 text-center shadow-2xs border rounded-none`}
+              style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
+            >
+              <h3 className={`${titleSizeClass} font-black uppercase text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1`}>
+                <span className="relative inline-flex items-center gap-1 group cursor-pointer max-w-full">
+                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
+                    {catDisplayName}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
+                  <select
+                    value={config.category}
+                    onChange={(e) => onChangeCategory(e.target.value)}
+                    title="Nhấn vào để đổi ngành hàng / nhóm"
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                  >
+                    {allCategoryNames.map((cat) => (
+                      <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
+                        {resolveCategoryDisplayName(cat, categoryDisplayNameMap)}
+                      </option>
+                    ))}
+                  </select>
+                </span>
+              </h3>
+              <div className="text-white/95 text-[11px] font-normal tracking-wide mt-1">
+                {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabel}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Table */}
         <div className="w-full overflow-x-auto">
@@ -365,6 +376,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   selectedProvince,
   selectedCategory,
   selectedCategoryGroup,
+  categoryDisplayNameMap = {},
   bossAssignments = [],
   onOpenTagBossModal,
 }) => {
@@ -634,6 +646,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
             stores={stores}
             bossAssignments={bossAssignments}
             allCategoryNames={allCategoryNames}
+            categoryDisplayNameMap={categoryDisplayNameMap}
             timeMode={timeMode}
             formattedTimeStr={formattedTimeStr}
             isExcludedChannel={isExcludedChannel}
@@ -691,7 +704,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                 <span>{selectedProvinceCard.toUpperCase()} •</span>
                 <span className="relative inline-flex items-center gap-1 group cursor-pointer">
                   <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
-                    {getShortCategoryName(activeCategory).toUpperCase()}
+                    {resolveCategoryDisplayName(activeCategory, categoryDisplayNameMap).toUpperCase()}
                   </span>
                   <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
                   <select
@@ -702,7 +715,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                   >
                     {allCategoryNames.map((cat) => (
                       <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                        {getShortCategoryName(cat)}
+                        {resolveCategoryDisplayName(cat, categoryDisplayNameMap)}
                       </option>
                     ))}
                   </select>
@@ -861,7 +874,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                 <span>BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} %HT {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} •</span>
                 <span className="relative inline-flex items-center gap-1 group cursor-pointer">
                   <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
-                    {getShortCategoryName(activeCategory).toUpperCase()}
+                    {resolveCategoryDisplayName(activeCategory, categoryDisplayNameMap).toUpperCase()}
                   </span>
                   <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
                   <select
@@ -872,7 +885,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                   >
                     {allCategoryNames.map((cat) => (
                       <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                        {getShortCategoryName(cat)}
+                        {resolveCategoryDisplayName(cat, categoryDisplayNameMap)}
                       </option>
                     ))}
                   </select>

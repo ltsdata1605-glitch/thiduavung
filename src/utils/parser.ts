@@ -70,6 +70,21 @@ export const getShortCategoryName = (catName: string): string => {
 };
 
 /**
+ * Resolves the display name for a Ngành hàng, preferring a user-defined
+ * custom short name (set via the "Quản lý Nhóm & Vị trí" modal) over the
+ * built-in auto-abbreviation dictionary in getShortCategoryName.
+ */
+export const resolveCategoryDisplayName = (
+  catName: string,
+  customNameMap: Record<string, string> = {}
+): string => {
+  if (!catName) return '';
+  const custom = customNameMap[catName];
+  if (custom && custom.trim()) return custom.trim();
+  return getShortCategoryName(catName);
+};
+
+/**
  * Splits any word in a category string that exceeds maxLen (default 6) into 2 lines.
  * Ensures no single word token exceeds 6 characters, keeping category column headers compact.
  */

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, FolderTree, Plus, Trash2, Save, GripVertical, ChevronUp, ChevronDown, Move } from 'lucide-react';
+import { X, FolderTree, Plus, Trash2, Save, GripVertical, ChevronUp, ChevronDown, Move, Pencil, RotateCcw } from 'lucide-react';
 import { getCategoryGroup } from './ReportView';
 import { getShortCategoryName } from '../utils/parser';
 
@@ -9,7 +9,12 @@ interface CategoryGroupModalProps {
   categoryList: { id: string; label: string }[];
   categoryGroupMap: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
-  onSave: (newMap: Record<string, string>, newOrderMap: Record<string, number>) => void;
+  categoryDisplayNameMap?: Record<string, string>;
+  onSave: (
+    newMap: Record<string, string>,
+    newOrderMap: Record<string, number>,
+    newDisplayNameMap: Record<string, string>
+  ) => void;
 }
 
 const UNGROUPED = '__UNGROUPED__';
@@ -38,6 +43,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
   categoryList,
   categoryGroupMap,
   categoryOrderMap = {},
+  categoryDisplayNameMap = {},
   onSave,
 }) => {
   // Local draft state — only committed to the app (and Firebase) on Save.
@@ -45,6 +51,9 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     buildInitialDraftMap(categoryList, categoryGroupMap)
   );
   const [draftOrderMap, setDraftOrderMap] = useState<Record<string, number>>(categoryOrderMap);
+  // Custom, user-shortened Ngành hàng names — overrides the built-in
+  // auto-abbreviation dictionary wherever the category is displayed.
+  const [draftDisplayNameMap, setDraftDisplayNameMap] = useState<Record<string, string>>(categoryDisplayNameMap);
   const [groups, setGroups] = useState<string[]>(() =>
     Array.from(new Set([...Object.values(draftMap), 'CE & GD', 'DỊCH VỤ', 'ICT'])).filter(
       (g) => g !== UNGROUPED && g !== 'Chưa phân nhóm'
@@ -63,6 +72,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     const initialDraft = buildInitialDraftMap(categoryList, categoryGroupMap);
     setDraftMap(initialDraft);
     setDraftOrderMap(categoryOrderMap);
+    setDraftDisplayNameMap(categoryDisplayNameMap);
     setGroups(
       Array.from(new Set([...Object.values(initialDraft), 'CE & GD', 'DỊCH VỤ', 'ICT'])).filter(
         (g) => g !== UNGROUPED && g !== 'Chưa phân nhóm'
@@ -256,8 +266,22 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     setDragOverCatId(null);
   };
 
+  // Renames a category's display name. Empty input clears the custom
+  // override, falling back to the built-in auto-abbreviation again.
+  const handleRenameCategory = (catId: string, newName: string) => {
+    setDraftDisplayNameMap((prev) => {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        const next = { ...prev };
+        delete next[catId];
+        return next;
+      }
+      return { ...prev, [catId]: trimmed };
+    });
+  };
+
   const handleSave = () => {
-    onSave(draftMap, draftOrderMap);
+    onSave(draftMap, draftOrderMap, draftDisplayNameMap);
     onClose();
   };
 
@@ -292,10 +316,13 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
         <div className="p-6 space-y-4 overflow-y-auto flex-1">
           <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-2xl text-xs text-indigo-900 flex items-start gap-2.5">
             <Move className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-extrabold text-indigo-950">Sắp xếp Vị trí bằng cách Nắm & Kéo thả (Drag & Drop)</p>
-              <p className="text-[11px] text-indigo-700 mt-0.5">
-                Cột <span className="font-bold">STT (#1, #2, #3...)</span> sẽ tự động nhảy số theo thứ tự. Bạn chỉ cần giữ biểu tượng biểu tượng <GripVertical className="w-3 h-3 inline text-slate-500" /> để kéo thả hoặc bấm nút <span className="font-bold">▲ / ▼</span> để di chuyển vị trí.
+            <div className="space-y-1">
+              <p className="font-extrabold text-indigo-950">Sắp xếp Vị trí & Đổi tên rút gọn Ngành Hàng</p>
+              <p className="text-[11px] text-indigo-700 leading-relaxed">
+                • Cột <span className="font-bold">STT (#1, #2...)</span> tự động nhảy số. Giữ biểu tượng <GripVertical className="w-3 h-3 inline text-slate-500" /> để kéo thả hoặc bấm <span className="font-bold">▲ / ▼</span> để di chuyển.
+              </p>
+              <p className="text-[11px] text-indigo-900 bg-amber-50/80 border border-amber-200 rounded-lg p-1.5 font-medium">
+                💡 <span className="font-bold text-amber-900">Quy tắc độ dài tiêu đề:</span> Nên đặt tên ngành hàng <span className="font-bold text-amber-900">dưới 20 ký tự</span> (vd: <span className="font-bold">GIẶT - SẤY - RỬA CHÉN, ĐIỆN LẠNH AQUA/HAIER</span>) để tiêu đề trên bảng Tab Nhóm luôn hiển thị đẹp trọn vẹn trên <span className="font-bold underline text-amber-900">1 dòng</span> duy nhất!
               </p>
             </div>
           </div>
@@ -365,6 +392,11 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
               const isFirstInGroup = catIdx === 0;
               const isLastInGroup = catIdx === groupCats.length - 1;
 
+              const currentVal = draftDisplayNameMap[cat.id] ?? getShortCategoryName(cat.label || cat.id);
+              const charCount = currentVal.length;
+              const isWarning = charCount > 20;
+              const isDanger = charCount > 25;
+
               return (
                 <div
                   key={cat.id}
@@ -419,7 +451,56 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 uppercase tracking-tight ${badgeStyle}`}>
                       {currentGroup === UNGROUPED ? 'Chưa phân nhóm' : currentGroup}
                     </span>
-                    <span className="text-xs font-semibold text-slate-800 truncate" title={cat.label}>{getShortCategoryName(cat.label || cat.id)}</span>
+
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <input
+                        type="text"
+                        maxLength={35}
+                        value={currentVal}
+                        onChange={(e) => handleRenameCategory(cat.id, e.target.value)}
+                        title={`Tên gốc đầy đủ: ${cat.label}\nĐộ dài: ${charCount} ký tự (Khuyến nghị ≤ 20 ký tự để không bị xuống dòng)`}
+                        placeholder={getShortCategoryName(cat.label || cat.id)}
+                        className={`min-w-0 flex-1 bg-transparent border rounded-lg px-2 py-0.5 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 truncate transition-all ${
+                          isDanger
+                            ? 'border-rose-400 bg-rose-50/50 text-rose-900 focus:ring-rose-400 focus:bg-white'
+                            : isWarning
+                            ? 'border-amber-400 bg-amber-50/40 text-amber-900 focus:ring-amber-400 focus:bg-white'
+                            : 'border-transparent hover:border-slate-200 focus:border-indigo-400 focus:bg-white focus:ring-indigo-500'
+                        }`}
+                      />
+
+                      {/* Character Length Counter & Warning */}
+                      <span
+                        title={
+                          isDanger
+                            ? `Độ dài ${charCount} ký tự (Quá dài! Chắc chắn bị xuống 2 dòng trên bảng 4 cột)`
+                            : isWarning
+                            ? `Độ dài ${charCount} ký tự (Dài! Có nguy cơ bị xuống dòng, khuyến nghị ≤ 20 ký tự)`
+                            : `Độ dài ${charCount}/20 ký tự (Tối ưu trên 1 dòng)`
+                        }
+                        className={`text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-0.5 select-none ${
+                          isDanger
+                            ? 'bg-rose-100 text-rose-700 border border-rose-300'
+                            : isWarning
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'text-slate-400 bg-slate-100/70 border border-slate-200'
+                        }`}
+                      >
+                        {charCount}/20
+                        {isWarning && <span>⚠️</span>}
+                      </span>
+
+                      {draftDisplayNameMap[cat.id] && (
+                        <button
+                          type="button"
+                          onClick={() => handleRenameCategory(cat.id, '')}
+                          title="Khôi phục tên mặc định"
+                          className="p-0.5 text-slate-300 hover:text-indigo-600 shrink-0 cursor-pointer transition-colors"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <select

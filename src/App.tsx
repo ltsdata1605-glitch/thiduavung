@@ -25,6 +25,7 @@ import {
   saveUserFiltersToFirebase,
   saveCategoryGroupsToFirebase,
   saveCategoryOrdersToFirebase,
+  saveCategoryDisplayNamesToFirebase,
   getLocalCache,
   getIndexedDbCache,
   clearAllLocalCache,
@@ -67,6 +68,10 @@ export default function App() {
     ...(cachedData.categoryGroups || {}),
   }));
   const [categoryOrderMap, setCategoryOrderMap] = useState<Record<string, number>>(cachedData.categoryOrderMap || {});
+  // Custom, user-shortened display names for Ngành hàng (overrides the
+  // built-in auto-abbreviation dictionary in getShortCategoryName). Same
+  // sync doc pattern as categoryGroups/categoryOrderMap.
+  const [categoryDisplayNameMap, setCategoryDisplayNameMap] = useState<Record<string, string>>(cachedData.categoryDisplayNames || {});
   const [isCategoryGroupModalOpen, setIsCategoryGroupModalOpen] = useState(false);
 
   // Per-account synced filter snapshots (Firestore `user_filters` doc, keyed
@@ -219,6 +224,9 @@ export default function App() {
       }
       if (payload.categoryOrderMap) {
         setCategoryOrderMap(payload.categoryOrderMap);
+      }
+      if (payload.categoryDisplayNames) {
+        setCategoryDisplayNameMap(payload.categoryDisplayNames);
       }
     });
 
@@ -607,15 +615,21 @@ export default function App() {
 
   // Handler for the Category Group modal (Quản lý Nhóm & Vị trí Ngành Hàng). Global
   // mapping, shared by every account — same doc pattern as `settings`.
-  const handleSaveCategoryGroups = async (newMap: Record<string, string>, newOrderMap: Record<string, number>) => {
+  const handleSaveCategoryGroups = async (
+    newMap: Record<string, string>,
+    newOrderMap: Record<string, number>,
+    newDisplayNameMap: Record<string, string>
+  ) => {
     setCategoryGroupMap(newMap);
     setCategoryOrderMap(newOrderMap);
-    const [res1, res2] = await Promise.all([
+    setCategoryDisplayNameMap(newDisplayNameMap);
+    const [res1, res2, res3] = await Promise.all([
       saveCategoryGroupsToFirebase(newMap, currentUser.name),
       saveCategoryOrdersToFirebase(newOrderMap, currentUser.name),
+      saveCategoryDisplayNamesToFirebase(newDisplayNameMap, currentUser.name),
     ]);
-    if (!res1.success || !res2.success) {
-      showErrorToast(res1.error || res2.error || 'Đồng bộ Nhóm & Vị trí Ngành Hàng lên Firebase thất bại!');
+    if (!res1.success || !res2.success || !res3.success) {
+      showErrorToast(res1.error || res2.error || res3.error || 'Đồng bộ Nhóm & Vị trí Ngành Hàng lên Firebase thất bại!');
       return;
     }
     showToast('Đã lưu & đồng bộ Nhóm & Vị trí Ngành Hàng lên Firebase!');
@@ -826,6 +840,7 @@ export default function App() {
               categoryList={categoryList}
               categoryGroupList={categoryGroupList}
               categoryGroupMap={categoryGroupMap}
+              categoryDisplayNameMap={categoryDisplayNameMap}
               onOpenCategoryGroupModal={() => setIsCategoryGroupModalOpen(true)}
               lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
               onRefreshClick={() => setActiveTab('update')}
@@ -858,6 +873,7 @@ export default function App() {
               selectedCategoryGroup={selectedCategoryGroup}
               categoryGroupMap={categoryGroupMap}
               categoryOrderMap={categoryOrderMap}
+              categoryDisplayNameMap={categoryDisplayNameMap}
               bossAssignments={bossAssignments}
               showSummarySection={showSummarySection}
               stores={activeStores}
@@ -937,6 +953,7 @@ export default function App() {
         categoryList={categoryList}
         categoryGroupMap={categoryGroupMap}
         categoryOrderMap={categoryOrderMap}
+        categoryDisplayNameMap={categoryDisplayNameMap}
         onSave={handleSaveCategoryGroups}
       />
     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TimeMode, EntityScope, Channel } from '../types';
-import { getShortCategoryName } from '../utils/parser';
+import { resolveCategoryDisplayName } from '../utils/parser';
 import {
   Zap,
   TrendingUp,
@@ -92,6 +92,7 @@ interface HeaderBannerProps {
   categoryList: { id: string; label: string }[];
   categoryGroupList: string[];
   categoryGroupMap?: Record<string, string>;
+  categoryDisplayNameMap?: Record<string, string>;
   onOpenCategoryGroupModal: () => void;
   lastUpdated: string;
   onRefreshClick: () => void;
@@ -123,6 +124,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   categoryList,
   categoryGroupList,
   categoryGroupMap = {},
+  categoryDisplayNameMap = {},
   onOpenCategoryGroupModal,
   lastUpdated,
   onRefreshClick,
@@ -399,7 +401,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               <option value="ALL">Tất cả</option>
               {filteredCategoryOptions.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.id === 'ALL' ? c.label : getShortCategoryName(c.label || c.id)}
+                  {c.id === 'ALL' ? c.label : resolveCategoryDisplayName(c.label || c.id, categoryDisplayNameMap)}
                 </option>
               ))}
             </select>
