@@ -255,7 +255,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
   const getChannelText = (channels: Channel[]) => {
     const valid = channels.filter((c) => !isExcludedChannel(c));
-    if (valid.length === 0 || valid.length === 5) return 'DML, DMM, DMS, TGD, TopZone';
+    if (valid.length === 0 || valid.length >= 5) return 'All Kênh';
     return valid.map(getChannelLabel).join(', ');
   };
 
