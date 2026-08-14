@@ -527,14 +527,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return s;
   }).map((s) => {
     const achievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(s, cat).rate ?? 0) >= 100).length;
-    // In VÙNG (province) view, TỶ LỆ is always:
-    //   (Số nhóm %HT Dự Kiến >= 100%) / (Tổng số nhóm thi đua) * 100
-    // regardless of whether a specific group is selected or "Tất cả"
-    const rate = isProvinceView
-      ? (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0)
-      : (selectedCategoryGroup === 'ALL' && selectedCategory === 'ALL')
-        ? Math.round(s.rate || 0)
-        : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
+    // TỶ LỆ % is (Số ngành hàng đạt >= 100%) / (Tổng số ngành hàng hiển thị) * 100
+    // e.g. 18/38 đạt => Tỷ lệ = 18/38 * 100 = 47%
+    const rate = selectedCategory !== 'ALL'
+      ? Math.round(s.rate || 0)
+      : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
     return { ...s, rate };
   });
 
