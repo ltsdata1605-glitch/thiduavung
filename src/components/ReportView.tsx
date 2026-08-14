@@ -1256,7 +1256,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 {lastUpdated && (() => {
                   const freshness = checkDataFreshness(lastUpdated, 60);
                   return (
-                    <>
+                    <span className="export-hide inline-flex items-center gap-2">
                       <span className="text-slate-300">|</span>
                       {freshness.isOutdated ? (
                         <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-300 font-black animate-pulse">
@@ -1269,7 +1269,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                           Update: {freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '')}
                         </span>
                       )}
-                    </>
+                    </span>
                   );
                 })()}
               </p>

@@ -461,7 +461,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           {(() => {
             const freshness = checkDataFreshness(lastUpdated, 60);
             return (
-              <div className="min-w-0">
+              <div className="export-hide min-w-0">
                 {freshness.isOutdated ? (
                   <div
                     title="Dữ liệu chưa được cập nhật trong hơn 1 giờ qua hoặc chưa cập nhật mới!"
