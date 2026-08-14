@@ -323,10 +323,15 @@ export async function exportElementAsImage(
     const tableInClone = clone.querySelector('table');
     const actualTableWidth = tableInClone ? Math.ceil(Math.max(tableInClone.scrollWidth, tableInClone.offsetWidth, tableInClone.getBoundingClientRect().width)) : 0;
     
-    // For wide tables (like 38-category report), ensure full width; for compact cards (like Tab Nhóm), shrink-wrap to table width
-    let finalWidth = actualTableWidth > 0 ? actualTableWidth : Math.max(liveTableWidth, 320);
+    // Account for card padding/borders so the rightmost table column is never clipped
+    const computedStyle = window.getComputedStyle(clone);
+    const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const padRight = parseFloat(computedStyle.paddingRight) || 0;
+    const totalRequiredWidth = (actualTableWidth > 0 ? actualTableWidth : liveTableWidth) + padLeft + padRight + 20;
+
+    let finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
     if (isMultiColumnTable) {
-      finalWidth = Math.max(finalWidth, liveTableWidth, liveScrollWidth);
+      finalWidth = Math.max(finalWidth, liveTableWidth + 24, liveScrollWidth + 24);
     }
 
     // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
@@ -340,16 +345,16 @@ export async function exportElementAsImage(
     clone.querySelectorAll<HTMLElement>('div, section, header, [id*="root"]').forEach((div) => {
       if (div.closest('table')) return; // Never resize elements inside tables
       if (div.classList.contains('w-full') || div.style.width === '100%') {
-        div.style.setProperty('width', `${finalWidth}px`, 'important');
-        div.style.setProperty('max-width', `${finalWidth}px`, 'important');
+        div.style.setProperty('width', '100%', 'important');
+        div.style.setProperty('max-width', '100%', 'important');
         div.style.setProperty('box-sizing', 'border-box', 'important');
       }
     });
 
     if (tableInClone) {
-      tableInClone.style.setProperty('width', `${finalWidth}px`, 'important');
-      tableInClone.style.setProperty('min-width', `${finalWidth}px`, 'important');
-      tableInClone.style.setProperty('max-width', `${finalWidth}px`, 'important');
+      tableInClone.style.setProperty('width', '100%', 'important');
+      tableInClone.style.setProperty('max-width', '100%', 'important');
+      tableInClone.style.setProperty('box-sizing', 'border-box', 'important');
     }
 
     // Calculate exact content height reliably
@@ -480,7 +485,11 @@ export async function exportGroupSpecificElement(
 
     const tableEl = clone.querySelector('table');
     const tableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
-    const finalWidth = tableWidth > 0 ? tableWidth : Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, 600));
+    
+    const computedStyle = window.getComputedStyle(clone);
+    const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
+    const padRight = parseFloat(computedStyle.paddingRight) || 0;
+    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight + 20, 600));
 
     // Explicitly constrain clone, captureContainer, and all child div containers to finalWidth
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
@@ -492,10 +501,16 @@ export async function exportGroupSpecificElement(
 
     clone.querySelectorAll<HTMLElement>('div, section, main, header, container, [id*="root"]').forEach((div) => {
       if (div.closest('table')) return;
-      div.style.setProperty('width', `${finalWidth}px`, 'important');
-      div.style.setProperty('max-width', `${finalWidth}px`, 'important');
+      div.style.setProperty('width', '100%', 'important');
+      div.style.setProperty('max-width', '100%', 'important');
       div.style.setProperty('box-sizing', 'border-box', 'important');
     });
+
+    if (tableEl) {
+      tableEl.style.setProperty('width', '100%', 'important');
+      tableEl.style.setProperty('max-width', '100%', 'important');
+      tableEl.style.setProperty('box-sizing', 'border-box', 'important');
+    }
 
     // Ensure top title bar flex containers don't push title text to the right after export-hide elements are removed
     clone.querySelectorAll<HTMLElement>('.justify-between, .justify-start').forEach((el) => {
