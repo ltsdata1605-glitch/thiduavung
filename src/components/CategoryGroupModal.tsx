@@ -268,20 +268,28 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
 
   // Renames a category's display name. Empty input clears the custom
   // override, falling back to the built-in auto-abbreviation again.
+  // Note: Do NOT trim() here, so users can type spaces freely!
   const handleRenameCategory = (catId: string, newName: string) => {
     setDraftDisplayNameMap((prev) => {
-      const trimmed = newName.trim();
-      if (!trimmed) {
+      if (newName === '') {
         const next = { ...prev };
         delete next[catId];
         return next;
       }
-      return { ...prev, [catId]: trimmed };
+      return { ...prev, [catId]: newName };
     });
   };
 
   const handleSave = () => {
-    onSave(draftMap, draftOrderMap, draftDisplayNameMap);
+    // Clean up trailing spaces only upon saving
+    const cleanedDisplayNames: Record<string, string> = {};
+    Object.entries(draftDisplayNameMap).forEach(([k, v]) => {
+      const trimmed = (v || '').trim();
+      if (trimmed) {
+        cleanedDisplayNames[k] = trimmed;
+      }
+    });
+    onSave(draftMap, draftOrderMap, cleanedDisplayNames);
     onClose();
   };
 
@@ -457,6 +465,8 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                         type="text"
                         maxLength={35}
                         value={currentVal}
+                        draggable={false}
+                        onKeyDown={(e) => e.stopPropagation()}
                         onChange={(e) => handleRenameCategory(cat.id, e.target.value)}
                         title={`Tên gốc đầy đủ: ${cat.label}\nĐộ dài: ${charCount} ký tự (Khuyến nghị ≤ 20 ký tự để không bị xuống dòng)`}
                         placeholder={getShortCategoryName(cat.label || cat.id)}
