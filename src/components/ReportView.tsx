@@ -964,25 +964,30 @@ export const ReportView: React.FC<ReportViewProps> = ({
             </button>
 
             {/* Combined Export All (1 Tấm) + Dropdown button group */}
-            <div ref={exportMenuRef} className="relative inline-flex rounded-xl shadow-2xs overflow-hidden shrink-0">
+            <div ref={exportMenuRef} className="relative inline-flex shadow-2xs shrink-0">
               <button
+                type="button"
                 onClick={() => (onExportGroup ? onExportGroup('all') : onExportFull?.())}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap rounded-l-xl"
                 title="Xuất 1 tấm ảnh đầy đủ bảng xếp hạng tất cả 38 ngành hàng"
               >
                 <Grid className="w-3.5 h-3.5 text-white" />
                 <span>Xuất Tất Cả (1 Tấm)</span>
               </button>
               <button
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="px-2 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center cursor-pointer transition-all border-l border-blue-500"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExportMenuOpen(!isExportMenuOpen);
+                }}
+                className="px-2 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center cursor-pointer transition-all border-l border-blue-500 rounded-r-xl"
                 title="Tùy chọn xuất từng nhóm"
               >
-                <ChevronDown className="w-3.5 h-3.5 text-white" />
+                <ChevronDown className={`w-3.5 h-3.5 text-white transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {isExportMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-1.5 font-sans text-xs">
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[100] py-1.5 font-sans text-xs animate-scale-up">
                   <button
                     onClick={() => {
                       if (onExportGroup) onExportGroup('ict');

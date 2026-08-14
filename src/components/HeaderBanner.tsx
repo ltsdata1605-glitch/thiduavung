@@ -391,8 +391,6 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
     }
   }, [selectedCategoryGroup, filteredCategoryOptions, selectedCategory, entityScope, categoryList, setSelectedCategory]);
 
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-
   return (
     <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden space-y-3 transition-all">
       {/* Accent Indicator Line */}
