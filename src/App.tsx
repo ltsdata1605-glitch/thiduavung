@@ -44,11 +44,64 @@ export default function App() {
   // (before/without waiting on the live Firestore round-trip)
   const [cachedData] = useState(() => getLocalCache());
 
-  // Navigation & Mode States — activeTab persisted so a refresh reopens the
-  // same tab (Báo cáo / Cập nhật dữ liệu / Cài đặt) instead of resetting to Report.
-  const [activeTab, setActiveTab] = usePersistedState<ViewTab>('tnb_activeTab', 'report');
+  // Route helpers for URL hash & document title synchronization
+  const parseRouteFromHash = (hash: string): { tab: ViewTab; scope?: EntityScope } | null => {
+    const cleanHash = hash.replace(/^#\/?/, '').toLowerCase().trim();
+    if (!cleanHash) return null;
+
+    if (cleanHash === 'vung' || cleanHash === 'report/vung') {
+      return { tab: 'report', scope: 'sieuthi' };
+    }
+    if (cleanHash === 'sieuthi' || cleanHash === 'report/sieuthi') {
+      return { tab: 'report', scope: 'vung' };
+    }
+    if (cleanHash === 'nhom' || cleanHash === 'report/nhom') {
+      return { tab: 'report', scope: 'nhom' };
+    }
+    if (cleanHash === 'report') {
+      return { tab: 'report', scope: 'sieuthi' };
+    }
+    if (cleanHash === 'update' || cleanHash === 'cap-nhat') {
+      return { tab: 'update' };
+    }
+    if (cleanHash === 'settings' || cleanHash === 'cai-dat') {
+      return { tab: 'settings' };
+    }
+    return null;
+  };
+
+  const getHashFromRoute = (tab: ViewTab, scope: EntityScope): string => {
+    if (tab === 'update') return '#/update';
+    if (tab === 'settings') return '#/settings';
+    if (scope === 'sieuthi') return '#/vung';
+    if (scope === 'vung') return '#/sieuthi';
+    if (scope === 'nhom') return '#/nhom';
+    return '#/vung';
+  };
+
+  const getTitleFromRoute = (tab: ViewTab, scope: EntityScope, sysName?: string): string => {
+    const prefix = sysName || 'THI ĐUA TNB';
+    if (tab === 'update') return `Cập nhật Dữ liệu | ${prefix}`;
+    if (tab === 'settings') return `Cài đặt Hệ thống | ${prefix}`;
+    if (scope === 'sieuthi') return `Thi đua VÙNG | ${prefix}`;
+    if (scope === 'vung') return `Thi đua SIÊU THỊ | ${prefix}`;
+    if (scope === 'nhom') return `Thi đua NHÓM | ${prefix}`;
+    return prefix;
+  };
+
+  // Initial Route Check: Priority 1: URL Hash, Priority 2: LocalStorage (Lần 2 mở), Priority 3: Default 'report' & 'sieuthi' (Vùng)
+  const initialRoute = parseRouteFromHash(window.location.hash);
+
+  // Navigation & Mode States
+  const [activeTab, setActiveTab] = usePersistedState<ViewTab>(
+    'tnb_activeTab',
+    initialRoute?.tab || 'report'
+  );
   const [timeMode, setTimeMode] = usePersistedState<TimeMode>('tnb_timeMode', 'luyke');
-  const [entityScope, setEntityScope] = usePersistedState<EntityScope>('tnb_entityScope', 'vung');
+  const [entityScope, setEntityScope] = usePersistedState<EntityScope>(
+    'tnb_entityScope',
+    initialRoute?.scope || 'sieuthi'
+  );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
   // Filters — persisted to localStorage + IndexedDB (usePersistedState) for
@@ -287,6 +340,33 @@ export default function App() {
     }, 800);
     return () => clearTimeout(timer);
   }, [currentUser, activeTab, timeMode, entityScope, selectedChannels, selectedProvince, selectedBoss, selectedCategory, selectedCategoryGroup]);
+
+  // Synchronize activeTab & entityScope with URL hash & document.title
+  useEffect(() => {
+    const targetHash = getHashFromRoute(activeTab, entityScope);
+    const targetTitle = getTitleFromRoute(activeTab, entityScope, settings.systemName);
+
+    document.title = targetTitle;
+
+    // Update URL hash without polluting browser history
+    if (window.location.hash !== targetHash) {
+      window.history.replaceState(null, '', targetHash);
+    }
+  }, [activeTab, entityScope, settings.systemName]);
+
+  // Listen to browser hash changes (Back / Forward navigation or manual URL typing)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const parsed = parseRouteFromHash(window.location.hash);
+      if (parsed) {
+        if (parsed.tab !== activeTab) setActiveTab(parsed.tab);
+        if (parsed.scope && parsed.scope !== entityScope) setEntityScope(parsed.scope);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab, entityScope, setActiveTab, setEntityScope]);
 
   // Secondary local hydration: localStorage (read synchronously above, into
   // `cachedData`) has a small quota and can silently evict data once several
