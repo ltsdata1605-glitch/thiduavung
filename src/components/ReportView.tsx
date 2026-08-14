@@ -216,7 +216,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // each render to a manageable row count; forceShowAllRows (set by App.tsx
   // during an image export) bypasses this so exports still capture everything.
   const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 100;
+  const PAGE_SIZE = 50;
 
   // Selected stores for direct side-by-side comparison
   const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
