@@ -1272,21 +1272,31 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <span className="text-red-600 font-black">{subHeaderTitle}</span>
                 {lastUpdated && (() => {
                   const freshness = checkDataFreshness(lastUpdated, 60);
+                  const updateTimeStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '');
                   return (
-                    <span className="export-hide inline-flex items-center gap-2">
-                      <span className="text-slate-300">|</span>
-                      {freshness.isOutdated ? (
-                        <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-300 font-black animate-pulse">
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
-                          Update: {freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '')}
-                          <span className="text-[9px] px-1 bg-rose-600 text-white rounded-sm font-black uppercase">Cũ &gt; 1h</span>
-                        </span>
-                      ) : (
-                        <span className="text-sky-700 font-black">
-                          Update: {freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '')}
-                        </span>
-                      )}
-                    </span>
+                    <>
+                      {/* Trạng thái trên màn hình web: Có cảnh báo đỏ nếu dữ liệu cũ */}
+                      <span className="export-hide inline-flex items-center gap-2">
+                        <span className="text-slate-300">|</span>
+                        {freshness.isOutdated ? (
+                          <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-300 font-black animate-pulse">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
+                            Update: {updateTimeStr}
+                            <span className="text-[9px] px-1 bg-rose-600 text-white rounded-sm font-black uppercase">Cũ &gt; 1h</span>
+                          </span>
+                        ) : (
+                          <span className="text-sky-700 font-black">
+                            Update: {updateTimeStr}
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Trạng thái khi xuất ảnh: Luôn hiển thị chữ màu bình thường, không khung đỏ, không icon cảnh báo */}
+                      <span className="export-show hidden text-slate-500 font-bold text-xs sm:text-sm items-center gap-1.5">
+                        <span className="text-slate-300">|</span>
+                        <span>Update: {updateTimeStr}</span>
+                      </span>
+                    </>
                   );
                 })()}
               </p>
@@ -1522,7 +1532,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   <col style={{ width: 80 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
-                  <col className="export-hide" style={{ width: 80 }} />
+                  {canViewDtQdTb && <col className="export-hide" style={{ width: 80 }} />}
                 </>
               ) : (
                 <>
@@ -1533,7 +1543,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   <col className="col-sieuthi" data-col="sieuthi" style={{ width: 280 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
-                  <col className="export-hide" style={{ width: 80 }} />
+                  {canViewDtQdTb && <col className="export-hide" style={{ width: 80 }} />}
                 </>
               )}
               {(displayedCategoryNames.length > 0 ? displayedCategoryNames : Array.from({ length: categoryColumnCount })).map((cat, i) => (

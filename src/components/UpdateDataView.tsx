@@ -1229,7 +1229,9 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                         <td className="p-2.5 font-semibold text-slate-700 whitespace-nowrap">{item.chienIct || '-'}</td>
                         <td className="p-2.5 font-medium text-slate-600 whitespace-nowrap">{item.chienCe || '-'}</td>
                         <td className="p-2.5 font-extrabold text-red-600 text-center whitespace-nowrap">{item.slTruongCa || '1'}</td>
-                        <td className="p-2.5 font-bold text-slate-800 text-right whitespace-nowrap">{item.dtQdTb || '-'}</td>
+                        {canViewDtQdTb && (
+                          <td className="p-2.5 font-bold text-slate-800 text-right whitespace-nowrap">{item.dtQdTb || '-'}</td>
+                        )}
                         <td className="p-2.5 font-bold text-amber-800 text-right whitespace-nowrap">{item.phanLoaiShop || '-'}</td>
                       </tr>
                     ))

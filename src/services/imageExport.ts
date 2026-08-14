@@ -258,6 +258,11 @@ export async function exportElementAsImage(
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
   });
 
+  // Unhide elements meant specifically for export
+  clone.querySelectorAll<HTMLElement>('.export-show').forEach((el) => {
+    el.style.setProperty('display', 'inline-flex', 'important');
+  });
+
   // Display full store names in all exported images (except comparison mode which formats itself)
   clone.querySelectorAll<HTMLElement>('[data-store-name], .store-name-cell').forEach((el) => {
     const raw = el.getAttribute('data-store-name') || el.textContent || '';
@@ -439,6 +444,11 @@ export async function exportGroupSpecificElement(
 
   elementsToHide.forEach((selector) => {
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
+  });
+
+  // Unhide elements meant specifically for export
+  clone.querySelectorAll<HTMLElement>('.export-show').forEach((el) => {
+    el.style.setProperty('display', 'inline-flex', 'important');
   });
 
   // Display full store names in exported image (except comparison mode which formats itself)

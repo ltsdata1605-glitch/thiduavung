@@ -612,6 +612,12 @@ export default function App() {
   // Unique group names declared via the Category Group modal (Ngành hàng → Nhóm mapping)
   const categoryGroupList = Array.from(new Set(Object.values(categoryGroupMap))).sort();
 
+  // DTQĐ TB (revenue-per-sales-headcount, sourced from the BOSS file) and the
+  // DT Luỹ Kế/Realtime value-display toggle are restricted to Super Admin
+  // and Admin — Editor/Viewer accounts never see this figure anywhere
+  // (Report tables, BOSS list, or the toolbar toggle).
+  const canViewDtQdTb = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+
   // Helper to format exact timestamp like "12:37:00 NGÀY 09/8/2026"
   const getFormattedNow = () => {
     const now = new Date();
@@ -1081,6 +1087,7 @@ export default function App() {
               onExportGroup={handleExportGroup}
               valueDisplayMode={valueDisplayMode}
               setValueDisplayMode={setValueDisplayMode}
+              canViewDtQdTb={canViewDtQdTb}
               systemName={settings.systemName}
               subTitle={settings.subTitle}
             />
@@ -1107,6 +1114,7 @@ export default function App() {
                 categoryDisplayNameMap={categoryDisplayNameMap}
                 bossAssignments={bossAssignments}
                 valueDisplayMode={valueDisplayMode}
+                canViewDtQdTb={canViewDtQdTb}
                 stores={activeStores}
                 onOpenTagBossModal={() => setIsTagBossModalOpen(true)}
                 onExportCompact={handleExportCompact}
@@ -1129,6 +1137,7 @@ export default function App() {
               currentBossAssignments={bossAssignments}
               lastUpdateRealtime={settings.lastUpdateRealtime}
               lastUpdateLuyKe={settings.lastUpdateLuyKe}
+              canViewDtQdTb={canViewDtQdTb}
             />
           )}
 
