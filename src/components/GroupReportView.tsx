@@ -16,7 +16,7 @@ import { ExportLoadingModal } from './ExportLoadingModal';
 import { ProvinceRemarksModal } from './ProvinceRemarksModal';
 import { ProvinceDetailRemarksModal } from './ProvinceDetailRemarksModal';
 import { TopBotRemarksModal } from './TopBotRemarksModal';
-import { Camera, Layers, MessageSquare, ChevronDown, Plus, X } from 'lucide-react';
+import { Camera, Layers, MessageSquare, ChevronDown, Plus, X, Search, Check } from 'lucide-react';
 
 interface GroupReportViewProps {
   timeMode: TimeMode;
@@ -153,6 +153,137 @@ export interface SummaryCardConfig {
 }
 
 const ALL_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
+
+interface CategorySelectDropdownProps {
+  value: string;
+  onChange: (category: string) => void;
+  allCategoryNames: string[];
+  categoryDisplayNameMap: Record<string, string>;
+  className?: string;
+}
+
+const CategorySelectDropdown: React.FC<CategorySelectDropdownProps> = ({
+  value,
+  onChange,
+  allCategoryNames,
+  categoryDisplayNameMap,
+  className = '',
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const currentDisplayName = resolveCategoryDisplayName(value, categoryDisplayNameMap).toUpperCase();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filteredCategories = useMemo(() => {
+    if (!searchTerm.trim()) return allCategoryNames;
+    const term = searchTerm.toLowerCase().trim();
+    return allCategoryNames.filter((cat) => {
+      const disp = resolveCategoryDisplayName(cat, categoryDisplayNameMap).toLowerCase();
+      return disp.includes(term) || cat.toLowerCase().includes(term);
+    });
+  }, [allCategoryNames, searchTerm, categoryDisplayNameMap]);
+
+  return (
+    <div ref={dropdownRef} className={`relative inline-block ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="inline-flex items-center gap-1 group cursor-pointer focus:outline-none max-w-full"
+        title="Nhấn vào để đổi ngành hàng / nhóm"
+      >
+        <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black whitespace-nowrap truncate max-w-full">
+          {currentDisplayName}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-transform export-hide shrink-0 inline ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 sm:w-72 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in export-hide text-left">
+          {/* Search Box */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm ngành hàng..."
+                className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-7 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 font-normal"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Categories List */}
+          <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
+            {filteredCategories.length > 0 ? (
+              filteredCategories.map((cat) => {
+                const displayName = resolveCategoryDisplayName(cat, categoryDisplayNameMap);
+                const isSelected = cat === value;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      onChange(cat);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    }}
+                    className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                      isSelected
+                        ? 'bg-amber-100 text-amber-950 font-black'
+                        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <span className="truncate">{displayName}</span>
+                    {isSelected && <Check className="w-4 h-4 text-amber-700 shrink-0 stroke-[2.5]" />}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="p-4 text-center text-xs text-slate-400 font-semibold">
+                Không tìm thấy ngành hàng phù hợp
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** One repeatable "Tổng quan Tỉnh" card — each instance carries its own Kênh/Ngành hàng filters */
 const ProvinceSummaryCard: React.FC<{
@@ -316,25 +447,13 @@ const ProvinceSummaryCard: React.FC<{
               className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-1.5 text-center shadow-2xs border rounded-none`}
               style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
             >
-              <h3 className={`${titleSizeClass} font-black uppercase text-white text-center drop-shadow-xs flex items-center justify-center gap-1 max-w-full overflow-hidden`}>
-                <span className="relative inline-flex items-center gap-1 group cursor-pointer max-w-full">
-                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black whitespace-nowrap truncate max-w-full">
-                    {catDisplayName}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
-                  <select
-                    value={config.category}
-                    onChange={(e) => onChangeCategory(e.target.value)}
-                    title="Nhấn vào để đổi ngành hàng / nhóm"
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  >
-                    {allCategoryNames.map((cat) => (
-                      <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                        {resolveCategoryDisplayName(cat, categoryDisplayNameMap)}
-                      </option>
-                    ))}
-                  </select>
-                </span>
+              <h3 className={`${titleSizeClass} font-black uppercase text-white text-center drop-shadow-xs flex items-center justify-center gap-1 max-w-full overflow-visible`}>
+                <CategorySelectDropdown
+                  value={config.category}
+                  onChange={onChangeCategory}
+                  allCategoryNames={allCategoryNames}
+                  categoryDisplayNameMap={categoryDisplayNameMap}
+                />
               </h3>
               <div className="text-white/95 text-[11px] font-normal tracking-wide mt-1">
                 {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabel}
@@ -799,26 +918,14 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
           <div className="w-full p-3">
             {/* Header Banner - Size chữ lớn (text-lg sm:text-xl), khe hở mb-3 sang trọng */}
             <div className={`w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}>
-              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5">
+              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5 overflow-visible">
                 <span>{selectedProvinceCard.toUpperCase()} •</span>
-                <span className="relative inline-flex items-center gap-1 group cursor-pointer">
-                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
-                    {resolveCategoryDisplayName(activeCategory, categoryDisplayNameMap).toUpperCase()}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
-                  <select
-                    value={activeCategory}
-                    onChange={(e) => setActiveCategory(e.target.value)}
-                    title="Nhấn vào để đổi ngành hàng / nhóm"
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  >
-                    {allCategoryNames.map((cat) => (
-                      <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                        {resolveCategoryDisplayName(cat, categoryDisplayNameMap)}
-                      </option>
-                    ))}
-                  </select>
-                </span>
+                <CategorySelectDropdown
+                  value={activeCategory}
+                  onChange={setActiveCategory}
+                  allCategoryNames={allCategoryNames}
+                  categoryDisplayNameMap={categoryDisplayNameMap}
+                />
               </h3>
               <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
                 {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabelCard2}
@@ -978,26 +1085,14 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
           <div className="w-full p-3">
             {/* Header Banner - Dynamic Title theo Tỉnh, % hoặc Số lượng */}
             <div className={`w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}>
-              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5">
+              <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5 overflow-visible">
                 <span>BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} %HT {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} •</span>
-                <span className="relative inline-flex items-center gap-1 group cursor-pointer">
-                  <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
-                    {resolveCategoryDisplayName(activeCategory, categoryDisplayNameMap).toUpperCase()}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
-                  <select
-                    value={activeCategory}
-                    onChange={(e) => setActiveCategory(e.target.value)}
-                    title="Nhấn vào để đổi ngành hàng / nhóm"
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  >
-                    {allCategoryNames.map((cat) => (
-                      <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                        {resolveCategoryDisplayName(cat, categoryDisplayNameMap)}
-                      </option>
-                    ))}
-                  </select>
-                </span>
+                <CategorySelectDropdown
+                  value={activeCategory}
+                  onChange={setActiveCategory}
+                  allCategoryNames={allCategoryNames}
+                  categoryDisplayNameMap={categoryDisplayNameMap}
+                />
               </h3>
               <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
                 {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabelCard3}
