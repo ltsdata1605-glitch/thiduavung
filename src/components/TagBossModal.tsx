@@ -1,14 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { StoreRecord } from '../types';
-import { formatStoreDisplayName } from '../utils/parser';
-import { X, Copy, Check, MessageSquare, Flame, AlertCircle, FileText, Zap, Award } from 'lucide-react';
+import { StoreRecord, Channel } from '../types';
+import {
+  formatStoreDisplayName,
+  getBossForStore,
+  getChannelForStore,
+  getCategoryData,
+  resolveCategoryDisplayName,
+  BossAssignmentRecord,
+} from '../utils/parser';
+import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+function isExcludedChannel(k?: string): boolean {
+  if (!k) return false;
+  const u = String(k).toUpperCase();
+  return u === 'LUUDONG' || u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u === 'OFF' || u === 'OFFLINE';
+}
 
 function formatInt(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
 }
 
-function formatBossTag(rawBoss: string): string {
+export function formatBossTag(rawBoss: string): string {
   if (!rawBoss) return '';
   const trimmed = rawBoss.trim();
   if (trimmed.includes('_')) {
@@ -26,6 +39,12 @@ interface TagBossModalProps {
   isOpen: boolean;
   onClose: () => void;
   stores: StoreRecord[];
+  selectedProvince?: string;
+  selectedChannels?: Channel[];
+  selectedCategory?: string;
+  selectedCategoryGroup?: string;
+  bossAssignments?: BossAssignmentRecord[];
+  categoryDisplayNameMap?: Record<string, string>;
   timeModeName?: string;
   lastUpdated?: string;
 }
@@ -34,6 +53,12 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   isOpen,
   onClose,
   stores = [],
+  selectedProvince = 'ALL',
+  selectedChannels = [],
+  selectedCategory = 'ALL',
+  selectedCategoryGroup = 'ALL',
+  bossAssignments = [],
+  categoryDisplayNameMap = {},
   timeModeName = 'Realtime',
   lastUpdated,
 }) => {
@@ -46,9 +71,37 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   const modeTitle = timeModeName.toLowerCase().includes('real') ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
   const fullTime = lastUpdated || `19:53:30 NGÀY 13/8/2026`;
 
-  // 1. Regional overall metrics (VÙNG)
-  const totalTarget = useMemo(() => safeStores.reduce((acc, s) => acc + (s.target || 0), 0), [safeStores]);
-  const totalAchieved = useMemo(() => safeStores.reduce((acc, s) => acc + (s.achieved || 0), 0), [safeStores]);
+  const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
+  const provinceName = isSpecificProvince ? selectedProvince.toUpperCase() : '';
+  const scopeLabel = isSpecificProvince ? `TỈNH ${provinceName}` : 'VÙNG';
+
+  // 1. Filter stores according to selectedProvince & selectedChannels
+  const filteredStores = useMemo(() => {
+    return safeStores.filter((s) => {
+      if (isSpecificProvince && s.tinh !== selectedProvince) return false;
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
+      if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
+      return true;
+    });
+  }, [safeStores, isSpecificProvince, selectedProvince, bossAssignments, selectedChannels]);
+
+  // Extract all active categories
+  const activeCategoryList = useMemo(() => {
+    const set = new Set<string>();
+    filteredStores.forEach((s) => {
+      if (s.categoryMap) {
+        Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
+      }
+    });
+    return Array.from(set);
+  }, [filteredStores]);
+
+  const totalCatCount = activeCategoryList.length || 38;
+
+  // 2. Metrics for the filtered scope
+  const totalTarget = useMemo(() => filteredStores.reduce((acc, s) => acc + (s.target || 0), 0), [filteredStores]);
+  const totalAchieved = useMemo(() => filteredStores.reduce((acc, s) => acc + (s.achieved || 0), 0), [filteredStores]);
   const totalRate = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
   const remaining = totalTarget - totalAchieved;
   const isSurpassed = remaining <= 0 && totalTarget > 0;
@@ -56,11 +109,59 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
     ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${totalRate}%) - Hoàn thành xuất sắc mục tiêu!`
     : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
 
-  // 2. Boss Ranking calculation (for Template 2: Bot 20 Boss)
+  // 3. Store Ranking
+  const storeRanking = useMemo(() => {
+    return [...filteredStores]
+      .map((s) => {
+        const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
+        const bossTag = formatBossTag(boss);
+        const target = s.target || 0;
+        const achieved = s.achieved || 0;
+
+        // Calculate achieved category count
+        let achievedCategories = 0;
+        if (activeCategoryList.length > 0) {
+          activeCategoryList.forEach((cat) => {
+            const data = getCategoryData(s, cat);
+            if ((data.rate || 0) >= 100) {
+              achievedCategories += 1;
+            }
+          });
+        }
+
+        // Completion rate: category count rate (if multi-cat) or revenue rate
+        const rate =
+          selectedCategory !== 'ALL'
+            ? target > 0
+              ? (achieved / target) * 100
+              : 0
+            : activeCategoryList.length > 0
+            ? (achievedCategories / activeCategoryList.length) * 100
+            : s.rate !== undefined
+            ? s.rate
+            : target > 0
+            ? (achieved / target) * 100
+            : 0;
+
+        return {
+          tinh: s.tinh,
+          storeName: formatStoreDisplayName(s.sieuthi),
+          boss,
+          bossTag,
+          target,
+          achieved,
+          achievedCategories,
+          rate,
+        };
+      })
+      .sort((a, b) => b.rate - a.rate);
+  }, [filteredStores, bossAssignments, activeCategoryList, selectedCategory]);
+
+  // 4. Boss Stats (Grouped within the filtered scope)
   const bossStats = useMemo(() => {
     const map = new Map<string, { totalTarget: number; totalAchieved: number; storesCount: number }>();
-    safeStores.forEach((s) => {
-      const boss = s.boss?.trim();
+    filteredStores.forEach((s) => {
+      const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
       if (!boss || boss === '-' || boss.includes('Chưa phân công')) return;
       const cur = map.get(boss) || { totalTarget: 0, totalAchieved: 0, storesCount: 0 };
       map.set(boss, {
@@ -80,30 +181,10 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
         storesCount: stat.storesCount,
       }))
       .filter((b) => b.target > 0)
-      .sort((a, b) => a.rate - b.rate); // Ascending order: Lowest rate first
-  }, [safeStores]);
+      .sort((a, b) => a.rate - b.rate); // Ascending: Lowest first
+  }, [filteredStores, bossAssignments]);
 
-  // 3. Store Ranking (for Template 1: Top 10 / Bot 10 Stores)
-  const storeRanking = useMemo(() => {
-    return [...safeStores]
-      .map((s) => {
-        const target = s.target || 0;
-        const achieved = s.achieved || 0;
-        const rate = s.rate !== undefined ? s.rate : target > 0 ? (achieved / target) * 100 : 0;
-        return {
-          tinh: s.tinh,
-          storeName: formatStoreDisplayName(s.sieuthi),
-          boss: s.boss,
-          bossTag: formatBossTag(s.boss || ''),
-          target,
-          achieved,
-          rate,
-        };
-      })
-      .sort((a, b) => b.rate - a.rate);
-  }, [safeStores]);
-
-  // 4. Province Ranking (for Template 3: Province Summary)
+  // 5. Province Ranking (across all stores)
   const provinceRanking = useMemo(() => {
     const map = new Map<string, { target: number; achieved: number; storesCount: number }>();
     safeStores.forEach((s) => {
@@ -127,7 +208,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       .sort((a, b) => b.rate - a.rate);
   }, [safeStores]);
 
-  // Top/Bot highlights for quick cards
+  // Highlights
   const top1Boss = bossStats[bossStats.length - 1];
   const low1Boss = bossStats[0];
 
@@ -143,8 +224,11 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       .map((s, idx) => {
         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
         const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-        const targetStr = s.target > 0 ? ` ${formatInt(s.achieved)} / ${formatInt(s.target)}` : ` ${formatInt(s.achieved)}`;
-        return `${medal} #${idx + 1} ${s.storeName}${tagPart}:${targetStr} (${Math.round(s.rate)}%)`;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
       })
       .join('\n');
 
@@ -152,13 +236,19 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       .map((s) => {
         const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
         const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-        return `🔻 #${rank} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
       })
       .join('\n');
 
-    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ THI ĐUA TNB - ${fullTime}
+    const titleLocation = isSpecificProvince ? `TỈNH ${provinceName}` : 'VÙNG TNB';
+
+    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ ${titleLocation} - ${fullTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ VÙNG:
+📊 KẾT QUẢ ${scopeLabel}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 ${totalSummaryLine}
 
@@ -169,13 +259,26 @@ ${topLines || 'Đang cập nhật'}
 ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
-  }, [storeRanking, modeIcon, modeTitle, fullTime, totalTarget, totalAchieved, totalRate, totalSummaryLine]);
+  }, [
+    storeRanking,
+    modeIcon,
+    modeTitle,
+    fullTime,
+    isSpecificProvince,
+    provinceName,
+    scopeLabel,
+    totalTarget,
+    totalAchieved,
+    totalRate,
+    totalSummaryLine,
+    selectedCategory,
+    totalCatCount,
+  ]);
 
   // ==========================================
   // TEMPLATE 2: Chỉ tag 20 Boss có hiệu quả kém
   // ==========================================
   const template2Bot20Boss = useMemo(() => {
-    // Take the 20 lowest bosses
     const bot20BossList = bossStats.slice(0, 20);
 
     const bossLines = bot20BossList
@@ -184,22 +287,70 @@ ${botLines || 'Đang cập nhật'}
       })
       .join('\n');
 
-    return `⚠️ THÔNG BÁO DANH SÁCH 20 BOSS CẦN TĂNG TỐC KHẨN CẤP - ${fullTime}
+    const titleLocation = isSpecificProvince ? `TỈNH ${provinceName}` : 'VÙNG TNB';
+
+    return `⚠️ THÔNG BÁO DANH SÁCH BOSS CẦN TĂNG TỐC KHẨN CẤP - ${titleLocation} - ${fullTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ VÙNG:
+📊 KẾT QUẢ ${scopeLabel}:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 ${totalSummaryLine}
 
-🚨 DANH SÁCH 20 BOSS CÓ HIỆU QUẢ CẦN CẢI THIỆN:
+🚨 DANH SÁCH BOSS CÓ HIỆU QUẢ CẦN CẢI THIỆN:
 ${bossLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👉 Đề nghị các Boss chủ động rà soát, chỉ đạo quyết liệt các siêu thị phụ trách để bứt phá chỉ tiêu! 💪🏼🔥`;
-  }, [bossStats, fullTime, totalTarget, modeIcon, totalAchieved, totalRate, totalSummaryLine]);
+  }, [bossStats, fullTime, isSpecificProvince, provinceName, scopeLabel, totalTarget, modeIcon, totalAchieved, totalRate, totalSummaryLine]);
 
   // ==========================================
   // TEMPLATE 3: Tóm tắt ngắn - Nhận xét kết quả Tỉnh
   // ==========================================
   const template3ProvinceSummary = useMemo(() => {
+    if (isSpecificProvince) {
+      // If a specific province is selected, provide a focused summary for this province
+      const top3Stores = storeRanking.slice(0, 3);
+      const storesWithTarget = storeRanking.filter((s) => s.target > 0);
+      const bot3Stores = storesWithTarget.slice(-3).reverse();
+
+      const topLines = top3Stores
+        .map((s, idx) => {
+          const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+          const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
+          const valuePart =
+            selectedCategory !== 'ALL'
+              ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+              : `${s.achievedCategories} / ${totalCatCount}`;
+          return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
+        })
+        .join('\n');
+
+      const botLines = bot3Stores
+        .map((s) => {
+          const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
+          const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
+          const valuePart =
+            selectedCategory !== 'ALL'
+              ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+              : `${s.achievedCategories} / ${totalCatCount}`;
+          return `🔻 #${rank} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
+        })
+        .join('\n');
+
+      return `${modeIcon} TÓM TẮT KẾT QUẢ THI ĐUA TỈNH ${provinceName} - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TỈNH ${provinceName}:
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
+${totalSummaryLine}
+
+🏆 TOP SIÊU THỊ DẪN ĐẦU TỈNH:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT SIÊU THỊ CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để về đích xuất sắc! 💪🏼🔥`;
+    }
+
+    // Default: Region-wide 13 provinces summary
     const top3 = provinceRanking.slice(0, 3);
     const bot3 = provinceRanking.slice(-3).reverse();
 
@@ -230,7 +381,20 @@ ${topLines || 'Đang cập nhật'}
 ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh các ngành hàng trọng điểm để về đích xuất sắc! 💪🏼🔥`;
-  }, [provinceRanking, modeIcon, fullTime, totalTarget, totalAchieved, totalRate, totalSummaryLine]);
+  }, [
+    isSpecificProvince,
+    provinceName,
+    modeIcon,
+    fullTime,
+    totalTarget,
+    totalAchieved,
+    totalRate,
+    totalSummaryLine,
+    storeRanking,
+    selectedCategory,
+    totalCatCount,
+    provinceRanking,
+  ]);
 
   if (!isOpen) return null;
 
@@ -256,7 +420,9 @@ ${botLines || 'Đang cập nhật'}
         <div className="px-6 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2.5 font-black text-base">
             <MessageSquare className="w-5 h-5 text-amber-200" />
-            FORM NHẬN XÉT & THÔNG BÁO THI ĐUA
+            <span>
+              FORM NHẬN XÉT: {scopeLabel}
+            </span>
           </div>
           <button
             onClick={onClose}
@@ -275,7 +441,9 @@ ${botLines || 'Đang cập nhật'}
                 <Flame className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold text-amber-700 uppercase">BOSS DẪN ĐẦU VÙNG</div>
+                <div className="text-[10px] font-bold text-amber-700 uppercase">
+                  BOSS DẪN ĐẦU {isSpecificProvince ? `TỈNH` : `VÙNG`}
+                </div>
                 <div className="text-xs font-black text-slate-900 truncate">
                   {top1Boss ? top1Boss.bossTag || top1Boss.boss : '-'}
                 </div>
@@ -290,7 +458,9 @@ ${botLines || 'Đang cập nhật'}
                 <AlertCircle className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold text-rose-700 uppercase">BOSS CẦN TĂNG TỐC</div>
+                <div className="text-[10px] font-bold text-rose-700 uppercase">
+                  BOSS CẦN TĂNG TỐC {isSpecificProvince ? `TỈNH` : `VÙNG`}
+                </div>
                 <div className="text-xs font-black text-slate-900 truncate">
                   {low1Boss ? low1Boss.bossTag || low1Boss.boss : '-'}
                 </div>
@@ -303,9 +473,16 @@ ${botLines || 'Đang cập nhật'}
 
           {/* Template Selector Tabs */}
           <div>
-            <label className="block text-xs font-extrabold text-slate-700 mb-2">
-              Chọn mẫu nội dung nhận xét:
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-extrabold text-slate-700">
+                Chọn mẫu nội dung nhận xét ({scopeLabel}):
+              </label>
+              {isSpecificProvince && (
+                <span className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
+                  Đang lọc: {provinceName}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
               <button
                 onClick={() => {
@@ -334,7 +511,7 @@ ${botLines || 'Đang cập nhật'}
                 }`}
               >
                 <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                <span className="truncate">Mẫu 2: Tag 20 Boss BOT</span>
+                <span className="truncate">Mẫu 2: Tag Boss BOT</span>
               </button>
 
               <button
@@ -349,7 +526,7 @@ ${botLines || 'Đang cập nhật'}
                 }`}
               >
                 <Zap className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                <span className="truncate">Mẫu 3: Tóm tắt Tỉnh</span>
+                <span className="truncate">Mẫu 3: Tóm tắt {isSpecificProvince ? 'Tỉnh' : 'Vùng'}</span>
               </button>
             </div>
           </div>

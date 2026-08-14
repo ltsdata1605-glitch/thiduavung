@@ -938,6 +938,12 @@ export default function App() {
         isOpen={isTagBossModalOpen}
         onClose={() => setIsTagBossModalOpen(false)}
         stores={activeStores}
+        selectedProvince={selectedProvince}
+        selectedChannels={selectedChannels}
+        selectedCategory={selectedCategory}
+        selectedCategoryGroup={selectedCategoryGroup}
+        bossAssignments={bossAssignments}
+        categoryDisplayNameMap={categoryDisplayNameMap}
         timeModeName={timeMode === 'realtime' ? 'Realtime' : 'Luỹ kế'}
         lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
       />
