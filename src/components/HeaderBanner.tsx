@@ -23,7 +23,8 @@ import {
   Trash2,
   Search,
   X,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 
 const DEFAULT_CATEGORY_GROUP: Record<string, string> = {
@@ -521,16 +522,16 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               Cập nhật
             </button>
 
-            {onForceClearCache && (
-              <button
-                onClick={onForceClearCache}
-                title="Ép xoá bộ nhớ cache trình duyệt và tải lại dữ liệu mới"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 hover:border-amber-400 shadow-2xs"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-amber-700" />
-                Xoá Cache
-              </button>
-            )}
+            <a
+              href="https://bi.thegioididong.com/thi-dua?id=-1&tab=1&rt=1&dm=2&mt=2"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Mở link cập nhật báo cáo BI Thế Giới Di Động"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer bg-sky-50 text-sky-700 border-sky-300 hover:bg-sky-100 hover:border-sky-400 shadow-2xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+              <span>Link BI</span>
+            </a>
           </div>
         </div>
       </div>
