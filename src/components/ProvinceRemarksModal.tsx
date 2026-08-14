@@ -35,6 +35,9 @@ export const ProvinceRemarksModal: React.FC<ProvinceRemarksModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    // Helper: format integer numbers without decimals
+    const formatInt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
+
     const modeIcon = timeMode === 'realtime' ? '⚡' : '📈';
     const modeTitle = timeMode === 'realtime' ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
     const header = `${modeIcon} ${modeTitle} - ${categoryName.toUpperCase()} - ${fullTime}`;
@@ -42,15 +45,15 @@ export const ProvinceRemarksModal: React.FC<ProvinceRemarksModalProps> = ({
     const remaining = totalSummary.target - totalSummary.achieved;
     const isSurpassed = remaining <= 0 && totalSummary.target > 0;
     const totalSummaryLine = isSurpassed
-      ? `🎉 ĐÃ VƯỢT: +${Math.abs(remaining).toLocaleString('vi-VN')} (${totalSummary.rate}%) - Hoàn thành xuất sắc mục tiêu! 🚀`
-      : `📉 CÒN THIẾU: ${remaining.toLocaleString('vi-VN')} để hoàn thành 100% mục tiêu`;
+      ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${Math.round(totalSummary.rate)}%) - Hoàn thành xuất sắc mục tiêu! 🚀`
+      : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
 
     // Top 3 provinces
     const top3 = rows.slice(0, 3);
     const topLines = top3
       .map((r, i) => {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
-        return `${medal} #${i + 1} ${r.tinh}: ${r.achieved.toLocaleString('vi-VN')} / ${r.target.toLocaleString('vi-VN')} (${Math.round(r.rate)}%)`;
+        return `${medal} #${i + 1} ${r.tinh}: ${formatInt(r.achieved)} / ${formatInt(r.target)} (${Math.round(r.rate)}%)`;
       })
       .join('\n');
 
@@ -59,7 +62,7 @@ export const ProvinceRemarksModal: React.FC<ProvinceRemarksModalProps> = ({
     const botLines = bot3
       .map((r) => {
         const rank = rows.findIndex((item) => item.tinh === r.tinh) + 1;
-        return `🔻 #${rank} ${r.tinh}: ${r.achieved.toLocaleString('vi-VN')} / ${r.target.toLocaleString('vi-VN')} (${Math.round(r.rate)}%)`;
+        return `🔻 #${rank} ${r.tinh}: ${formatInt(r.achieved)} / ${formatInt(r.target)} (${Math.round(r.rate)}%)`;
       })
       .join('\n');
 
@@ -67,8 +70,8 @@ export const ProvinceRemarksModal: React.FC<ProvinceRemarksModalProps> = ({
 
     const text = `${header}
 ${channelInfo}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ TOÀN VÙNG:
-🎯 Target: ${totalSummary.target.toLocaleString('vi-VN')} | ${modeIcon} Thực đạt: ${totalSummary.achieved.toLocaleString('vi-VN')} (${totalSummary.rate}%)
+📊 KẾT QUẢ VÙNG:
+🎯 Target: ${formatInt(totalSummary.target)} | ${modeIcon} Thực đạt: ${formatInt(totalSummary.achieved)} (${Math.round(totalSummary.rate)}%)
 ${totalSummaryLine}
 
 🏆 TOP 3 TỈNH DẪN ĐẦU:
