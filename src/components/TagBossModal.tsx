@@ -2,13 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { StoreRecord, Channel } from '../types';
 import {
   formatStoreDisplayName,
-  getBossForStore,
   getChannelForStore,
   getCategoryData,
   resolveCategoryDisplayName,
   BossAssignmentRecord,
 } from '../utils/parser';
-import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap } from 'lucide-react';
+import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 function isExcludedChannel(k?: string): boolean {
@@ -19,20 +18,6 @@ function isExcludedChannel(k?: string): boolean {
 
 function formatInt(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
-}
-
-export function formatBossTag(rawBoss: string): string {
-  if (!rawBoss) return '';
-  const trimmed = rawBoss.trim();
-  if (trimmed.includes('_')) {
-    const parts = trimmed.split('_');
-    const idPart = parts[parts.length - 1]?.trim();
-    if (idPart) return `@${idPart}`;
-  }
-  if (/^\d+$/.test(trimmed)) {
-    return `@${trimmed}`;
-  }
-  return `@${trimmed}`;
 }
 
 interface TagBossModalProps {
@@ -63,7 +48,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   lastUpdated,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [activeTemplateTab, setActiveTemplateTab] = useState<'stores_topbot' | 'bot_boss' | 'province_summary'>('stores_topbot');
+  const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
   const [customText, setCustomText] = useState<string>('');
 
   const safeStores = stores || [];
@@ -99,7 +84,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 
   const totalCatCount = activeCategoryList.length || 38;
 
-  // 2. Metrics for the filtered scope
+  // 2. Overall Metrics for the current scope
   const totalTarget = useMemo(() => filteredStores.reduce((acc, s) => acc + (s.target || 0), 0), [filteredStores]);
   const totalAchieved = useMemo(() => filteredStores.reduce((acc, s) => acc + (s.achieved || 0), 0), [filteredStores]);
   const totalRate = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
@@ -109,16 +94,13 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
     ? `🎉 ĐÃ VƯỢT: +${formatInt(Math.abs(remaining))} (${totalRate}%) - Hoàn thành xuất sắc mục tiêu!`
     : `📉 CÒN THIẾU: ${formatInt(remaining)} để hoàn thành 100% mục tiêu`;
 
-  // 3. Store Ranking
+  // 3. Store Ranking (No tags, clean display names)
   const storeRanking = useMemo(() => {
     return [...filteredStores]
       .map((s) => {
-        const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
-        const bossTag = formatBossTag(boss);
         const target = s.target || 0;
         const achieved = s.achieved || 0;
 
-        // Calculate achieved category count
         let achievedCategories = 0;
         if (activeCategoryList.length > 0) {
           activeCategoryList.forEach((cat) => {
@@ -129,7 +111,6 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
           });
         }
 
-        // Completion rate: category count rate (if multi-cat) or revenue rate
         const rate =
           selectedCategory !== 'ALL'
             ? target > 0
@@ -146,8 +127,6 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
         return {
           tinh: s.tinh,
           storeName: formatStoreDisplayName(s.sieuthi),
-          boss,
-          bossTag,
           target,
           achieved,
           achievedCategories,
@@ -155,67 +134,145 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
         };
       })
       .sort((a, b) => b.rate - a.rate);
-  }, [filteredStores, bossAssignments, activeCategoryList, selectedCategory]);
+  }, [filteredStores, activeCategoryList, selectedCategory]);
 
-  // 4. Boss Stats (Grouped within the filtered scope)
-  const bossStats = useMemo(() => {
-    const map = new Map<string, { totalTarget: number; totalAchieved: number; storesCount: number }>();
-    filteredStores.forEach((s) => {
-      const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
-      if (!boss || boss === '-' || boss.includes('Chưa phân công')) return;
-      const cur = map.get(boss) || { totalTarget: 0, totalAchieved: 0, storesCount: 0 };
-      map.set(boss, {
-        totalTarget: cur.totalTarget + (s.target || 0),
-        totalAchieved: cur.totalAchieved + (s.achieved || 0),
-        storesCount: cur.storesCount + 1,
-      });
-    });
-
-    return Array.from(map.entries())
-      .map(([boss, stat]) => ({
-        boss,
-        bossTag: formatBossTag(boss),
-        target: stat.totalTarget,
-        achieved: stat.totalAchieved,
-        rate: stat.totalTarget > 0 ? (stat.totalAchieved / stat.totalTarget) * 100 : 0,
-        storesCount: stat.storesCount,
-      }))
-      .filter((b) => b.target > 0)
-      .sort((a, b) => a.rate - b.rate); // Ascending: Lowest first
-  }, [filteredStores, bossAssignments]);
-
-  // 5. Province Ranking (across all stores)
+  // 4. Province Ranking (Aggregated across all stores in each province)
   const provinceRanking = useMemo(() => {
-    const map = new Map<string, { target: number; achieved: number; storesCount: number }>();
+    const map = new Map<string, {
+      target: number;
+      achieved: number;
+      storesCount: number;
+      catTotals: Record<string, { target: number; achieved: number; rateSum: number; count: number }>;
+    }>();
+
     safeStores.forEach((s) => {
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
+      if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
+
       const tinh = s.tinh || 'Khác';
-      const cur = map.get(tinh) || { target: 0, achieved: 0, storesCount: 0 };
-      map.set(tinh, {
-        target: cur.target + (s.target || 0),
-        achieved: cur.achieved + (s.achieved || 0),
-        storesCount: cur.storesCount + 1,
-      });
+      const cur = map.get(tinh) || { target: 0, achieved: 0, storesCount: 0, catTotals: {} };
+      cur.target += (s.target || 0);
+      cur.achieved += (s.achieved || 0);
+      cur.storesCount += 1;
+
+      if (s.categoryMap) {
+        Object.entries(s.categoryMap).forEach(([cat, data]) => {
+          const c = cur.catTotals[cat] || { target: 0, achieved: 0, rateSum: 0, count: 0 };
+          c.target += (data.target || 0);
+          c.achieved += (data.achieved || 0);
+          c.rateSum += (data.rate || 0);
+          c.count += 1;
+          cur.catTotals[cat] = c;
+        });
+      }
+
+      map.set(tinh, cur);
     });
 
     return Array.from(map.entries())
-      .map(([tinh, stat]) => ({
-        tinh,
-        target: stat.target,
-        achieved: stat.achieved,
-        rate: stat.target > 0 ? (stat.achieved / stat.target) * 100 : 0,
-        storesCount: stat.storesCount,
-      }))
+      .map(([tinh, stat]) => {
+        let achievedCategories = 0;
+        if (activeCategoryList.length > 0) {
+          activeCategoryList.forEach((cat) => {
+            const c = stat.catTotals[cat];
+            if (c) {
+              const catRate = c.target > 0 ? (c.achieved / c.target) * 100 : (c.count > 0 ? c.rateSum / c.count : 0);
+              if (catRate >= 100) achievedCategories += 1;
+            }
+          });
+        }
+
+        const rate =
+          selectedCategory !== 'ALL'
+            ? stat.target > 0
+              ? (stat.achieved / stat.target) * 100
+              : 0
+            : activeCategoryList.length > 0
+            ? (achievedCategories / activeCategoryList.length) * 100
+            : stat.target > 0
+            ? (stat.achieved / stat.target) * 100
+            : 0;
+
+        return {
+          tinh,
+          target: stat.target,
+          achieved: stat.achieved,
+          achievedCategories,
+          rate,
+          storesCount: stat.storesCount,
+        };
+      })
       .sort((a, b) => b.rate - a.rate);
-  }, [safeStores]);
+  }, [safeStores, bossAssignments, selectedChannels, activeCategoryList, selectedCategory]);
 
   // Highlights
-  const top1Boss = bossStats[bossStats.length - 1];
-  const low1Boss = bossStats[0];
+  const top1Province = provinceRanking[0];
+  const low1Province = provinceRanking[provinceRanking.length - 1];
 
-  // ==========================================
-  // TEMPLATE 1: Tag TOP/BOT Siêu thị (Max 20 ST)
-  // ==========================================
-  const template1StoresTopBot = useMemo(() => {
+  const top1Store = storeRanking[0];
+  const low1Store = storeRanking[storeRanking.length - 1];
+
+  // =========================================================================
+  // TEMPLATES FOR TAB VÙNG (Scope = Toàn Vùng TNB)
+  // =========================================================================
+
+  // Mẫu 1 (Vùng): Xếp hạng tất cả Tỉnh (TOP / BOT Tỉnh)
+  const templateVungRankingTinh = useMemo(() => {
+    const half = Math.ceil(provinceRanking.length / 2);
+    const topTinhs = provinceRanking.slice(0, half);
+    const botTinhs = provinceRanking.slice(half).reverse();
+
+    const topLines = topTinhs
+      .map((p, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
+            : `${p.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+      })
+      .join('\n');
+
+    const botLines = botTinhs
+      .map((p) => {
+        const rank = provinceRanking.findIndex((item) => item.tinh === p.tinh) + 1;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
+            : `${p.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+      })
+      .join('\n');
+
+    return `${modeIcon} ${modeTitle} - BẢNG XẾP HẠNG THI ĐUA CÁC TỈNH VÙNG TNB - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TOÀN VÙNG:
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
+${totalSummaryLine}
+
+🏆 TOP TỈNH DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ CÁC TỈNH CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+  }, [
+    provinceRanking,
+    modeIcon,
+    modeTitle,
+    fullTime,
+    totalTarget,
+    totalAchieved,
+    totalRate,
+    totalSummaryLine,
+    selectedCategory,
+    totalCatCount,
+  ]);
+
+  // Mẫu 2 (Vùng): Top 10 & Bot 10 Siêu thị toàn vùng (Không tag tên)
+  const templateVungTopBotStore = useMemo(() => {
     const top10 = storeRanking.slice(0, 10);
     const storesWithTarget = storeRanking.filter((s) => s.target > 0);
     const bot10 = storesWithTarget.slice(-10).reverse();
@@ -223,32 +280,28 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
     const topLines = top10
       .map((s, idx) => {
         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
-        const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
         const valuePart =
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
       })
       .join('\n');
 
     const botLines = bot10
       .map((s) => {
         const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
-        const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
         const valuePart =
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${rank} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
       })
       .join('\n');
 
-    const titleLocation = isSpecificProvince ? `TỈNH ${provinceName}` : 'VÙNG TNB';
-
-    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ ${titleLocation} - ${fullTime}
+    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ TOÀN VÙNG TNB - ${fullTime}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ ${scopeLabel}:
+📊 KẾT QUẢ VÙNG:
 🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
 ${totalSummaryLine}
 
@@ -258,15 +311,12 @@ ${topLines || 'Đang cập nhật'}
 ⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
 ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   }, [
     storeRanking,
     modeIcon,
     modeTitle,
     fullTime,
-    isSpecificProvince,
-    provinceName,
-    scopeLabel,
     totalTarget,
     totalAchieved,
     totalRate,
@@ -275,96 +325,30 @@ ${botLines || 'Đang cập nhật'}
     totalCatCount,
   ]);
 
-  // ==========================================
-  // TEMPLATE 2: Chỉ tag 20 Boss có hiệu quả kém
-  // ==========================================
-  const template2Bot20Boss = useMemo(() => {
-    const bot20BossList = bossStats.slice(0, 20);
-
-    const bossLines = bot20BossList
-      .map((b, idx) => {
-        return `🔻 #${idx + 1} ${b.bossTag} (${b.boss}): ${formatInt(b.achieved)} / ${formatInt(b.target)} (${Math.round(b.rate)}%)`;
-      })
-      .join('\n');
-
-    const titleLocation = isSpecificProvince ? `TỈNH ${provinceName}` : 'VÙNG TNB';
-
-    return `⚠️ THÔNG BÁO DANH SÁCH BOSS CẦN TĂNG TỐC KHẨN CẤP - ${titleLocation} - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ ${scopeLabel}:
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
-
-🚨 DANH SÁCH BOSS CÓ HIỆU QUẢ CẦN CẢI THIỆN:
-${bossLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👉 Đề nghị các Boss chủ động rà soát, chỉ đạo quyết liệt các siêu thị phụ trách để bứt phá chỉ tiêu! 💪🏼🔥`;
-  }, [bossStats, fullTime, isSpecificProvince, provinceName, scopeLabel, totalTarget, modeIcon, totalAchieved, totalRate, totalSummaryLine]);
-
-  // ==========================================
-  // TEMPLATE 3: Tóm tắt ngắn - Nhận xét kết quả Tỉnh
-  // ==========================================
-  const template3ProvinceSummary = useMemo(() => {
-    if (isSpecificProvince) {
-      // If a specific province is selected, provide a focused summary for this province
-      const top3Stores = storeRanking.slice(0, 3);
-      const storesWithTarget = storeRanking.filter((s) => s.target > 0);
-      const bot3Stores = storesWithTarget.slice(-3).reverse();
-
-      const topLines = top3Stores
-        .map((s, idx) => {
-          const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-          const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-          const valuePart =
-            selectedCategory !== 'ALL'
-              ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
-              : `${s.achievedCategories} / ${totalCatCount}`;
-          return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
-        })
-        .join('\n');
-
-      const botLines = bot3Stores
-        .map((s) => {
-          const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
-          const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-          const valuePart =
-            selectedCategory !== 'ALL'
-              ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
-              : `${s.achievedCategories} / ${totalCatCount}`;
-          return `🔻 #${rank} ${s.storeName}${tagPart}: ${valuePart} (${Math.round(s.rate)}%)`;
-        })
-        .join('\n');
-
-      return `${modeIcon} TÓM TẮT KẾT QUẢ THI ĐUA TỈNH ${provinceName} - ${fullTime}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 KẾT QUẢ TỈNH ${provinceName}:
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
-${totalSummaryLine}
-
-🏆 TOP SIÊU THỊ DẪN ĐẦU TỈNH:
-${topLines || 'Đang cập nhật'}
-
-⚠️ BOT SIÊU THỊ CẦN TĂNG TỐC:
-${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-👉 Đề nghị các Boss bám sát, tập trung đẩy mạnh tư vấn để về đích xuất sắc! 💪🏼🔥`;
-    }
-
-    // Default: Region-wide 13 provinces summary
+  // Mẫu 3 (Vùng): Tóm tắt ngắn gọn Vùng (Top 3 & Bot 3 Tỉnh)
+  const templateVungSummary = useMemo(() => {
     const top3 = provinceRanking.slice(0, 3);
     const bot3 = provinceRanking.slice(-3).reverse();
 
     const topLines = top3
       .map((p, idx) => {
         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-        return `${medal} #${idx + 1} ${p.tinh}: ${formatInt(p.achieved)} / ${formatInt(p.target)} (${Math.round(p.rate)}%)`;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
+            : `${p.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
       })
       .join('\n');
 
     const botLines = bot3
       .map((p) => {
         const rank = provinceRanking.findIndex((item) => item.tinh === p.tinh) + 1;
-        return `🔻 #${rank} ${p.tinh}: ${formatInt(p.achieved)} / ${formatInt(p.target)} (${Math.round(p.rate)}%)`;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
+            : `${p.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
       })
       .join('\n');
 
@@ -382,7 +366,156 @@ ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh các ngành hàng trọng điểm để về đích xuất sắc! 💪🏼🔥`;
   }, [
-    isSpecificProvince,
+    provinceRanking,
+    modeIcon,
+    fullTime,
+    totalTarget,
+    totalAchieved,
+    totalRate,
+    totalSummaryLine,
+    selectedCategory,
+    totalCatCount,
+  ]);
+
+  // =========================================================================
+  // TEMPLATES FOR TAB SIÊU THỊ / TỪNG TỈNH CỤ THỂ
+  // =========================================================================
+
+  // Mẫu 1 (Tỉnh): Top 10 & Bot 10 Siêu thị trong Tỉnh (Không tag tên)
+  const templateTinhTopBotStore = useMemo(() => {
+    const top10 = storeRanking.slice(0, 10);
+    const storesWithTarget = storeRanking.filter((s) => s.target > 0);
+    const bot10 = storesWithTarget.slice(-10).reverse();
+
+    const topLines = top10
+      .map((s, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    const botLines = bot10
+      .map((s) => {
+        const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ TỈNH ${provinceName} - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TỈNH ${provinceName}:
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
+${totalSummaryLine}
+
+🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+  }, [
+    storeRanking,
+    provinceName,
+    modeIcon,
+    modeTitle,
+    fullTime,
+    totalTarget,
+    totalAchieved,
+    totalRate,
+    totalSummaryLine,
+    selectedCategory,
+    totalCatCount,
+  ]);
+
+  // Mẫu 2 (Tỉnh): Danh sách siêu thị cần tăng tốc trong Tỉnh (<100%)
+  const templateTinhBotStores = useMemo(() => {
+    const underperformingStores = storeRanking.filter((s) => s.target > 0 && s.rate < 100).slice(0, 20);
+
+    const storeLines = underperformingStores
+      .map((s, idx) => {
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    return `⚠️ DANH SÁCH SIÊU THỊ CẦN TĂNG TỐC - TỈNH ${provinceName} - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TỈNH ${provinceName}:
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
+${totalSummaryLine}
+
+🚨 DANH SÁCH SIÊU THỊ CẦN CẢI THIỆN TIẾN ĐỘ:
+${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Siêu thị chủ động bám sát kế hoạch ngày, đẩy mạnh tư vấn để về đích xuất sắc! 💪🏼🔥`;
+  }, [
+    storeRanking,
+    provinceName,
+    fullTime,
+    totalTarget,
+    modeIcon,
+    totalAchieved,
+    totalRate,
+    totalSummaryLine,
+    selectedCategory,
+    totalCatCount,
+  ]);
+
+  // Mẫu 3 (Tỉnh): Tóm tắt ngắn gọn Tỉnh
+  const templateTinhSummary = useMemo(() => {
+    const top3 = storeRanking.slice(0, 3);
+    const storesWithTarget = storeRanking.filter((s) => s.target > 0);
+    const bot3 = storesWithTarget.slice(-3).reverse();
+
+    const topLines = top3
+      .map((s, idx) => {
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    const botLines = bot3
+      .map((s) => {
+        const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
+        const valuePart =
+          selectedCategory !== 'ALL'
+            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
+            : `${s.achievedCategories} / ${totalCatCount}`;
+        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+      })
+      .join('\n');
+
+    return `${modeIcon} TÓM TẮT KẾT QUẢ THI ĐUA TỈNH ${provinceName} - ${fullTime}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KẾT QUẢ TỈNH ${provinceName}:
+🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)} (${totalRate}%)
+${totalSummaryLine}
+
+🏆 TOP SIÊU THỊ DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT SIÊU THỊ CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để về đích xuất sắc! 💪🏼🔥`;
+  }, [
+    storeRanking,
     provinceName,
     modeIcon,
     fullTime,
@@ -390,21 +523,25 @@ ${botLines || 'Đang cập nhật'}
     totalAchieved,
     totalRate,
     totalSummaryLine,
-    storeRanking,
     selectedCategory,
     totalCatCount,
-    provinceRanking,
   ]);
 
   if (!isOpen) return null;
 
-  const activeMessage =
-    customText ||
-    (activeTemplateTab === 'stores_topbot'
-      ? template1StoresTopBot
-      : activeTemplateTab === 'bot_boss'
-      ? template2Bot20Boss
-      : template3ProvinceSummary);
+  const currentTemplateText = isSpecificProvince
+    ? activeTemplateTab === 'template_1'
+      ? templateTinhTopBotStore
+      : activeTemplateTab === 'template_2'
+      ? templateTinhBotStores
+      : templateTinhSummary
+    : activeTemplateTab === 'template_1'
+    ? templateVungRankingTinh
+    : activeTemplateTab === 'template_2'
+    ? templateVungTopBotStore
+    : templateVungSummary;
+
+  const activeMessage = customText || currentTemplateText;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(activeMessage);
@@ -420,9 +557,7 @@ ${botLines || 'Đang cập nhật'}
         <div className="px-6 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-2.5 font-black text-base">
             <MessageSquare className="w-5 h-5 text-amber-200" />
-            <span>
-              FORM NHẬN XÉT: {scopeLabel}
-            </span>
+            <span>FORM NHẬN XÉT: {scopeLabel}</span>
           </div>
           <button
             onClick={onClose}
@@ -438,17 +573,21 @@ ${botLines || 'Đang cập nhật'}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Flame className="w-5 h-5" />
+                <Trophy className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-bold text-amber-700 uppercase">
-                  BOSS DẪN ĐẦU {isSpecificProvince ? `TỈNH` : `VÙNG`}
+                  {isSpecificProvince ? 'SIÊU THỊ DẪN ĐẦU TỈNH' : 'TỈNH DẪN ĐẦU VÙNG'}
                 </div>
                 <div className="text-xs font-black text-slate-900 truncate">
-                  {top1Boss ? top1Boss.bossTag || top1Boss.boss : '-'}
+                  {isSpecificProvince
+                    ? (top1Store ? top1Store.storeName : '-')
+                    : (top1Province ? top1Province.tinh : '-')}
                 </div>
                 <div className="text-xs font-bold text-emerald-600">
-                  {top1Boss ? `${Math.round(top1Boss.rate)}%` : '-'}
+                  {isSpecificProvince
+                    ? (top1Store ? `${Math.round(top1Store.rate)}%` : '-')
+                    : (top1Province ? `${Math.round(top1Province.rate)}%` : '-')}
                 </div>
               </div>
             </div>
@@ -459,13 +598,17 @@ ${botLines || 'Đang cập nhật'}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-bold text-rose-700 uppercase">
-                  BOSS CẦN TĂNG TỐC {isSpecificProvince ? `TỈNH` : `VÙNG`}
+                  {isSpecificProvince ? 'SIÊU THỊ CẦN TĂNG TỐC' : 'TỈNH CẦN TĂNG TỐC'}
                 </div>
                 <div className="text-xs font-black text-slate-900 truncate">
-                  {low1Boss ? low1Boss.bossTag || low1Boss.boss : '-'}
+                  {isSpecificProvince
+                    ? (low1Store ? low1Store.storeName : '-')
+                    : (low1Province ? low1Province.tinh : '-')}
                 </div>
                 <div className="text-xs font-bold text-rose-600">
-                  {low1Boss ? `${Math.round(low1Boss.rate)}%` : '-'}
+                  {isSpecificProvince
+                    ? (low1Store ? `${Math.round(low1Store.rate)}%` : '-')
+                    : (low1Province ? `${Math.round(low1Province.rate)}%` : '-')}
                 </div>
               </div>
             </div>
@@ -486,47 +629,53 @@ ${botLines || 'Đang cập nhật'}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
               <button
                 onClick={() => {
-                  setActiveTemplateTab('stores_topbot');
+                  setActiveTemplateTab('template_1');
                   setCustomText('');
                 }}
                 className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTemplateTab === 'stores_topbot' && !customText
+                  activeTemplateTab === 'template_1' && !customText
                     ? 'bg-white text-amber-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                <span className="truncate">Mẫu 1: TOP/BOT ST</span>
+                <span className="truncate">
+                  {isSpecificProvince ? 'Mẫu 1: TOP/BOT ST' : 'Mẫu 1: Xếp hạng Tỉnh'}
+                </span>
               </button>
 
               <button
                 onClick={() => {
-                  setActiveTemplateTab('bot_boss');
+                  setActiveTemplateTab('template_2');
                   setCustomText('');
                 }}
                 className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTemplateTab === 'bot_boss' && !customText
+                  activeTemplateTab === 'template_2' && !customText
                     ? 'bg-white text-rose-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                <span className="truncate">Mẫu 2: Tag Boss BOT</span>
+                <span className="truncate">
+                  {isSpecificProvince ? 'Mẫu 2: DS Cần tăng tốc' : 'Mẫu 2: TOP/BOT Siêu thị'}
+                </span>
               </button>
 
               <button
                 onClick={() => {
-                  setActiveTemplateTab('province_summary');
+                  setActiveTemplateTab('template_3');
                   setCustomText('');
                 }}
                 className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTemplateTab === 'province_summary' && !customText
+                  activeTemplateTab === 'template_3' && !customText
                     ? 'bg-white text-sky-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Zap className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                <span className="truncate">Mẫu 3: Tóm tắt {isSpecificProvince ? 'Tỉnh' : 'Vùng'}</span>
+                <span className="truncate">
+                  Mẫu 3: Tóm tắt {isSpecificProvince ? 'Tỉnh' : 'Vùng'}
+                </span>
               </button>
             </div>
           </div>
@@ -535,7 +684,7 @@ ${botLines || 'Đang cập nhật'}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-extrabold text-slate-700">
-                Nội dung nhận xét (có thể chỉnh sửa trực tiếp):
+                Nội dung nhận xét (không tag tên, có thể chỉnh sửa trực tiếp):
               </label>
               {customText && (
                 <button

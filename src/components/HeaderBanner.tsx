@@ -617,25 +617,6 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             />
           </div>
 
-          {/* Toggle KPI Cards & Charts Section Button */}
-          {setShowSummarySection && (
-            <button
-              disabled={entityScope === 'nhom'}
-              onClick={() => setShowSummarySection(!showSummarySection)}
-              className={`px-3 py-1 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all border shrink-0 ${
-                entityScope === 'nhom'
-                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                  : showSummarySection
-                  ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 cursor-pointer'
-                  : 'bg-violet-200 text-violet-900 border-violet-300 hover:bg-violet-300 cursor-pointer'
-              }`}
-              title={showSummarySection ? 'Thu gọn Biểu đồ' : 'Hiện Biểu đồ'}
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>{showSummarySection ? 'Thu gọn Biểu đồ' : 'Biểu đồ'}</span>
-            </button>
-          )}
-
           {/* View Mode Segmented Toggle: % vs Doanh Thu / Thực Đạt */}
           {setValueDisplayMode && entityScope !== 'nhom' && (
             <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-xl shrink-0 shadow-2xs">

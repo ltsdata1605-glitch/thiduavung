@@ -924,8 +924,6 @@ export default function App() {
               onExportCompact={handleExportCompact}
               onExportFull={handleExportFull}
               onExportGroup={handleExportGroup}
-              showSummarySection={showSummarySection}
-              setShowSummarySection={setShowSummarySection}
               valueDisplayMode={valueDisplayMode}
               setValueDisplayMode={setValueDisplayMode}
               systemName={settings.systemName}
@@ -953,7 +951,6 @@ export default function App() {
                 categoryOrderMap={categoryOrderMap}
                 categoryDisplayNameMap={categoryDisplayNameMap}
                 bossAssignments={bossAssignments}
-                showSummarySection={showSummarySection}
                 valueDisplayMode={valueDisplayMode}
                 stores={activeStores}
                 onOpenTagBossModal={() => setIsTagBossModalOpen(true)}
