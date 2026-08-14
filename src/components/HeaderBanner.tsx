@@ -303,11 +303,11 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
       {/* ROW 2: Compact Filter Bar & Export Actions Integrated into Header (Disabled when in Tab NHÓM) */}
       <div
         className={`pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 pl-2 transition-all ${
-          entityScope === 'group'
+          entityScope === 'nhom'
             ? 'opacity-40 grayscale pointer-events-none select-none cursor-not-allowed'
             : ''
         }`}
-        title={entityScope === 'group' ? 'Các bộ lọc này bị vô hiệu hoá trong tab Nhóm (vui lòng dùng bộ lọc riêng trên từng bảng bên dưới)' : undefined}
+        title={entityScope === 'nhom' ? 'Các bộ lọc này bị vô hiệu hoá trong tab Nhóm (vui lòng dùng bộ lọc riêng trên từng bảng bên dưới)' : undefined}
       >
         {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-3">
@@ -319,10 +319,10 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               return (
                 <button
                   key={ch}
-                  disabled={entityScope === 'group'}
+                  disabled={entityScope === 'nhom'}
                   onClick={() => toggleChannel(ch)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all border flex items-center gap-1 ${
-                    entityScope === 'group'
+                    entityScope === 'nhom'
                       ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                       : isChecked
                       ? 'bg-blue-200 text-blue-900 border-blue-300 shadow-2xs cursor-pointer'
@@ -346,7 +346,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           <div className="flex items-center gap-1">
             <label className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</label>
             <select
-              disabled={entityScope === 'group'}
+              disabled={entityScope === 'nhom'}
               value={selectedProvince}
               onChange={(e) => setSelectedProvince(e.target.value)}
               className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -364,7 +364,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={entityScope === 'group'}
+              disabled={entityScope === 'nhom'}
               onClick={onOpenCategoryGroupModal}
               title="Quản lý & Cấu hình Nhóm Ngành Hàng"
               className="text-[11px] font-bold text-slate-400 uppercase hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:hover:text-slate-400"
@@ -373,7 +373,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               <Settings2 className="w-3 h-3 text-indigo-500 hover:text-indigo-700" />
             </button>
             <select
-              disabled={entityScope === 'group'}
+              disabled={entityScope === 'nhom'}
               value={selectedCategoryGroup}
               onChange={(e) => setSelectedCategoryGroup(e.target.value)}
               className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -391,7 +391,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           <div className="flex items-center gap-1">
             <label className="text-[11px] font-bold text-slate-400 uppercase">Ngành hàng:</label>
             <select
-              disabled={entityScope === 'group'}
+              disabled={entityScope === 'nhom'}
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -408,10 +408,10 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           {/* Toggle KPI Cards & Charts Section Button */}
           {setShowSummarySection && (
             <button
-              disabled={entityScope === 'group'}
+              disabled={entityScope === 'nhom'}
               onClick={() => setShowSummarySection(!showSummarySection)}
               className={`px-3 py-1 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 transition-all border shrink-0 ${
-                entityScope === 'group'
+                entityScope === 'nhom'
                   ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
                   : showSummarySection
                   ? 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 cursor-pointer'

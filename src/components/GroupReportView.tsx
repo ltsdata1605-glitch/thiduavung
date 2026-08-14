@@ -12,7 +12,7 @@ import {
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
 import { ExportLoadingModal } from './ExportLoadingModal';
-import { Camera, Layers, MessageSquare, ChevronDown } from 'lucide-react';
+import { Camera, Layers, MessageSquare, ChevronDown, Plus, X } from 'lucide-react';
 
 interface GroupReportViewProps {
   timeMode: TimeMode;
@@ -140,6 +140,223 @@ const ChannelDropdownFilter: React.FC<{
   );
 };
 
+interface SummaryCardConfig {
+  id: string;
+  channels: Channel[];
+  category: string;
+}
+
+const ALL_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
+
+/** One repeatable "Tổng quan Tỉnh" card — each instance carries its own Kênh/Ngành hàng filters */
+const ProvinceSummaryCard: React.FC<{
+  config: SummaryCardConfig;
+  onChangeChannels: (channels: Channel[]) => void;
+  onChangeCategory: (category: string) => void;
+  onRemove?: () => void;
+  stores: StoreRecord[];
+  bossAssignments: BossAssignmentRecord[];
+  allCategoryNames: string[];
+  timeMode: TimeMode;
+  formattedTimeStr: string;
+  isExcludedChannel: (k?: string) => boolean;
+  exportingId: string | null;
+  onExport: (elementId: string, filename: string) => void;
+}> = ({
+  config,
+  onChangeChannels,
+  onChangeCategory,
+  onRemove,
+  stores,
+  bossAssignments,
+  allCategoryNames,
+  timeMode,
+  formattedTimeStr,
+  isExcludedChannel,
+  exportingId,
+  onExport,
+}) => {
+  const bannerBgClass = 'bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 border-sky-500';
+  const tableHeaderBgClass = 'bg-sky-600 text-white';
+  const tableHeaderBorderClass = 'border-sky-500';
+  const tableFooterBgClass = 'bg-sky-600 text-white border-t-2 border-sky-700';
+
+  const elementId = `nhom-card-province-summary-${config.id}`;
+
+  // Cap the title bar's width to the table's own rendered width so a long
+  // ngành hàng name wraps onto multiple lines instead of stretching the
+  // card. useLayoutEffect (not useEffect) applies the cap before paint, so
+  // there is no flash of the stretched layout first.
+  const summaryTableRef = useRef<HTMLTableElement>(null);
+  const [summaryTitleMaxWidth, setSummaryTitleMaxWidth] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (summaryTableRef.current) {
+      setSummaryTitleMaxWidth(summaryTableRef.current.offsetWidth);
+    }
+  });
+
+  const channelLabel = useMemo(() => {
+    const valid = config.channels.filter((c) => !isExcludedChannel(c));
+    if (valid.length === 0 || valid.length >= ALL_CHANNELS.length) return 'All Kênh';
+    return valid.map(getChannelLabel).join(', ');
+  }, [config.channels, isExcludedChannel]);
+
+  const provinceSummaryRows = useMemo(() => {
+    const map = new Map<string, { target: number; achieved: number; rate: number }>();
+    stores.forEach((s) => {
+      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
+      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
+      if (config.channels.length > 0 && !config.channels.includes(effectiveKenh as Channel)) return;
+
+      const data = getCategoryData(s, config.category);
+      const cur = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
+      cur.target += data.target;
+      cur.achieved += data.achieved;
+      map.set(s.tinh, cur);
+    });
+
+    const rawRows = Array.from(map.entries()).map(([tinh, d]) => {
+      const rate = d.target > 0 ? (d.achieved / d.target) * 100 : 0;
+      return {
+        tinh,
+        target: Math.round(d.target),
+        achieved: Math.round(d.achieved),
+        rate: Math.round(rate),
+      };
+    });
+
+    rawRows.sort((a, b) => b.rate - a.rate);
+
+    const totalRows = rawRows.length;
+    return rawRows.map((row, idx) => {
+      let tag = '';
+      if (idx < 3) {
+        tag = 'Top';
+      } else if (idx >= totalRows - 3) {
+        tag = 'Bot';
+      }
+      return { ...row, tag };
+    });
+  }, [stores, config.category, config.channels, bossAssignments, isExcludedChannel]);
+
+  const totalSummary = useMemo(() => {
+    const t = provinceSummaryRows.reduce((a, b) => a + b.target, 0);
+    const r = provinceSummaryRows.reduce((a, b) => a + b.achieved, 0);
+    const rate = t > 0 ? (r / t) * 100 : 0;
+    return { target: t, achieved: r, rate: Math.round(rate) };
+  }, [provinceSummaryRows]);
+
+  return (
+    <div className="w-full min-w-0 bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id={elementId}>
+      {/* Control Bar with Channel Filter + Export/Remove Button — EXCLUDED FROM EXPORTED PNG */}
+      <div className="export-hide p-1.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-1.5 rounded-none">
+        {/* BỘ LỌC KÊNH (Dropdown bấm vào mới show) */}
+        <ChannelDropdownFilter selectedChannels={config.channels} onChange={onChangeChannels} />
+
+        <div className="flex items-center gap-1 shrink-0">
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              title="Xoá bảng này"
+              className="p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => onExport(elementId, `Tong_Quan_${config.category}.png`)}
+            disabled={exportingId === elementId}
+            title="Xuất ảnh"
+            className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center"
+          >
+            <Camera className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content Captured in Image: Header Banner + Table */}
+      <div className="w-full p-2">
+        {/* Header Banner */}
+        <div
+          className={`mx-auto w-full mb-2 ${bannerBgClass} text-white py-2 px-2 text-center shadow-2xs border rounded-none`}
+          style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
+        >
+          <h3 className="text-base sm:text-lg font-black uppercase tracking-wider text-white text-center drop-shadow-xs break-words inline-flex flex-wrap items-center justify-center gap-1.5">
+            <span className="relative inline-flex items-center gap-1 group cursor-pointer">
+              <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
+                {getShortCategoryName(config.category).toUpperCase()}
+              </span>
+              <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
+              <select
+                value={config.category}
+                onChange={(e) => onChangeCategory(e.target.value)}
+                title="Nhấn vào để đổi ngành hàng / nhóm"
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+              >
+                {allCategoryNames.map((cat) => (
+                  <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
+                    {getShortCategoryName(cat)}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </h3>
+          <div className="text-white/95 text-[11px] font-normal tracking-wide mt-1">
+            {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabel}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="w-full overflow-x-auto">
+          <table ref={summaryTableRef} className="w-full text-xs font-sans border-separate border-spacing-0 border border-slate-200">
+            <thead>
+              <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
+                <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
+                <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
+                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TARGET</th>
+                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>REAL</th>
+                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>%HT</th>
+                <th className="py-2 px-2 text-center whitespace-nowrap">T/B</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {provinceSummaryRows.map((row, idx) => (
+                <tr key={row.tinh} className={idx % 2 === 0 ? 'bg-white' : 'bg-sky-50/20'}>
+                  <td className="py-1.5 px-1.5 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
+                  <td className="py-1.5 px-2 font-bold text-sky-900 border-r border-b border-slate-200 whitespace-nowrap">{row.tinh}</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{row.target.toLocaleString('vi-VN')}</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{row.achieved.toLocaleString('vi-VN')}</td>
+                  <td
+                    className={`py-1.5 px-2 text-center border-r border-b border-slate-200 whitespace-nowrap ${
+                      row.tag === 'Top' ? 'text-sky-800 font-bold bg-sky-50/60' : row.tag === 'Bot' ? 'text-rose-600 bg-rose-50/50 font-bold' : 'text-slate-700 font-bold'
+                    }`}
+                  >
+                    {Math.round(row.rate)}%
+                  </td>
+                  <td className="py-1.5 px-2 text-center font-bold border-b border-slate-200 whitespace-nowrap">
+                    {row.tag === 'Top' && <span className="text-sky-700 font-bold text-[11px]">Top</span>}
+                    {row.tag === 'Bot' && <span className="text-rose-600 font-bold text-[11px]">Bot</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className={`${tableFooterBgClass} font-bold text-xs rounded-none`}>
+                <td className={`py-1.5 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}></td>
+                <td className={`py-1.5 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>Tổng</td>
+                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.target.toLocaleString('vi-VN')}</td>
+                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.achieved.toLocaleString('vi-VN')}</td>
+                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.rate)}%</td>
+                <td className="py-1.5 px-2 text-center font-extrabold whitespace-nowrap"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const GroupReportView: React.FC<GroupReportViewProps> = ({
   timeMode,
   lastUpdated,
@@ -172,11 +389,36 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT')
   );
 
-  // BỘ LỌC TỈNH CHO CẢ 3 BẢNG
-  const [selectedProvinceCard1, setSelectedProvinceCard1] = usePersistedState<string>(
-    'tnb_card1_province',
-    'ALL'
+  // BẢNG TỔNG QUAN TỈNH (CARD 1) — CÓ THỂ THÊM NHIỀU BẢNG, MỖI BẢNG TỰ QUẢN LÝ BỘ LỌC RIÊNG
+  const [summaryCards, setSummaryCards] = usePersistedState<SummaryCardConfig[]>(
+    'tnb_summary_cards',
+    [
+      {
+        id: 'card-1',
+        channels: selectedChannels.length > 0 ? selectedChannels : ALL_CHANNELS,
+        category: selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT'),
+      },
+    ]
   );
+
+  const addSummaryCard = () => {
+    setSummaryCards((prev) => [
+      ...prev,
+      {
+        id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        channels: ALL_CHANNELS,
+        category: activeCategory,
+      },
+    ]);
+  };
+
+  const removeSummaryCard = (id: string) => {
+    setSummaryCards((prev) => (prev.length > 1 ? prev.filter((c) => c.id !== id) : prev));
+  };
+
+  const updateSummaryCard = (id: string, patch: Partial<SummaryCardConfig>) => {
+    setSummaryCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  };
 
   const [selectedProvinceCard, setSelectedProvinceCard] = usePersistedState<string>(
     'tnb_card2_province',
@@ -189,12 +431,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     'ALL'
   );
 
-  // 3 INDEPENDENT CHANNEL FILTER STATES (Hoàn toàn riêng biệt, không liên kết nhau)
-  const [channelsCard1, setChannelsCard1] = usePersistedState<Channel[]>(
-    'tnb_card1_channels',
-    selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
-  );
-
+  // 2 INDEPENDENT CHANNEL FILTER STATES (Hoàn toàn riêng biệt, không liên kết nhau)
   const [channelsCard2, setChannelsCard2] = usePersistedState<Channel[]>(
     'tnb_card2_channels',
     selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
@@ -214,24 +451,6 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   const bannerBgClass = 'bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 border-sky-500';
   const tableHeaderBgClass = 'bg-sky-600 text-white';
   const tableHeaderBorderClass = 'border-sky-500';
-  const tableFooterBgClass = 'bg-sky-600 text-white border-t-2 border-sky-700';
-
-  // CARD 1's title bar sits above a narrow 6-column table (~350-500px). The
-  // card is width: fit-content, so a long ngành hàng name in the title —
-  // left free to size at its own one-line width — would stretch the whole
-  // card (table included) to match instead of wrapping. Measuring the
-  // table's actual rendered width and capping the title bar to it forces the
-  // title to wrap onto multiple lines instead, keeping the table's own width
-  // as the one thing driving the card's size. useLayoutEffect (not
-  // useEffect) so the cap applies before paint — no flash of the stretched
-  // layout first.
-  const summaryTableRef = useRef<HTMLTableElement>(null);
-  const [summaryTitleMaxWidth, setSummaryTitleMaxWidth] = useState<number | undefined>(undefined);
-  useLayoutEffect(() => {
-    if (summaryTableRef.current) {
-      setSummaryTitleMaxWidth(summaryTableRef.current.offsetWidth);
-    }
-  });
 
   // NO useEffect sync from header filters — header bộ lọc KHÔNG tác dụng
   // xuống các bộ lọc bên dưới. Mỗi card tự quản lý state riêng.
@@ -259,56 +478,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     return valid.map(getChannelLabel).join(', ');
   };
 
-  const channelLabelCard1 = useMemo(() => getChannelText(channelsCard1), [channelsCard1]);
   const channelLabelCard2 = useMemo(() => getChannelText(channelsCard2), [channelsCard2]);
   const channelLabelCard3 = useMemo(() => getChannelText(channelsCard3), [channelsCard3]);
-
-  // 1. Province Rollup Summary Data for Card 1 (Top Left)
-  const provinceSummaryRows = useMemo(() => {
-    const map = new Map<string, { target: number; achieved: number; rate: number }>();
-    stores.forEach((s) => {
-      if (selectedProvinceCard1 !== 'ALL' && s.tinh !== selectedProvinceCard1) return;
-      const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
-      if (channelsCard1.length > 0 && !channelsCard1.includes(effectiveKenh as Channel)) return;
-
-      const data = getCategoryData(s, activeCategory);
-      const cur = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
-      cur.target += data.target;
-      cur.achieved += data.achieved;
-      map.set(s.tinh, cur);
-    });
-
-    const rawRows = Array.from(map.entries()).map(([tinh, d]) => {
-      const rate = d.target > 0 ? (d.achieved / d.target) * 100 : 0;
-      return {
-        tinh,
-        target: Math.round(d.target),
-        achieved: Math.round(d.achieved),
-        rate: Math.round(rate),
-      };
-    });
-
-    rawRows.sort((a, b) => b.rate - a.rate);
-
-    const totalRows = rawRows.length;
-    return rawRows.map((row, idx) => {
-      let tag = '';
-      if (idx < 3) {
-        tag = 'Top';
-      } else if (idx >= totalRows - 3) {
-        tag = 'Bot';
-      }
-      return { ...row, tag };
-    });
-  }, [stores, activeCategory, channelsCard1, selectedProvinceCard1, bossAssignments]);
-
-  const totalSummary = useMemo(() => {
-    const t = provinceSummaryRows.reduce((a, b) => a + b.target, 0);
-    const r = provinceSummaryRows.reduce((a, b) => a + b.achieved, 0);
-    const rate = t > 0 ? (r / t) * 100 : 0;
-    return { target: t, achieved: r, rate: Math.round(rate) };
-  }, [provinceSummaryRows]);
 
   // 2. Province Detailed Breakout for Card 2 (Bottom Left)
   const provinceDetailedStores = useMemo(() => {
@@ -374,16 +545,6 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     return topBotMode === 'percent' ? `${val}%` : `${val} SIÊU THỊ`;
   }, [topBotMode, topBotValue]);
 
-  const toggleChannelCard1 = (k: Channel) => {
-    if (channelsCard1.includes(k)) {
-      if (channelsCard1.length > 1) {
-        setChannelsCard1(channelsCard1.filter((c) => c !== k));
-      }
-    } else {
-      setChannelsCard1([...channelsCard1, k]);
-    }
-  };
-
   const toggleChannelCard2 = (k: Channel) => {
     if (channelsCard2.includes(k)) {
       if (channelsCard2.length > 1) {
@@ -436,137 +597,50 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
             </div>
           </div>
 
-          {/* Quick Remarks / Nhận xét button */}
-          {onOpenTagBossModal && (
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Add another Tổng Quan Tỉnh card */}
             <button
-              onClick={onOpenTagBossModal}
-              className="px-3.5 py-2 bg-amber-200 hover:bg-amber-300 text-amber-900 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
+              onClick={addSummaryCard}
+              title="Thêm bảng tổng quan Tỉnh mới"
+              className="px-3.5 py-2 bg-sky-100 hover:bg-sky-200 text-sky-700 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>Nhận xét</span>
+              <Plus className="w-4 h-4" />
+              <span>Thêm bảng</span>
             </button>
-          )}
+
+            {/* Quick Remarks / Nhận xét button */}
+            {onOpenTagBossModal && (
+              <button
+                onClick={onOpenTagBossModal}
+                className="px-3.5 py-2 bg-amber-200 hover:bg-amber-300 text-amber-900 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Nhận xét</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* CARD 1: Regional Province Summary (Top Left Card) */}
-      <div className="w-fit min-w-[350px] bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id="nhom-card-province-summary">
-        {/* Control Bar with Province + Channel Filter + Export Button — EXCLUDED FROM EXPORTED PNG */}
-        <div className="export-hide p-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 rounded-none">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* BỘ LỌC TỈNH */}
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</span>
-              <select
-                value={selectedProvinceCard1}
-                onChange={(e) => setSelectedProvinceCard1(e.target.value)}
-                className="bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">Tất cả</option>
-                {allAvailableProvinces.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* BỘ LỌC KÊNH (Dropdown bấm vào mới show) */}
-            <ChannelDropdownFilter
-              selectedChannels={channelsCard1}
-              onChange={setChannelsCard1}
-            />
-          </div>
-
-          <button
-            onClick={() => handleExportCard('nhom-card-province-summary', `Tong_Quan_${activeCategory}.png`)}
-            disabled={exportingId === 'nhom-card-province-summary'}
-            title="Xuất ảnh"
-            className="p-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0"
-          >
-            <Camera className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Content Captured in Image: Header Banner + Table */}
-        <div className="w-full p-3">
-          {/* Header Banner - Size chữ lớn (text-lg sm:text-xl), khe hở mb-3 sang trọng */}
-          <div
-            className={`mx-auto w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}
-            style={summaryTitleMaxWidth ? { maxWidth: `${summaryTitleMaxWidth}px` } : undefined}
-          >
-            <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs break-words inline-flex flex-wrap items-center justify-center gap-1.5">
-              <span className="relative inline-flex items-center gap-1 group cursor-pointer">
-                <span className="text-amber-200 group-hover:text-yellow-100 transition-colors font-black">
-                  {getShortCategoryName(activeCategory).toUpperCase()}
-                </span>
-                <ChevronDown className="w-4 h-4 text-amber-200 opacity-80 group-hover:opacity-100 transition-opacity export-hide shrink-0 inline" />
-                <select
-                  value={activeCategory}
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                  title="Nhấn vào để đổi ngành hàng / nhóm"
-                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                >
-                  {allCategoryNames.map((cat) => (
-                    <option key={cat} value={cat} className="text-slate-900 bg-white font-bold py-1 text-sm">
-                      {getShortCategoryName(cat)}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </h3>
-            <div className="text-white/95 text-xs font-normal tracking-wide mt-1">
-              {timeMode === 'realtime' ? '⚡ Realtime' : '📈 Luỹ Kế'}: {formattedTimeStr} || {channelLabelCard1}
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="w-full overflow-x-auto">
-            <table ref={summaryTableRef} className="w-full text-xs font-sans border-separate border-spacing-0 border border-slate-200">
-              <thead>
-                <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
-                  <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
-                  <th className={`py-2 px-2.5 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
-                  <th className={`py-2 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TARGET</th>
-                  <th className={`py-2 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>REAL</th>
-                  <th className={`py-2 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>%HT</th>
-                  <th className="py-2 px-2.5 text-center whitespace-nowrap">T/B</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {provinceSummaryRows.map((row, idx) => (
-                  <tr key={row.tinh} className={idx % 2 === 0 ? 'bg-white' : 'bg-sky-50/20'}>
-                    <td className="py-1.5 px-2 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
-                    <td className="py-1.5 px-2.5 font-bold text-sky-900 border-r border-b border-slate-200 whitespace-nowrap">{row.tinh}</td>
-                    <td className="py-1.5 px-2.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{row.target.toLocaleString('vi-VN')}</td>
-                    <td className="py-1.5 px-2.5 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{row.achieved.toLocaleString('vi-VN')}</td>
-                    <td
-                      className={`py-1.5 px-2.5 text-center border-r border-b border-slate-200 whitespace-nowrap ${
-                        row.tag === 'Top' ? 'text-sky-800 font-bold bg-sky-50/60' : row.tag === 'Bot' ? 'text-rose-600 bg-rose-50/50 font-bold' : 'text-slate-700 font-bold'
-                      }`}
-                    >
-                      {Math.round(row.rate)}%
-                    </td>
-                    <td className="py-1.5 px-2.5 text-center font-bold border-b border-slate-200 whitespace-nowrap">
-                      {row.tag === 'Top' && <span className="text-sky-700 font-bold text-[11px]">Top</span>}
-                      {row.tag === 'Bot' && <span className="text-rose-600 font-bold text-[11px]">Bot</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className={`${tableFooterBgClass} font-bold text-xs rounded-none`}>
-                  <td className={`py-2.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}></td>
-                  <td className={`py-2.5 px-2.5 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>Tổng</td>
-                  <td className={`py-2.5 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.target.toLocaleString('vi-VN')}</td>
-                  <td className={`py-2.5 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.achieved.toLocaleString('vi-VN')}</td>
-                  <td className={`py-2.5 px-2.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.rate)}%</td>
-                  <td className="py-2.5 px-2.5 text-center font-extrabold whitespace-nowrap"></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
+      {/* CARD 1 (repeatable): Regional Province Summary — người dùng có thể bấm "+" để thêm nhiều bảng, mỗi bảng tự quản lý bộ lọc Kênh/Ngành hàng riêng. Grid 4 cột để luôn xếp 4 bảng/hàng trên màn hình lớn */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {summaryCards.map((card) => (
+          <ProvinceSummaryCard
+            key={card.id}
+            config={card}
+            onChangeChannels={(channels) => updateSummaryCard(card.id, { channels })}
+            onChangeCategory={(category) => updateSummaryCard(card.id, { category })}
+            onRemove={summaryCards.length > 1 ? () => removeSummaryCard(card.id) : undefined}
+            stores={stores}
+            bossAssignments={bossAssignments}
+            allCategoryNames={allCategoryNames}
+            timeMode={timeMode}
+            formattedTimeStr={formattedTimeStr}
+            isExcludedChannel={isExcludedChannel}
+            exportingId={exportingId}
+            onExport={handleExportCard}
+          />
+        ))}
       </div>
 
       {/* BOTTOM SECTION: 2 Side-by-Side Cards */}
