@@ -209,7 +209,16 @@ function AppInner() {
       resolveCriticalSyncRef.current = resolve;
     });
 
+  // True once the full-screen loading modal has been shown this session
+  // (explicit login, or launching fresh with an empty local cache). Used to
+  // gate the lightweight top-banner notification below — only needed when
+  // the modal DIDN'T already tell the user data was loading, which is
+  // exactly the "reopened the app, already logged in, cache has stale data
+  // from before someone else's update" case.
+  const cloudSyncShownRef = useRef(false);
+
   const triggerCloudSyncAnimation = async (customSubText?: string) => {
+    cloudSyncShownRef.current = true;
     setCloudSyncState({
       isOpen: true,
       progress: 20,
@@ -321,7 +330,7 @@ function AppInner() {
       const labels = Array.from(pendingRemoteLabelsRef.current);
       pendingRemoteLabelsRef.current.clear();
       if (labels.length === 0) return;
-      showInfoToast(`🔄 Dữ liệu vừa được cập nhật từ thiết bị khác: ${labels.join(', ')} — màn hình đã tự làm mới.`);
+      showInfoToast(`🔄 Đang tải dữ liệu mới... (${labels.join(', ')})`);
     }, 600);
   };
 
@@ -367,9 +376,13 @@ function AppInner() {
         } catch {}
       }
 
-      // Only notify for genuine remote pushes — not this listener's own
-      // initial snapshot on attach, which is just normal first load.
-      if (!meta.isInitial) {
+      // Notify for genuine remote pushes (app already open, data changed
+      // elsewhere) always. Also notify on this listener's own initial
+      // snapshot IF the loading modal never ran this session — that's the
+      // "reopened the app already logged in, cache still had yesterday's
+      // data" case: nothing else ever told this user a refresh was
+      // happening, so the silent background swap needs its own signal too.
+      if (!meta.isInitial || !cloudSyncShownRef.current) {
         const label = REMOTE_UPDATE_LABELS[meta.docKey];
         if (label) notifyRemoteUpdate(label);
       }

@@ -1847,9 +1847,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
                           title={isSelected ? "Bỏ chọn so sánh siêu thị này" : "Chọn siêu thị này để so sánh"}
                           className="group/btn flex items-center justify-center gap-1 mx-auto cursor-pointer focus:outline-none"
                         >
-                          <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
-                            isSelected 
-                              ? 'bg-sky-600 border-sky-600 text-white shadow-xs' 
+                          <span className={`export-hide w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
+                            isSelected
+                              ? 'bg-sky-600 border-sky-600 text-white shadow-xs'
                               : 'border-slate-300 bg-white group-hover/btn:border-sky-400'
                           }`}>
                             {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}

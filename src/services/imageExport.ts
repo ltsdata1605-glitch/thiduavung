@@ -13,8 +13,19 @@
 
 import { formatStoreDisplayName } from '../utils/parser';
 
-/** Resolve oklch()/color-mix() computed colors to rgb() so the exported PNG doesn't render them as black. */
-function fixOklchColors(root: HTMLElement) {
+/**
+ * Resolve oklch()/color-mix() computed colors to rgb() so the exported PNG
+ * doesn't render them as black. Walks EVERY element under root — for the
+ * Siêu Thị full-table export (700+ rows × ~45 columns, tens of thousands of
+ * DOM nodes once every cell's inner spans/badges are counted), doing that
+ * as one giant synchronous getComputedStyle loop blocks the main thread
+ * long enough for mobile Safari/Chrome's "page unresponsive" watchdog to
+ * kill the tab outright — the most likely cause of the export "bị văng ra"
+ * (crashing/kicking the user out) specifically on large mobile exports.
+ * Processed in yielding batches instead so the browser stays responsive
+ * throughout, even though the total work is the same.
+ */
+async function fixOklchColors(root: HTMLElement): Promise<void> {
   const cvs = document.createElement('canvas');
   cvs.width = 1;
   cvs.height = 1;
@@ -56,24 +67,36 @@ function fixOklchColors(root: HTMLElement) {
   ];
 
   const els = [root, ...Array.from(root.querySelectorAll('*'))];
-  for (const el of els) {
-    if (!(el instanceof HTMLElement)) continue;
-    try {
-      const cs = window.getComputedStyle(el);
-      for (const [jsProp, cssProp] of colorProps) {
-        const val = cs[jsProp] as unknown as string;
-        if (val && typeof val === 'string' && val.indexOf('oklch') !== -1) {
-          const rgb = resolveOklch(val);
-          if (rgb) el.style.setProperty(cssProp, rgb, 'important');
+  // Small enough to keep each batch's blocking time low on a mobile CPU,
+  // large enough that a 700-row table (tens of thousands of nodes) still
+  // finishes in a reasonable number of yields rather than thousands of them.
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < els.length; i += BATCH_SIZE) {
+    const batch = els.slice(i, i + BATCH_SIZE);
+    for (const el of batch) {
+      if (!(el instanceof HTMLElement)) continue;
+      try {
+        const cs = window.getComputedStyle(el);
+        for (const [jsProp, cssProp] of colorProps) {
+          const val = cs[jsProp] as unknown as string;
+          if (val && typeof val === 'string' && val.indexOf('oklch') !== -1) {
+            const rgb = resolveOklch(val);
+            if (rgb) el.style.setProperty(cssProp, rgb, 'important');
+          }
         }
+        const shadow = cs.boxShadow;
+        if (shadow && shadow.indexOf('oklch') !== -1) {
+          const fixed = shadow.replace(/oklch\([^)]+\)/g, (m) => resolveOklch(m) || 'transparent');
+          el.style.setProperty('box-shadow', fixed, 'important');
+        }
+      } catch (e) {
+        // ignore elements getComputedStyle can't handle
       }
-      const shadow = cs.boxShadow;
-      if (shadow && shadow.indexOf('oklch') !== -1) {
-        const fixed = shadow.replace(/oklch\([^)]+\)/g, (m) => resolveOklch(m) || 'transparent');
-        el.style.setProperty('box-shadow', fixed, 'important');
-      }
-    } catch (e) {
-      // ignore elements getComputedStyle can't handle
+    }
+    // Yield back to the browser between batches so a long export never
+    // reads as a single unresponsive blocking script.
+    if (i + BATCH_SIZE < els.length) {
+      await new Promise((r) => setTimeout(r, 0));
     }
   }
 }
@@ -359,7 +382,7 @@ export async function exportElementAsImage(
   try {
     await document.fonts.ready;
     await waitForImages(clone);
-    fixOklchColors(clone);
+    await fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     // Re-measure after DOM attachment
@@ -525,7 +548,7 @@ export async function exportGroupSpecificElement(
   try {
     await document.fonts.ready;
     await waitForImages(clone);
-    fixOklchColors(clone);
+    await fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     const tableEl = clone.querySelector('table');
