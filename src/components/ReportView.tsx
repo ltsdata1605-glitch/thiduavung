@@ -905,14 +905,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
         return runs;
       })();
 
+  // The DTQĐ TB column is only shown in Tab Siêu Thị (not in Tab Vùng / Province view)
+  // and only for accounts with canViewDtQdTb permission (Super Admin / Admin).
+  const showDtQdTbColumn = !isProvinceView && canViewDtQdTb;
+
   // Cumulative left offsets (px) for the frozen info columns — must match the
   // <colgroup> widths below exactly, since sticky positioning needs a fixed
   // pixel left value per column, not a relative one. `total` (where the
   // first scrollable column starts) shrinks by the DTQĐ TB column's own
   // width (80px) when that column isn't rendered at all for this account.
   const FROZEN_LEFT = isProvinceView
-    ? { stt: 0, tinh: 40, dat: 120, tyLe: 180, dtQdTb: 234, total: canViewDtQdTb ? 314 : 234 }
-    : { stt: 0, tinh: 56, boss: 136, kenh: 236, sieuthi: 290, dat: 570, tyLe: 630, dtQdTb: 684, total: canViewDtQdTb ? 764 : 684 };
+    ? { stt: 0, tinh: 40, dat: 120, tyLe: 180, dtQdTb: 234, total: 234 }
+    : { stt: 0, tinh: 56, boss: 136, kenh: 236, sieuthi: 290, dat: 570, tyLe: 630, dtQdTb: 684, total: showDtQdTbColumn ? 764 : 684 };
 
   // Map store metrics if a specific category or category group is selected.
   // A Nhóm selection takes precedence over a single Ngành hàng selection —
@@ -1566,7 +1570,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   <col style={{ width: 80 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
-                  {canViewDtQdTb && <col className="export-hide" style={{ width: 80 }} />}
                 </>
               ) : (
                 <>
@@ -1577,7 +1580,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   <col className="col-sieuthi" data-col="sieuthi" style={{ width: 280 }} />
                   <col style={{ width: 60 }} />
                   <col style={{ width: 54 }} />
-                  {canViewDtQdTb && <col className="export-hide" style={{ width: 80 }} />}
+                  {showDtQdTbColumn && <col className="export-hide" style={{ width: 80 }} />}
                 </>
               )}
               {(displayedCategoryNames.length > 0 ? displayedCategoryNames : Array.from({ length: categoryColumnCount })).map((cat, i) => (
@@ -1668,7 +1671,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   TỶ LỆ % {sortField === 'rate' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                 </th>
 
-                {canViewDtQdTb && (
+                {showDtQdTbColumn && (
                   <th
                     rowSpan={2}
                     onClick={() => handleSort('dtQdTb')}
@@ -1903,14 +1906,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     </td>
 
                     {/* Cột phụ: DTQĐ TB 5T2026 — đặt phía sau Tỷ lệ %, lấy từ File BOSS; KHÔNG XUẤT ẢNH (export-hide); Super Admin/Admin only */}
-                    {canViewDtQdTb && (
+                    {showDtQdTbColumn && (
                       <td
                         style={{ left: FROZEN_LEFT.dtQdTb }}
                         className={`export-hide sticky z-10 py-2 px-1.5 text-center border-r border-b border-slate-200 font-sans font-extrabold text-[11px] text-slate-700 whitespace-nowrap ${rowBgClass}`}
                       >
-                        {isProvinceView
-                          ? formatDtQdTb((store as any).dtQdTbVal || 0)
-                          : formatDtQdTb(parseDtQdTbNum(resolveDtQd(store.sieuthi)))}
+                        {formatDtQdTb(parseDtQdTbNum(resolveDtQd(store.sieuthi)))}
                       </td>
                     )}
 
@@ -1942,7 +1943,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <td style={{ left: FROZEN_LEFT.tyLe }} className="sticky z-20 py-3 px-2.5 text-center border-r border-slate-700 bg-slate-950 text-amber-300 font-extrabold">
                   {overallRate}%
                 </td>
-                {canViewDtQdTb && (
+                {showDtQdTbColumn && (
                   <td style={{ left: FROZEN_LEFT.dtQdTb }} className="export-hide sticky z-20 py-3 px-1 text-center border-r border-slate-700 bg-slate-950 text-amber-200 font-extrabold text-xs whitespace-nowrap">
                     {formatDtQdTb(totalDtQdTb)}
                   </td>
