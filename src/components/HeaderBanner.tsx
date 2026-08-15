@@ -663,13 +663,13 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           </div>
 
           {(() => {
-            const freshness = checkDataFreshness(lastUpdated, 60);
+            const freshness = checkDataFreshness(lastUpdated, 60, timeMode);
             const shortTimeStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '');
             return (
               <div className="export-hide min-w-0">
                 {freshness.isOutdated ? (
                   <div
-                    title="Dữ liệu chưa được cập nhật trong hơn 1 giờ qua hoặc chưa cập nhật mới!"
+                    title={timeMode === 'luyke' ? "Dữ liệu luỹ kế chưa được cập nhật sau 1 ngày!" : "Dữ liệu chưa được cập nhật trong hơn 1 giờ qua!"}
                     className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1 bg-rose-50 border border-rose-300 sm:border-2 sm:border-rose-400 text-rose-700 rounded-xl font-bold sm:font-black text-[11px] sm:text-xs shadow-xs animate-pulse whitespace-nowrap"
                   >
                     <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 animate-bounce shrink-0" />

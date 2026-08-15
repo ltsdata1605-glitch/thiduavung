@@ -1212,15 +1212,22 @@ export interface DataFreshnessInfo {
   isOutdated: boolean;
   ageMinutes: number;
   displayText: string;
+  badgeText?: string;
 }
 
 /**
- * Checks whether data lastUpdated timestamp is older than 60 minutes.
- * If older or missing, triggers blinking warning indicator.
+ * Checks whether data lastUpdated timestamp is fresh or outdated.
+ * - For Realtime: Outdated if older than maxAllowedMinutes (default 60 mins).
+ * - For Luỹ Kế: Cumulative data is daily. If updated date = today (same calendar date) => NO warning.
+ *   Only triggers warning if updated date is before today (>= 1 day old).
  */
-export function checkDataFreshness(lastUpdated?: string, maxAllowedMinutes: number = 60): DataFreshnessInfo {
+export function checkDataFreshness(
+  lastUpdated?: string,
+  maxAllowedMinutes: number = 60,
+  timeMode?: string
+): DataFreshnessInfo {
   if (!lastUpdated || !lastUpdated.trim()) {
-    return { isOutdated: true, ageMinutes: 999999, displayText: 'Chưa cập nhật' };
+    return { isOutdated: true, ageMinutes: 999999, displayText: 'Chưa cập nhật', badgeText: 'Chưa cập nhật' };
   }
 
   const cleaned = lastUpdated.replace(/THỜI GIAN ĐẾN:\s*/i, '').trim();
@@ -1230,37 +1237,65 @@ export function checkDataFreshness(lastUpdated?: string, maxAllowedMinutes: numb
     const timeMatch = cleaned.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
     const dateMatch = cleaned.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
 
-    if (timeMatch) {
-      const hours = parseInt(timeMatch[1], 10);
-      const minutes = parseInt(timeMatch[2], 10);
-      const seconds = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+    const now = new Date();
+    let day = now.getDate();
+    let month = now.getMonth();
+    let year = now.getFullYear();
 
-      const now = new Date();
-      let day = now.getDate();
-      let month = now.getMonth();
-      let year = now.getFullYear();
-
-      if (dateMatch) {
-        day = parseInt(dateMatch[1], 10);
-        month = parseInt(dateMatch[2], 10) - 1;
-        if (dateMatch[3]) {
-          year = dateMatch[3].length === 2 ? 2000 + parseInt(dateMatch[3], 10) : parseInt(dateMatch[3], 10);
-        }
+    if (dateMatch) {
+      day = parseInt(dateMatch[1], 10);
+      month = parseInt(dateMatch[2], 10) - 1;
+      if (dateMatch[3]) {
+        year = dateMatch[3].length === 2 ? 2000 + parseInt(dateMatch[3], 10) : parseInt(dateMatch[3], 10);
       }
-
-      const updatedDate = new Date(year, month, day, hours, minutes, seconds);
-      const diffMs = now.getTime() - updatedDate.getTime();
-      const ageMinutes = Math.floor(diffMs / (1000 * 60));
-
-      // Outdated if older than maxAllowedMinutes (> 1 hour) or negative due to clock skew
-      const isOutdated = ageMinutes > maxAllowedMinutes || ageMinutes < -120;
-      return { isOutdated, ageMinutes, displayText: cleaned };
     }
+
+    // Special logic for Luỹ Kế:
+    // If timeMode === 'luyke':
+    // If updated date = today (same day, month, year) => NOT outdated (no warning).
+    // If updated date is before today => outdated (warning).
+    if (timeMode === 'luyke') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const updatedDayStart = new Date(year, month, day).getTime();
+      const diffDays = Math.round((todayStart - updatedDayStart) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        // Updated today (or future date) -> fresh, NO warning!
+        return { isOutdated: false, ageMinutes: 0, displayText: cleaned, badgeText: '' };
+      } else {
+        // 1 or more days old -> warning
+        return {
+          isOutdated: true,
+          ageMinutes: diffDays * 24 * 60,
+          displayText: cleaned,
+          badgeText: diffDays === 1 ? 'Cũ > 1 ngày' : `Cũ > ${diffDays} ngày`,
+        };
+      }
+    }
+
+    // Default Realtime mode logic (checked by minutes, default 60 mins):
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+    let seconds = now.getSeconds();
+    if (timeMatch) {
+      hours = parseInt(timeMatch[1], 10);
+      minutes = parseInt(timeMatch[2], 10);
+      seconds = timeMatch[3] ? parseInt(timeMatch[3], 10) : 0;
+    }
+
+    const updatedDate = new Date(year, month, day, hours, minutes, seconds);
+    const diffMs = now.getTime() - updatedDate.getTime();
+    const ageMinutes = Math.floor(diffMs / (1000 * 60));
+
+    // Outdated if older than maxAllowedMinutes (> 1 hour) or negative due to clock skew
+    const isOutdated = ageMinutes > maxAllowedMinutes || ageMinutes < -120;
+    const badgeText = ageMinutes > 60 ? `Cũ > ${Math.floor(ageMinutes / 60)}h` : 'Cũ > 1h';
+    return { isOutdated, ageMinutes, displayText: cleaned, badgeText };
   } catch (err) {
     console.warn('Error checking data freshness:', err);
   }
 
-  return { isOutdated: false, ageMinutes: 0, displayText: cleaned };
+  return { isOutdated: false, ageMinutes: 0, displayText: cleaned, badgeText: '' };
 }
 
 

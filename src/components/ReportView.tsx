@@ -1329,7 +1329,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
               <p className="text-xs sm:text-sm font-extrabold text-slate-600 flex flex-wrap items-center gap-2 mt-1 whitespace-normal break-words leading-snug">
                 <span className="text-red-600 font-black whitespace-normal break-words">{subHeaderTitle}</span>
                 {lastUpdated && (() => {
-                  const freshness = checkDataFreshness(lastUpdated, 60);
+                  const freshness = checkDataFreshness(lastUpdated, 60, timeMode);
                   const updateTimeStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '');
                   return (
                     <>
@@ -1340,7 +1340,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
                           <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-300 font-black animate-pulse">
                             <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
                             Update: {updateTimeStr}
-                            <span className="text-[9px] px-1 bg-rose-600 text-white rounded-sm font-black uppercase">Cũ &gt; 1h</span>
+                            <span className="text-[9px] px-1 bg-rose-600 text-white rounded-sm font-black uppercase">
+                              {freshness.badgeText || (timeMode === 'luyke' ? 'Cũ > 1 ngày' : 'Cũ > 1h')}
+                            </span>
                           </span>
                         ) : (
                           <span className="text-sky-700 font-black">
