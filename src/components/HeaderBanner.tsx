@@ -491,6 +491,9 @@ interface HeaderBannerProps {
   selectedPhanLoaiShop?: string;
   setSelectedPhanLoaiShop?: (phanLoai: string) => void;
   phanLoaiShopList?: string[];
+  selectedTinhMoi?: string;
+  setSelectedTinhMoi?: (tinhMoi: string) => void;
+  tinhMoiList?: string[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
   selectedCategoryGroup: string;
@@ -530,6 +533,9 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   selectedPhanLoaiShop = 'ALL',
   setSelectedPhanLoaiShop,
   phanLoaiShopList = [],
+  selectedTinhMoi = 'ALL',
+  setSelectedTinhMoi,
+  tinhMoiList = [],
   selectedCategory,
   setSelectedCategory,
   selectedCategoryGroup,
@@ -823,6 +829,27 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
                 {phanLoaiShopList.map((p) => (
                   <option key={p} value={p}>
                     {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Select Tỉnh MỚI 2026 Dropdown (cột H file BOSS) — placed right
+              before Tỉnh per request */}
+          {setSelectedTinhMoi && (
+            <div className="flex items-center gap-1">
+              <label className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh mới:</label>
+              <select
+                disabled={entityScope === 'nhom'}
+                value={selectedTinhMoi}
+                onChange={(e) => setSelectedTinhMoi(e.target.value)}
+                className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                <option value="ALL">Tất cả</option>
+                {tinhMoiList.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
                   </option>
                 ))}
               </select>

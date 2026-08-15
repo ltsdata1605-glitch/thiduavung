@@ -120,6 +120,7 @@ function AppInner() {
   const [selectedCategory, setSelectedCategory] = usePersistedState<string>('tnb_selectedCategory', 'ALL');
   const [selectedCategoryGroup, setSelectedCategoryGroup] = usePersistedState<string>('tnb_selectedCategoryGroup', 'ALL');
   const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = usePersistedState<string>('tnb_selectedPhanLoaiShop', 'ALL');
+  const [selectedTinhMoi, setSelectedTinhMoi] = usePersistedState<string>('tnb_selectedTinhMoi', 'ALL');
   const [valueDisplayMode, setValueDisplayMode] = usePersistedState<'percent' | 'value'>('tnb_valueDisplayMode', 'percent');
 
   // Ngành hàng → Nhóm mapping (global, shared by every account — same idea
@@ -552,6 +553,7 @@ function AppInner() {
         setSelectedCategoryGroup('ALL');
         setSelectedCategory('ALL');
         setSelectedPhanLoaiShop('ALL');
+        setSelectedTinhMoi('ALL');
       }
       prevEntityScopeRef.current = entityScope;
     }
@@ -671,6 +673,14 @@ function AppInner() {
   const phanLoaiShopList = useMemo(
     () => Array.from(
       new Set(bossAssignments.map((b) => b.phanLoaiShop).filter((v): v is string => Boolean(v && v !== '-')))
+    ).sort(),
+    [bossAssignments]
+  );
+  // Tỉnh MỚI 2026 (cột H file BOSS) — tỉnh sáp nhập mới, độc lập với cột
+  // TỈNH (K) hiện dùng cho bộ lọc Tỉnh gốc.
+  const tinhMoiList = useMemo(
+    () => Array.from(
+      new Set(bossAssignments.map((b) => b.tinhMoi).filter((v): v is string => Boolean(v && v !== '-')))
     ).sort(),
     [bossAssignments]
   );
@@ -1214,6 +1224,9 @@ function AppInner() {
               selectedPhanLoaiShop={selectedPhanLoaiShop}
               setSelectedPhanLoaiShop={setSelectedPhanLoaiShop}
               phanLoaiShopList={phanLoaiShopList}
+              selectedTinhMoi={selectedTinhMoi}
+              setSelectedTinhMoi={setSelectedTinhMoi}
+              tinhMoiList={tinhMoiList}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               selectedCategoryGroup={selectedCategoryGroup}
@@ -1254,6 +1267,7 @@ function AppInner() {
                 selectedProvince={selectedProvince}
                 selectedBoss={selectedBoss}
                 selectedPhanLoaiShop={selectedPhanLoaiShop}
+                selectedTinhMoi={selectedTinhMoi}
                 selectedCategory={selectedCategory}
                 selectedCategoryGroup={selectedCategoryGroup}
                 categoryGroupMap={categoryGroupMap}

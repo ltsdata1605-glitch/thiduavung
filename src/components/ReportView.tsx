@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord } from '../utils/parser';
 // Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
 // instead of shipping ~1300 lines of Nhóm-only report code in the bundle
 // every user downloads to see the default VÙNG/SIÊU THỊ view.
@@ -154,6 +154,7 @@ interface ReportViewProps {
   selectedProvince: string;
   selectedBoss: string;
   selectedPhanLoaiShop?: string;
+  selectedTinhMoi?: string;
   selectedCategory: string;
   selectedCategoryGroup: string;
   categoryGroupMap: Record<string, string>;
@@ -536,6 +537,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   selectedProvince,
   selectedBoss,
   selectedPhanLoaiShop = 'ALL',
+  selectedTinhMoi = 'ALL',
   selectedCategory,
   selectedCategoryGroup,
   categoryGroupMap,
@@ -718,6 +720,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
       return false;
     }
 
+    // Tỉnh MỚI 2026 filter (cột H file BOSS)
+    if (selectedTinhMoi !== 'ALL' && getTinhMoiForStore(s.sieuthi, bossAssignments) !== selectedTinhMoi) {
+      return false;
+    }
+
     return true;
   }), [
     stores,
@@ -729,6 +736,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     selectedProvince,
     selectedBoss,
     selectedPhanLoaiShop,
+    selectedTinhMoi,
     bossAssignments,
     resolveKenh,
     resolveBoss,

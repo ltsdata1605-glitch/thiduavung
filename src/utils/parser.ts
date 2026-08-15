@@ -14,6 +14,7 @@ export interface BossAssignmentRecord {
   slTruongCa?: string | number;
   dtQdTb?: string | number;
   phanLoaiShop?: string;
+  tinhMoi?: string;
 }
 
 /**
@@ -441,6 +442,13 @@ export function parseBossPastedData(text: string): {
   if (colPhanLoaiShop === -1) {
     colPhanLoaiShop = headers.findIndex((h) => h.includes('PHÂN LOẠI') && !h.includes('CỬA HÀNG'));
   }
+  // Cột H — "TỈNH MỚI 2026": tỉnh sáp nhập mới, độc lập với cột TỈNH (K) hiện
+  // hành dùng cho b.tinh — không dùng chung logic dò cột với colTinh vì file
+  // luôn có cả 2 cột riêng biệt và cần giữ đúng dữ liệu của từng cột.
+  let colTinhMoi = headers.findIndex((h) => h === 'TỈNH MỚI 2026' || h === 'TINH MOI 2026');
+  if (colTinhMoi === -1) {
+    colTinhMoi = headers.findIndex((h) => h.includes('TỈNH MỚI') || h.includes('TINH MOI'));
+  }
 
   const startRow = 1; // Since validation verified headers on row 0
 
@@ -483,6 +491,7 @@ export function parseBossPastedData(text: string): {
     const dtQdTb = colDtQdTb >= 0 && cells[colDtQdTb] ? cells[colDtQdTb] : cells[18] || '-';
     const phanLoaiShop =
       colPhanLoaiShop >= 0 && cells[colPhanLoaiShop] ? cells[colPhanLoaiShop] : cells[19] || '-';
+    const tinhMoi = colTinhMoi >= 0 && cells[colTinhMoi] ? cells[colTinhMoi] : cells[7] || '-';
 
     if (
       sieuthi &&
@@ -504,6 +513,7 @@ export function parseBossPastedData(text: string): {
         slTruongCa,
         dtQdTb,
         phanLoaiShop,
+        tinhMoi,
       });
     }
   }
@@ -1161,6 +1171,26 @@ export function getPhanLoaiShopForStore(
   const match = findByExactMst(storeSieuThi, bossAssignments);
   if (match && match.phanLoaiShop) {
     return match.phanLoaiShop;
+  }
+
+  return '-';
+}
+
+/**
+ * Helper to match a store's name/code against bossAssignments (from file BOSS)
+ * and return its Tỉnh MỚI 2026 (cột H — tỉnh sáp nhập mới).
+ */
+export function getTinhMoiForStore(
+  storeSieuThi: string,
+  bossAssignments: BossAssignmentRecord[] = []
+): string {
+  if (!storeSieuThi || !bossAssignments || bossAssignments.length === 0) {
+    return '-';
+  }
+
+  const match = findByExactMst(storeSieuThi, bossAssignments);
+  if (match && match.tinhMoi) {
+    return match.tinhMoi;
   }
 
   return '-';
