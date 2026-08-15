@@ -1323,11 +1323,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
         <div className="p-3.5 bg-slate-50/80 border-b border-slate-200 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3">
           <div className="flex items-center gap-3 shrink-0 min-w-0">
             <div className="min-w-0">
-              <h3 className="font-black text-slate-900 text-lg sm:text-2xl tracking-tight uppercase truncate">
+              <h3 className="font-black text-slate-900 text-lg sm:text-2xl tracking-tight uppercase whitespace-normal break-words leading-tight">
                 {mainHeaderTitle}
               </h3>
-              <p className="text-xs sm:text-sm font-extrabold text-slate-600 flex flex-wrap items-center gap-2 mt-1">
-                <span className="text-red-600 font-black">{subHeaderTitle}</span>
+              <p className="text-xs sm:text-sm font-extrabold text-slate-600 flex flex-wrap items-center gap-2 mt-1 whitespace-normal break-words leading-snug">
+                <span className="text-red-600 font-black whitespace-normal break-words">{subHeaderTitle}</span>
                 {lastUpdated && (() => {
                   const freshness = checkDataFreshness(lastUpdated, 60);
                   const updateTimeStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '');

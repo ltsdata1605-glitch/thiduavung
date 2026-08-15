@@ -297,6 +297,16 @@ export async function exportElementAsImage(
   // Strip all scrollbars & expand inner containers
   suppressScrollbars(clone);
 
+  // Ensure titles and header text wrap naturally without ellipsis ("...")
+  clone.querySelectorAll<HTMLElement>('h1, h2, h3, h4, .truncate').forEach((el) => {
+    el.classList.remove('truncate');
+    el.style.setProperty('white-space', 'normal', 'important');
+    el.style.setProperty('word-break', 'break-word', 'important');
+    el.style.setProperty('overflow-wrap', 'break-word', 'important');
+    el.style.setProperty('text-overflow', 'clip', 'important');
+    el.style.setProperty('overflow', 'visible', 'important');
+  });
+
   // Compact table cells padding
   clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
     cell.style.setProperty('padding-left', '6px', 'important');
@@ -484,6 +494,16 @@ export async function exportGroupSpecificElement(
 
   // Strip all scrollbars from clone DOM
   suppressScrollbars(clone);
+
+  // Ensure titles and header text wrap naturally without ellipsis ("...")
+  clone.querySelectorAll<HTMLElement>('h1, h2, h3, h4, .truncate').forEach((el) => {
+    el.classList.remove('truncate');
+    el.style.setProperty('white-space', 'normal', 'important');
+    el.style.setProperty('word-break', 'break-word', 'important');
+    el.style.setProperty('overflow-wrap', 'break-word', 'important');
+    el.style.setProperty('text-overflow', 'clip', 'important');
+    el.style.setProperty('overflow', 'visible', 'important');
+  });
 
   // Filter columns by data-group attribute if targeting a single group or quick export
   if (groupKey === 'quick') {
