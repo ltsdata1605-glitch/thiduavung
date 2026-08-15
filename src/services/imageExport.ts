@@ -277,7 +277,13 @@ export async function exportElementAsImage(
   const scrollContainer = tableEl?.closest<HTMLElement>('.overflow-x-auto') || element.querySelector<HTMLElement>('.overflow-x-auto');
   const liveTableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
   const liveScrollWidth = scrollContainer ? Math.ceil(Math.max(scrollContainer.scrollWidth, scrollContainer.offsetWidth)) : 0;
-  const isMultiColumnTable = (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 20) || (liveTableWidth > 800);
+  // Only trust liveTableWidth/liveScrollWidth as a width FLOOR when the table
+  // genuinely overflowed its on-screen container (needed horizontal scroll).
+  // On screen the table has `w-full`, so a narrow (e.g. 2-store comparison)
+  // table still reports a wide liveTableWidth simply because it was stretched
+  // to fill its container — using that as a floor forced the exported canvas
+  // wider than the table's real content, leaving blank space on the right.
+  const isMultiColumnTable = !!(scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 20);
 
   const clone = element.cloneNode(true) as HTMLElement;
 
