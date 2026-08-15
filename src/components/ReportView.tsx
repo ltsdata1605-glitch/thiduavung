@@ -257,26 +257,24 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               return (
                 <th
                   key={storeKey || idx}
-                  className="p-2.5 text-center min-w-[180px] max-w-[240px] bg-slate-900"
+                  className="p-2.5 text-center min-w-[180px] max-w-[240px] bg-slate-900 relative"
                 >
+                  <button
+                    type="button"
+                    onClick={() => onRemoveStore(storeKey)}
+                    className="export-hide absolute right-1.5 top-1.5 p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0"
+                    title="Bỏ siêu thị này khỏi so sánh"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                   <div className="flex flex-col items-center gap-1">
-                    <div className="flex items-center justify-between w-full gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-4 h-4 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
-                          #{idx + 1}
-                        </span>
-                        <span className="font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
-                          {getStoreShortName(s.sieuthi)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveStore(storeKey)}
-                        className="export-hide p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0"
-                        title="Bỏ siêu thị này khỏi so sánh"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-center justify-center gap-1.5 min-w-0 w-full">
+                      <span className="w-4 h-4 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                        #{idx + 1}
+                      </span>
+                      <span className="font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
+                        {getStoreShortName(s.sieuthi)}
+                      </span>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-1">
                       <span className="px-1.5 py-0.5 bg-slate-800 text-slate-200 rounded-md text-[10px] font-extrabold border border-slate-700">
