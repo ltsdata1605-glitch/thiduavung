@@ -1093,6 +1093,26 @@ export function getDtQdTbForStore(
   return '-';
 }
 
+/**
+ * Helper to match a store's name/code against bossAssignments (from file BOSS)
+ * and return its Phân Loại Shop (e.g. "<3 TỶ", "3-5 TỶ", ...).
+ */
+export function getPhanLoaiShopForStore(
+  storeSieuThi: string,
+  bossAssignments: BossAssignmentRecord[] = []
+): string {
+  if (!storeSieuThi || !bossAssignments || bossAssignments.length === 0) {
+    return '-';
+  }
+
+  const match = findByExactMst(storeSieuThi, bossAssignments);
+  if (match && match.phanLoaiShop) {
+    return match.phanLoaiShop;
+  }
+
+  return '-';
+}
+
 export function parseDtQdTbNum(val: string | number | undefined): number {
   if (val === undefined || val === null || val === '') return 0;
   if (typeof val === 'number') return val;

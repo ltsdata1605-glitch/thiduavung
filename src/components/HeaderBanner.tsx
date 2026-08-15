@@ -488,6 +488,9 @@ interface HeaderBannerProps {
   setSelectedChannels: React.Dispatch<React.SetStateAction<Channel[]>>;
   selectedProvince: string;
   setSelectedProvince: (province: string) => void;
+  selectedPhanLoaiShop?: string;
+  setSelectedPhanLoaiShop?: (phanLoai: string) => void;
+  phanLoaiShopList?: string[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
   selectedCategoryGroup: string;
@@ -524,6 +527,9 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   setSelectedChannels,
   selectedProvince,
   setSelectedProvince,
+  selectedPhanLoaiShop = 'ALL',
+  setSelectedPhanLoaiShop,
+  phanLoaiShopList = [],
   selectedCategory,
   setSelectedCategory,
   selectedCategoryGroup,
@@ -801,6 +807,27 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           </div>
 
           <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
+
+          {/* Select Phân Loại Shop Dropdown (from BOSS file) — placed right
+              before Tỉnh per request */}
+          {setSelectedPhanLoaiShop && (
+            <div className="flex items-center gap-1">
+              <label className="text-[11px] font-bold text-slate-400 uppercase">Phân loại:</label>
+              <select
+                disabled={entityScope === 'nhom'}
+                value={selectedPhanLoaiShop}
+                onChange={(e) => setSelectedPhanLoaiShop(e.target.value)}
+                className="w-[90px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                <option value="ALL">Tất cả</option>
+                {phanLoaiShopList.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Select Province Dropdown */}
           <div className="flex items-center gap-1">

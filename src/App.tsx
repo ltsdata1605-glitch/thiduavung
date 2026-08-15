@@ -119,6 +119,7 @@ function AppInner() {
   const [selectedBoss, setSelectedBoss] = usePersistedState<string>('tnb_selectedBoss', 'ALL');
   const [selectedCategory, setSelectedCategory] = usePersistedState<string>('tnb_selectedCategory', 'ALL');
   const [selectedCategoryGroup, setSelectedCategoryGroup] = usePersistedState<string>('tnb_selectedCategoryGroup', 'ALL');
+  const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = usePersistedState<string>('tnb_selectedPhanLoaiShop', 'ALL');
   const [valueDisplayMode, setValueDisplayMode] = usePersistedState<'percent' | 'value'>('tnb_valueDisplayMode', 'percent');
 
   // Ngành hàng → Nhóm mapping (global, shared by every account — same idea
@@ -550,6 +551,7 @@ function AppInner() {
         setSelectedChannels(['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
         setSelectedCategoryGroup('ALL');
         setSelectedCategory('ALL');
+        setSelectedPhanLoaiShop('ALL');
       }
       prevEntityScopeRef.current = entityScope;
     }
@@ -656,6 +658,12 @@ function AppInner() {
 
   // Extract unique provinces & bosses for filter dropdowns
   const provinceList = Array.from(new Set(activeStores.map((s) => s.tinh))).sort();
+  // Phân Loại Shop values come from the BOSS file (e.g. "<3 TỶ", "3-5 TỶ") —
+  // sourced from bossAssignments directly rather than per-store lookups,
+  // since a store may not have a resolvable BOSS match yet.
+  const phanLoaiShopList = Array.from(
+    new Set(bossAssignments.map((b) => b.phanLoaiShop).filter((v): v is string => Boolean(v && v !== '-')))
+  ).sort();
   const bossList: string[] = (Array.from(
     new Set([
       ...activeStores.map((s) => getBossForStore(s.sieuthi, bossAssignments, s.boss)),
@@ -1184,6 +1192,9 @@ function AppInner() {
               setSelectedChannels={setSelectedChannels}
               selectedProvince={selectedProvince}
               setSelectedProvince={setSelectedProvince}
+              selectedPhanLoaiShop={selectedPhanLoaiShop}
+              setSelectedPhanLoaiShop={setSelectedPhanLoaiShop}
+              phanLoaiShopList={phanLoaiShopList}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               selectedCategoryGroup={selectedCategoryGroup}
@@ -1223,6 +1234,7 @@ function AppInner() {
                 selectedChannels={selectedChannels}
                 selectedProvince={selectedProvince}
                 selectedBoss={selectedBoss}
+                selectedPhanLoaiShop={selectedPhanLoaiShop}
                 selectedCategory={selectedCategory}
                 selectedCategoryGroup={selectedCategoryGroup}
                 categoryGroupMap={categoryGroupMap}
