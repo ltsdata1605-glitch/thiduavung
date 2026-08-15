@@ -292,13 +292,13 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
            ======================================================================= */}
         <div
           id="tong-card-tgd"
-          className="bg-white border border-amber-200 shadow-sm overflow-hidden flex flex-col"
+          className="bg-white border border-amber-300 shadow-sm flex flex-col"
         >
           {/* Header Banner */}
-          <div className="bg-amber-50 p-4 sm:p-5 flex items-start justify-between gap-3 border-b border-amber-200">
+          <div className="bg-amber-100 p-4 sm:p-5 flex items-start justify-between gap-3 border-b border-amber-300">
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase leading-none text-amber-700">
                   TGD
                 </h1>
@@ -322,10 +322,9 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                 )
               }
               title="Xuất ảnh bảng TGD"
-              className="px-3 py-1.5 bg-white hover:bg-amber-100 text-amber-700 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1.5 border border-amber-300 cursor-pointer shadow-xs shrink-0 export-hide"
+              className="p-2 bg-white hover:bg-amber-200 text-amber-700 rounded-lg transition-all flex items-center justify-center border border-amber-400 cursor-pointer shadow-xs shrink-0 export-hide"
             >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Xuất ảnh TGD</span>
+              <Camera className="w-4 h-4" />
             </button>
           </div>
 
@@ -333,7 +332,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-amber-50/70 text-slate-600 font-bold text-center border-b border-amber-200">
+                <tr className="bg-amber-100 text-slate-700 font-bold text-center border-b border-amber-300">
                   <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider">STT</th>
                   <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider">Ngành hàng</th>
                   <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider">Nhóm hàng</th>
@@ -343,7 +342,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-amber-100">
                 {(() => {
                   let runningStt = 0;
                   return tgdData.sections.map((sec, secIdx) => {
@@ -357,12 +356,12 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                       return (
                         <tr
                           key={`${sec.groupName}-${item.catName}-${itemIdx}`}
-                          className={`hover:bg-amber-50/60 transition-colors ${
-                            isAchieved ? 'bg-emerald-50/40' : ''
+                          className={`hover:bg-amber-50 transition-colors ${
+                            isAchieved ? 'bg-emerald-50/60' : ''
                           }`}
                         >
                           {/* STT */}
-                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-slate-100">
+                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-amber-100">
                             {runningStt}
                           </td>
 
@@ -370,24 +369,24 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                           {isFirstInGroup && (
                             <td
                               rowSpan={groupRowCount}
-                              className="py-2 px-2 text-center align-middle border-r border-slate-100"
+                              className="py-2 px-2 text-center align-middle border-r border-amber-100"
                             >
-                              <span className="inline-block px-2 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-700 font-bold uppercase text-[10.5px] tracking-wide">
+                              <span className="inline-block px-2 py-1 rounded-md border border-amber-300 bg-amber-100 text-amber-800 font-bold uppercase text-[10.5px] tracking-wide">
                                 {sec.groupName}
                               </span>
                             </td>
                           )}
 
                           {/* NHÓM HÀNG (Category Display Name) */}
-                          <td className="py-1.5 px-3 font-semibold text-slate-700 uppercase truncate max-w-[240px] border-r border-slate-100">
+                          <td className="py-1.5 px-3 font-semibold text-slate-700 uppercase truncate max-w-[240px] border-r border-amber-100">
                             {item.displayName}
                           </td>
 
                           {/* % HOÀN THÀNH */}
                           <td
-                            className={`py-1.5 px-2 text-center font-bold border-r border-slate-100 ${
+                            className={`py-1.5 px-2 text-center font-bold border-r border-amber-100 ${
                               isAchieved
-                                ? 'bg-emerald-50 text-emerald-700'
+                                ? 'bg-emerald-100 text-emerald-700'
                                 : 'text-rose-500'
                             }`}
                           >
@@ -399,7 +398,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                             <>
                               <td
                                 rowSpan={groupRowCount}
-                                className="py-2 px-2 text-center font-bold text-slate-600 align-middle border-r border-slate-100"
+                                className="py-2 px-2 text-center font-bold text-slate-600 align-middle border-r border-amber-100"
                               >
                                 {sec.achievedCount}/{sec.totalCount}
                               </td>
@@ -422,7 +421,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                 })()}
 
                 {/* FOOTER ROW: TỔNG CỘNG */}
-                <tr className="bg-amber-100/70 text-slate-800 font-black text-sm border-t border-amber-200">
+                <tr className="bg-amber-200/80 text-slate-900 font-black text-sm border-t border-amber-300">
                   <td colSpan={4} className="py-2.5 px-4 text-center uppercase tracking-wider">
                     Tổng cộng
                   </td>
@@ -447,13 +446,13 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
            ======================================================================= */}
         <div
           id="tong-card-dmx"
-          className="bg-white border border-sky-200 shadow-sm overflow-hidden flex flex-col"
+          className="bg-white border border-sky-300 shadow-sm flex flex-col"
         >
           {/* Header Banner */}
-          <div className="bg-sky-50 p-4 sm:p-5 flex items-start justify-between gap-3 border-b border-sky-200">
+          <div className="bg-sky-100 p-4 sm:p-5 flex items-start justify-between gap-3 border-b border-sky-300">
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0"></span>
                 <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase leading-none text-sky-700">
                   ĐMX
                 </h1>
@@ -480,10 +479,9 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                 )
               }
               title="Xuất ảnh bảng ĐMX"
-              className="px-3 py-1.5 bg-white hover:bg-sky-100 text-sky-700 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1.5 border border-sky-300 cursor-pointer shadow-xs shrink-0 export-hide"
+              className="p-2 bg-white hover:bg-sky-200 text-sky-700 rounded-lg transition-all flex items-center justify-center border border-sky-400 cursor-pointer shadow-xs shrink-0 export-hide"
             >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Xuất ảnh ĐMX</span>
+              <Camera className="w-4 h-4" />
             </button>
           </div>
 
@@ -491,7 +489,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-sky-50/70 text-slate-600 font-bold text-center border-b border-sky-200">
+                <tr className="bg-sky-100 text-slate-700 font-bold text-center border-b border-sky-300">
                   <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider">STT</th>
                   <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider">Ngành hàng</th>
                   <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider">Nhóm hàng</th>
@@ -501,7 +499,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-sky-100">
                 {(() => {
                   let runningStt = 0;
                   return dmxData.sections.map((sec, secIdx) => {
@@ -515,12 +513,12 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                       return (
                         <tr
                           key={`${sec.groupName}-${item.catName}-${itemIdx}`}
-                          className={`hover:bg-sky-50/60 transition-colors ${
-                            isAchieved ? 'bg-emerald-50/40' : ''
+                          className={`hover:bg-sky-50 transition-colors ${
+                            isAchieved ? 'bg-emerald-50/60' : ''
                           }`}
                         >
                           {/* STT */}
-                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-slate-100">
+                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-sky-100">
                             {runningStt}
                           </td>
 
@@ -528,24 +526,24 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                           {isFirstInGroup && (
                             <td
                               rowSpan={groupRowCount}
-                              className="py-2 px-2 text-center align-middle border-r border-slate-100"
+                              className="py-2 px-2 text-center align-middle border-r border-sky-100"
                             >
-                              <span className="inline-block px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-700 font-bold uppercase text-[10.5px] tracking-wide">
+                              <span className="inline-block px-2 py-1 rounded-md border border-sky-300 bg-sky-100 text-sky-800 font-bold uppercase text-[10.5px] tracking-wide">
                                 {sec.groupName}
                               </span>
                             </td>
                           )}
 
                           {/* NHÓM HÀNG (Category Display Name) */}
-                          <td className="py-1.5 px-3 font-semibold text-slate-700 uppercase truncate max-w-[240px] border-r border-slate-100">
+                          <td className="py-1.5 px-3 font-semibold text-slate-700 uppercase truncate max-w-[240px] border-r border-sky-100">
                             {item.displayName}
                           </td>
 
                           {/* % HOÀN THÀNH */}
                           <td
-                            className={`py-1.5 px-2 text-center font-bold border-r border-slate-100 ${
+                            className={`py-1.5 px-2 text-center font-bold border-r border-sky-100 ${
                               isAchieved
-                                ? 'bg-emerald-50 text-emerald-700'
+                                ? 'bg-emerald-100 text-emerald-700'
                                 : 'text-rose-500'
                             }`}
                           >
@@ -557,7 +555,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                             <>
                               <td
                                 rowSpan={groupRowCount}
-                                className="py-2 px-2 text-center font-bold text-slate-600 align-middle border-r border-slate-100"
+                                className="py-2 px-2 text-center font-bold text-slate-600 align-middle border-r border-sky-100"
                               >
                                 {sec.achievedCount}/{sec.totalCount}
                               </td>
@@ -580,7 +578,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                 })()}
 
                 {/* FOOTER ROW: TỔNG CỘNG */}
-                <tr className="bg-sky-100/70 text-slate-800 font-black text-sm border-t border-sky-200">
+                <tr className="bg-sky-200/80 text-slate-900 font-black text-sm border-t border-sky-300">
                   <td colSpan={4} className="py-2.5 px-4 text-center uppercase tracking-wider">
                     Tổng cộng
                   </td>
