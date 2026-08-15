@@ -234,7 +234,26 @@ async function saveChunkedStoreDataset(
     const chunksRef = collection(db, COLLECTION, docKey, 'chunks');
     const batch = writeBatch(db);
 
+    // A BOSS-file reassignment (see App.tsx's handleUpdateBossData) touches
+    // only the handful of stores whose boss/tinh/kenh actually changed, but
+    // used to rewrite ALL ~9 chunks per dataset regardless — x4 datasets,
+    // every single BOSS import, even when 95% of stores were untouched.
+    // handleUpdateBossData now keeps the exact same object reference for an
+    // unchanged store, so a chunk whose 100 store references are identical
+    // to what's already synced doesn't need to be rewritten at all. Only
+    // meaningful (and only safe) when the store COUNT hasn't changed — any
+    // insert/remove shifts every later chunk's boundary, making a positional
+    // comparison meaningless, so that case falls back to writing every chunk.
+    const previousStores = (getLocalCache()[field] as StoreRecord[] | undefined) || [];
+    const canSkipUnchangedChunks = previousStores.length === stores.length;
+
     newChunks.forEach((chunk, index) => {
+      if (canSkipUnchangedChunks) {
+        const start = index * STORE_CHUNK_SIZE;
+        const prevChunk = previousStores.slice(start, start + STORE_CHUNK_SIZE);
+        const unchanged = chunk.length === prevChunk.length && chunk.every((s, i) => s === prevChunk[i]);
+        if (unchanged) return;
+      }
       batch.set(doc(chunksRef, String(index)), sanitizeForFirestore({ data: chunk, index }));
     });
     // Clear out any stale chunks left over from a previous, larger save.
@@ -249,8 +268,7 @@ async function saveChunkedStoreDataset(
     // cache already knows how many chunks the last save for this exact
     // docKey produced — bound the lookahead to that plus a generous margin
     // instead of a fixed 100, with zero added network round trips.
-    const previousCount = (getLocalCache()[field] as StoreRecord[] | undefined)?.length || 0;
-    const previousChunkCount = previousCount > 0 ? Math.ceil(previousCount / STORE_CHUNK_SIZE) : 0;
+    const previousChunkCount = previousStores.length > 0 ? Math.ceil(previousStores.length / STORE_CHUNK_SIZE) : 0;
     const STALE_CHUNK_SAFETY_MARGIN = 10; // covers this device's local cache being a few saves behind
     const staleChunkLookaheadEnd = Math.max(newChunks.length, previousChunkCount) + STALE_CHUNK_SAFETY_MARGIN;
     for (let i = newChunks.length; i < staleChunkLookaheadEnd; i++) {

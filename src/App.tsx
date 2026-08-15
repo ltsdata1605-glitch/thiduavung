@@ -55,6 +55,9 @@ function AppInner() {
     const cleanHash = hash.replace(/^#\/?/, '').toLowerCase().trim();
     if (!cleanHash) return null;
 
+    if (cleanHash === 'tong' || cleanHash === 'report/tong') {
+      return { tab: 'report', scope: 'tong' };
+    }
     if (cleanHash === 'vung' || cleanHash === 'report/vung') {
       return { tab: 'report', scope: 'sieuthi' };
     }
@@ -79,6 +82,7 @@ function AppInner() {
   const getHashFromRoute = (tab: ViewTab, scope: EntityScope): string => {
     if (tab === 'update') return '#/update';
     if (tab === 'settings') return '#/settings';
+    if (scope === 'tong') return '#/tong';
     if (scope === 'sieuthi') return '#/vung';
     if (scope === 'vung') return '#/sieuthi';
     if (scope === 'nhom') return '#/nhom';
@@ -89,6 +93,7 @@ function AppInner() {
     const prefix = sysName || 'THI ĐUA TNB';
     if (tab === 'update') return `Cập nhật Dữ liệu | ${prefix}`;
     if (tab === 'settings') return `Cài đặt Hệ thống | ${prefix}`;
+    if (scope === 'tong') return `Tổng quan TGD & ĐMX | ${prefix}`;
     if (scope === 'sieuthi') return `Thi đua VÙNG | ${prefix}`;
     if (scope === 'vung') return `Thi đua SIÊU THỊ | ${prefix}`;
     if (scope === 'nhom') return `Thi đua NHÓM | ${prefix}`;
@@ -542,12 +547,9 @@ function AppInner() {
         const stores = timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
         const firstProvince = Array.from(new Set(stores.map((s: StoreRecord) => s.tinh))).sort()[0];
         if (firstProvince) setSelectedProvince(firstProvince);
-      } else if (entityScope === 'sieuthi') {
-        // VÙNG (the overview/rollup-by-tỉnh scope — see the naming note near
-        // the HeaderBanner buttons) is meant to show every tỉnh at once, so a
-        // narrow filter carried over from Siêu Thị/Nhóm (one tỉnh, one kênh,
-        // one ngành hàng) would silently defeat that. Every time VÙNG is
-        // selected, clear back to "Tất cả" / all kênh checked.
+      } else if (entityScope === 'sieuthi' || entityScope === 'tong') {
+        // VÙNG / TỔNG (the overview scopes) are meant to show everything, so
+        // clear back to "Tất cả" / all kênh checked.
         setSelectedProvince('ALL');
         setSelectedChannels(['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
         setSelectedCategoryGroup('ALL');
@@ -571,17 +573,8 @@ function AppInner() {
     }
   }, [activeTab, currentUser]);
 
-  // Show login screen if user is unauthenticated
-  if (!currentUser) {
-    return (
-      <LoginView
-        onLoginSuccess={(loggedInUser) => {
-          setCurrentUser(loggedInUser);
-          triggerCloudSyncAnimation('Đăng nhập thành công! Đang tải & đồng bộ dữ liệu tài khoản từ máy chủ Cloud...');
-        }}
-      />
-    );
-  }
+  // Show login screen if user is unauthenticated is moved to the render return below
+  // so all hooks execute in constant order across login state changes.
 
   // Helper to extract number of days in month from timestamp text
   const daysInMonth = useMemo(() => {
@@ -824,16 +817,23 @@ function AppInner() {
   const handleUpdateBossData = async (newBossAssignments: BossAssignmentRecord[]) => {
     if (newBossAssignments.length === 0) return;
 
+    // Keeps the SAME object reference for a store whose boss/tinh/kenh didn't
+    // actually change — a BOSS file upload typically reassigns only a
+    // handful of stores, not all of them. saveChunkedStoreDataset below uses
+    // that reference identity to skip re-uploading any 100-store chunk
+    // that's untouched, instead of always rewriting all ~9 chunks per
+    // dataset (x4 datasets) on every single BOSS import.
     const updateStores = (stores: StoreRecord[]) =>
       stores.map((s) => {
         const found = findBossAssignmentRecord(s.sieuthi, newBossAssignments);
         if (found) {
-          return {
-            ...s,
-            boss: found.boss || s.boss,
-            tinh: found.tinh || s.tinh,
-            kenh: (found.kenh as Channel) || s.kenh,
-          };
+          const newBoss = found.boss || s.boss;
+          const newTinh = found.tinh || s.tinh;
+          const newKenh = (found.kenh as Channel) || s.kenh;
+          if (newBoss === s.boss && newTinh === s.tinh && newKenh === s.kenh) {
+            return s;
+          }
+          return { ...s, boss: newBoss, tinh: newTinh, kenh: newKenh };
         }
         return s;
       });
@@ -1153,6 +1153,18 @@ function AppInner() {
       setExportModalState({ isOpen: false });
     }
   };
+
+  // Show login screen if user is unauthenticated
+  if (!currentUser) {
+    return (
+      <LoginView
+        onLoginSuccess={(loggedInUser) => {
+          setCurrentUser(loggedInUser);
+          triggerCloudSyncAnimation('Đăng nhập thành công! Đang tải & đồng bộ dữ liệu tài khoản từ máy chủ Cloud...');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-screen bg-slate-100/70 font-sans text-slate-800 flex flex-row overflow-hidden antialiased">

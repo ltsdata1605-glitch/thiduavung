@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StoreRecord, Channel } from '../types';
+import { StoreRecord, Channel, EntityScope } from '../types';
 import {
   formatStoreDisplayName,
   getChannelForStore,
@@ -37,7 +37,7 @@ export function generateReportRemarksText(params: {
   bossAssignments?: BossAssignmentRecord[];
   timeModeName?: string;
   lastUpdated?: string;
-  entityScope?: 'sieuthi' | 'vung' | 'nhom';
+  entityScope?: EntityScope;
 }): string {
   const {
     stores = [],

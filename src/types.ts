@@ -2,7 +2,7 @@ export type ViewTab = 'report' | 'update' | 'settings';
 
 export type TimeMode = 'realtime' | 'luyke';
 
-export type EntityScope = 'vung' | 'sieuthi' | 'nhom';
+export type EntityScope = 'tong' | 'vung' | 'sieuthi' | 'nhom';
 
 export type Channel = 'DML' | 'DMM' | 'DMS' | 'TGD' | 'TopZone';
 

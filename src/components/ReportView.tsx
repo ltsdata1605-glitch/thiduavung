@@ -7,6 +7,9 @@ import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseCha
 const GroupReportView = React.lazy(() =>
   import('./GroupReportView').then((m) => ({ default: m.GroupReportView }))
 );
+const TongReportView = React.lazy(() =>
+  import('./TongReportView').then((m) => ({ default: m.TongReportView }))
+);
 import { 
   Trophy, 
   TrendingUp, 
@@ -1268,6 +1271,27 @@ export const ReportView: React.FC<ReportViewProps> = ({
     rate: stat.target > 0 ? Number(((stat.achieved / stat.target) * 100).toFixed(1)) : 0,
     achieved: stat.achieved,
   })).sort((a, b) => b.rate - a.rate);
+
+  if (entityScope === 'tong') {
+    return (
+      <React.Suspense
+        fallback={
+          <div className="flex items-center justify-center py-24 text-slate-400 text-sm font-semibold">
+            Đang tải bảng tổng quan TGD &amp; ĐMX...
+          </div>
+        }
+      >
+        <TongReportView
+          timeMode={timeMode}
+          lastUpdated={lastUpdated}
+          stores={stores}
+          categoryGroupMap={categoryGroupMap}
+          categoryDisplayNameMap={categoryDisplayNameMap}
+          bossAssignments={bossAssignments}
+        />
+      </React.Suspense>
+    );
+  }
 
   if (entityScope === 'nhom') {
     return (
