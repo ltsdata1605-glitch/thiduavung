@@ -1165,7 +1165,16 @@ function AppInner() {
 
         {/* Sticky Top Header Banner with Consolidated Filters & Controls (Only show on Report tab) */}
         {activeTab === 'report' && (
-          <div className="sticky top-0 z-30 bg-slate-100/90 backdrop-blur-md px-4 md:px-6 pt-4 pb-2 border-b border-slate-200/60 shrink-0 shadow-2xs">
+          <div
+            className="sticky top-0 z-50 bg-slate-100/90 backdrop-blur-md px-4 md:px-6 pt-4 pb-2 border-b border-slate-200/60 shrink-0 shadow-2xs"
+            // Was z-30 — exactly equal to the report table's own sticky
+            // <thead> (see ReportView.tsx), and the table comes later in
+            // the DOM, so on an equal z-index it wins the stacking tie and
+            // rendered on top of this bar's dropdown popups (Ngành hàng,
+            // Nhóm N.Hàng) whenever they overlapped it. z-50 clears the
+            // table's highest sticky z-index (40 on its frozen <th> cells)
+            // with headroom, so this bar's popovers always win.
+          >
             <HeaderBanner
               timeMode={timeMode}
               setTimeMode={setTimeMode}
