@@ -31,7 +31,8 @@ import {
   Eye,
   EyeOff,
   X,
-  Scale
+  Scale,
+  Zap
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -181,7 +182,7 @@ interface ReportViewProps {
   onOpenTagBossModal?: () => void;
   onExportCompact?: () => void;
   onExportFull?: () => void;
-  onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups') => void;
+  onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups' | 'quick') => void;
   forceShowAllRows?: boolean;
   valueDisplayMode?: 'percent' | 'value';
   // Only Super Admin / Admin may see the DTQĐ TB column & values (a
@@ -1402,26 +1403,38 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </button>
             )}
 
-            {/* Export 3 Groups (3 Tấm) */}
+            {/* Xuất Nhanh (Chỉ STT -> Tỷ lệ %, không kèm ngành hàng) */}
             <button
+              type="button"
+              onClick={() => (onExportGroup ? onExportGroup('quick') : onExportCompact?.())}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
+              title="Xuất nhanh bảng xếp hạng gọn gàng (chỉ gồm STT đến Tỷ lệ %, không kèm các cột ngành hàng)"
+            >
+              <Zap className="w-3.5 h-3.5 text-white fill-white" />
+              <span>Xuất nhanh</span>
+            </button>
+
+            {/* Xuất Theo Nhóm */}
+            <button
+              type="button"
               onClick={() => (onExportGroup ? onExportGroup('by_groups') : onExportCompact?.())}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
               title="Tự động xuất 3 tấm ảnh theo 3 nhóm ngành hàng riêng lẻ (ICT, DỊCH VỤ, CE & GIA DỤNG)"
             >
               <Layers className="w-3.5 h-3.5 text-white" />
-              <span>Xuất 3 Nhóm (3 Tấm)</span>
+              <span>Xuất theo nhóm</span>
             </button>
 
-            {/* Combined Export All (1 Tấm) + Dropdown button group */}
+            {/* Combined Xuất Hiển Thị + Dropdown button group */}
             <div ref={exportMenuRef} className="relative inline-flex shadow-2xs shrink-0">
               <button
                 type="button"
                 onClick={() => (onExportGroup ? onExportGroup('all') : onExportFull?.())}
                 className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap rounded-l-xl"
-                title="Xuất 1 tấm ảnh đầy đủ bảng xếp hạng tất cả 38 ngành hàng"
+                title="Xuất 1 tấm ảnh theo bảng đang hiển thị trên màn hình"
               >
                 <Grid className="w-3.5 h-3.5 text-white" />
-                <span>Xuất Tất Cả (1 Tấm)</span>
+                <span>Xuất hiển thị</span>
               </button>
               <button
                 type="button"
@@ -1430,7 +1443,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   setIsExportMenuOpen(!isExportMenuOpen);
                 }}
                 className="px-2 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center cursor-pointer transition-all border-l border-blue-500 rounded-r-xl"
-                title="Tùy chọn xuất từng nhóm"
+                title="Tùy chọn xuất từng nhóm đơn lẻ"
               >
                 <ChevronDown className={`w-3.5 h-3.5 text-white transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -1439,12 +1452,25 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[100] py-1.5 font-sans text-xs animate-scale-up">
                   <button
                     onClick={() => {
-                      if (onExportGroup) onExportGroup('ict');
+                      if (onExportGroup) onExportGroup('quick');
                       setIsExportMenuOpen(false);
                     }}
                     className="w-full px-3 py-2 text-left text-slate-700 hover:bg-amber-50 hover:text-amber-900 font-bold flex items-center gap-2 cursor-pointer"
                   >
-                    <Smartphone className="w-4 h-4 text-amber-500 shrink-0" />
+                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+                    <span>Xuất Nhanh (STT → Tỷ lệ %)</span>
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1"></div>
+
+                  <button
+                    onClick={() => {
+                      if (onExportGroup) onExportGroup('ict');
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-slate-700 hover:bg-sky-50 hover:text-sky-900 font-bold flex items-center gap-2 cursor-pointer"
+                  >
+                    <Smartphone className="w-4 h-4 text-sky-500 shrink-0" />
                     <span>Xuất Nhóm ICT (12 ngành hàng)</span>
                   </button>
 
@@ -1480,7 +1506,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     className="w-full px-3 py-2 text-left text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 font-extrabold flex items-center gap-2 cursor-pointer"
                   >
                     <Camera className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span>Xuất Tất Cả (1 Tấm)</span>
+                    <span>Xuất Hiển Thị (1 Tấm)</span>
                   </button>
                 </div>
               )}

@@ -457,7 +457,7 @@ export async function exportElementAsImage(
  */
 export async function exportGroupSpecificElement(
   element: HTMLElement,
-  groupKey: 'ict' | 'dichvu' | 'ce' | 'all',
+  groupKey: 'ict' | 'dichvu' | 'ce' | 'all' | 'quick',
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
@@ -485,8 +485,20 @@ export async function exportGroupSpecificElement(
   // Strip all scrollbars from clone DOM
   suppressScrollbars(clone);
 
-  // Filter columns by data-group attribute if targeting a single group
-  if (groupKey !== 'all') {
+  // Filter columns by data-group attribute if targeting a single group or quick export
+  if (groupKey === 'quick') {
+    // Xuất nhanh: Xóa toàn bộ các cột ngành hàng, chỉ giữ lại các cột cơ bản (STT -> Tỷ lệ %)
+    clone.querySelectorAll<HTMLElement>('[data-group]').forEach((el) => el.remove());
+    // Xóa hàng header phụ rỗng nếu có và bỏ rowspan ở header chính
+    clone.querySelectorAll<HTMLElement>('thead tr').forEach((tr) => {
+      if (tr.children.length === 0) {
+        tr.remove();
+      }
+    });
+    clone.querySelectorAll<HTMLElement>('th[rowspan]').forEach((th) => {
+      th.removeAttribute('rowspan');
+    });
+  } else if (groupKey !== 'all') {
     clone.querySelectorAll<HTMLElement>('[data-group]').forEach((el) => {
       const elGroup = el.getAttribute('data-group');
       if (elGroup && elGroup !== groupKey) {

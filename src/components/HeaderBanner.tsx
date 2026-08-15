@@ -314,7 +314,7 @@ interface HeaderBannerProps {
   onOpenTagBossModal: () => void;
   onExportCompact: () => void;
   onExportFull: () => void;
-  onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups') => void;
+  onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups' | 'quick') => void;
   showSummarySection?: boolean;
   setShowSummarySection?: (show: boolean) => void;
   valueDisplayMode?: 'percent' | 'value';
@@ -397,9 +397,12 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   }, [selectedCategoryGroup, filteredCategoryOptions, selectedCategory, entityScope, categoryList, setSelectedCategory]);
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden space-y-3 transition-all">
-      {/* Accent Indicator Line */}
-      <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-rose-300 via-pink-300 to-amber-300"></div>
+    <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative space-y-3 transition-all">
+      {/* Accent Indicator Line — rounded on its own (rather than relying on
+          overflow-hidden on the card) so it doesn't clip the Ngành hàng
+          dropdown's popup list, which is absolutely positioned and needs to
+          render outside this card's bounds. */}
+      <div className="absolute top-0 left-0 w-2 h-full rounded-l-2xl bg-gradient-to-b from-rose-300 via-pink-300 to-amber-300"></div>
 
       {/* ROW 1: Header Brand, Dynamic Title & Scope / Time Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pl-2">

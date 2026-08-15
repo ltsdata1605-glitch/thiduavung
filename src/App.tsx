@@ -39,7 +39,7 @@ import {
   type DocKey,
 } from './services/storeService';
 import { usePersistedState } from './hooks/usePersistedState';
-import { exportElementAsImage, exportCategoryGroupImages } from './services/imageExport';
+import { exportElementAsImage, exportGroupSpecificElement, exportCategoryGroupImages } from './services/imageExport';
 import confetti from 'canvas-confetti';
 
 function AppInner() {
@@ -1004,8 +1004,8 @@ function AppInner() {
     }
   };
 
-  // "Xuất Ảnh Theo Nhóm Ngành Hàng / Xuất All" — exports image by rendering exact target group state
-  const handleExportGroup = async (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups') => {
+  // "Xuất Nhanh / Xuất Theo Nhóm / Xuất Hiển Thị" — exports image by rendering exact target group state
+  const handleExportGroup = async (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups' | 'quick') => {
     const el = document.getElementById('report-export-root');
     if (!el) {
       showErrorToast('Không tìm thấy báo cáo để xuất ảnh — hãy mở tab Report trước.');
@@ -1013,11 +1013,12 @@ function AppInner() {
     }
 
     const groupNames: Record<string, string> = {
+      quick: 'Nhanh (STT -> Tỉ lệ)',
       ict: 'Nhóm ICT',
       dichvu: 'Nhóm Dịch Vụ',
       ce: 'Nhóm CE & Gia Dụng',
-      by_groups: '3 Nhóm Ngành Hàng (3 Tấm)',
-      all: 'Tất Cả 38 Ngành Hàng (1 Tấm)',
+      by_groups: 'Theo Nhóm Ngành Hàng',
+      all: 'Hiển Thị',
     };
     setExportModalState({
       isOpen: true,
@@ -1045,7 +1046,19 @@ function AppInner() {
 
     setIsExportingAllRows(true);
     try {
-      if (target === 'by_groups') {
+      if (target === 'quick') {
+        await new Promise((r) => setTimeout(r, 200));
+        const targetEl = document.getElementById('report-export-root');
+        if (targetEl) {
+          const filename = `Bang_Xep_Hang_Xuat_Nhanh_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+          const blob = await exportGroupSpecificElement(targetEl, 'quick', filename, { remarkTextToCopy: remarkText });
+          if (blob) {
+            showToast('✨ Đã xuất nhanh bảng xếp hạng (STT -> Tỉ lệ) & tự động sao chép nhận xét!');
+          } else {
+            showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
+          }
+        }
+      } else if (target === 'by_groups') {
         showToast('Đang khởi tạo và xuất tự động 3 bộ ảnh theo nhóm...');
         const groupsToExport = ['ICT', 'DỊCH VỤ', 'CE & GD'];
         let exportedCount = 0;
@@ -1067,14 +1080,13 @@ function AppInner() {
           showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
         }
       } else if (target === 'all') {
-        setSelectedCategoryGroup('ALL');
-        await new Promise((r) => setTimeout(r, 350));
+        await new Promise((r) => setTimeout(r, 200));
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
-          const filename = `Bang_Xep_Hang_Tat_Ca_38_Nganh_Hang_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+          const filename = `Bang_Xep_Hang_Hien_Thi_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
           const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
           if (blob) {
-            showToast('✨ Đã xuất 1 tấm ảnh đầy đủ bảng xếp hạng & tự động sao chép nhận xét!');
+            showToast('✨ Đã xuất ảnh bảng xếp hạng hiển thị & tự động sao chép nhận xét!');
           } else {
             showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
           }
