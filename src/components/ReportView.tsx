@@ -129,25 +129,6 @@ export const getCategoryData = (s: StoreRecord, cName: string): { target: number
   if (s.categoryMap?.[cName]) {
     return s.categoryMap[cName];
   }
-  const legacyMap: Record<string, { achieved: number; rate: number } | undefined> = {
-    'Điện thoại Flagship Samsung Galaxy S/Z Series': s.flagship,
-    'Điện thoại & Tablet Android': s.phoneTablet,
-    'Điện thoại Realme': s.phone,
-    'Điện thoại Vivo': s.phone,
-    'Laptop': s.laptop,
-    'Phụ kiện - Đồng hồ': s.phukien,
-    'Đồng hồ (DHTT + SMW)': s.dongho,
-    'Camera': s.camera,
-    'Loa': s.loa,
-    'Sạc dự phòng': s.sacduphong,
-    'Tai nghe Bluetooth': s.tainghe,
-    'Đèn năng lượng mặt trời': s.dennangluong,
-    'Bảo hiểm': s.baohanh,
-  };
-  const legacy = legacyMap[cName];
-  if (legacy) {
-    return { target: 0, achieved: legacy.achieved || 0, rate: legacy.rate || 0 };
-  }
   return { target: 0, achieved: 0, rate: 0 };
 };
 
@@ -802,7 +783,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
           byTinh.set(s.tinh, cur);
         });
 
-        const zeroMetric = { achieved: 0, rate: 0 };
         return Array.from(byTinh.entries()).map(([tinh, agg], idx) => {
           const categoryMap: Record<string, { target: number; achieved: number; rate: number }> = {};
           Object.entries(agg.catTotals).forEach(([cat, c]) => {
@@ -836,19 +816,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
               : (agg.rateCount > 0 ? Math.round(agg.rateSum / agg.rateCount) : (agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : 0)),
             rank: 0,
             categoryMap,
-            ict: zeroMetric,
-            flagship: zeroMetric,
-            phoneTablet: zeroMetric,
-            phone: zeroMetric,
-            laptop: zeroMetric,
-            phukien: zeroMetric,
-            dongho: zeroMetric,
-            camera: zeroMetric,
-            loa: zeroMetric,
-            sacduphong: zeroMetric,
-            tainghe: zeroMetric,
-            dennangluong: zeroMetric,
-            baohanh: zeroMetric,
           };
         });
       })()

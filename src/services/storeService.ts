@@ -120,19 +120,46 @@ export function getLocalCache(): FirebaseDataPayload {
   return memCache!;
 }
 
-function writeLocalCache(partial: Partial<FirebaseDataPayload>) {
-  const merged: FirebaseDataPayload = { ...getLocalCache(), ...partial };
-  memCache = merged;
+// Debounce the actual disk write (localStorage.setItem + IndexedDB), separate
+// from the in-memory update. subscribeToFirebaseData runs 12 independent
+// onSnapshot listeners, and a single save on another device typically touches
+// several of them (store data + settings) within milliseconds of each other —
+// each used to trigger its own full JSON.stringify + localStorage.setItem of
+// the ENTIRE multi-MB cached payload (all 4 store datasets combined), even
+// when only e.g. settings changed. That's redundant main-thread work exactly
+// when several updates are landing at once. memCache itself still updates
+// synchronously below, so getLocalCache() is always immediately correct —
+// only the slower disk persistence is coalesced.
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+const PERSIST_DEBOUNCE_MS = 150;
+
+function flushLocalCachePersist() {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  if (!memCache) return;
   try {
-    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(merged));
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(memCache));
   } catch (e) {
     // localStorage quota exceeded or unavailable — IndexedDB below has much
     // more headroom and is the fallback that actually survives this.
   }
-  // Best-effort mirror to IndexedDB — higher capacity & more durable than
-  // localStorage, so a full paste (hundreds of rows across 4 boxes) never
-  // silently fails to persist locally even if it grows past localStorage's quota.
-  void idbSet(LOCAL_CACHE_KEY, merged);
+  void idbSet(LOCAL_CACHE_KEY, memCache);
+}
+
+if (typeof window !== 'undefined') {
+  // Flush synchronously before the tab actually closes so a debounced write
+  // still in flight isn't silently lost — localStorage.setItem is synchronous
+  // and safe to call here, unlike the IndexedDB write inside it.
+  window.addEventListener('pagehide', flushLocalCachePersist);
+}
+
+function writeLocalCache(partial: Partial<FirebaseDataPayload>) {
+  const merged: FirebaseDataPayload = { ...getLocalCache(), ...partial };
+  memCache = merged;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(flushLocalCachePersist, PERSIST_DEBOUNCE_MS);
 }
 
 /**

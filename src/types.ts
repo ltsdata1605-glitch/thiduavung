@@ -26,22 +26,16 @@ export interface StoreRecord {
   rate: number; // Ty le %
   rank: number;
   
-  // Breakdown categories
+  // Breakdown categories — the single source of truth for every ngành hàng
+  // (target/achieved/rate). A parallel set of ~13 named fields (ict,
+  // flagship, phoneTablet, ...) used to be written alongside this on every
+  // store, every paste, only ever consulted as a fallback when categoryMap
+  // was missing an entry — but they held fabricated percentage-of-total
+  // numbers, not real data, and categoryMap always has every real category.
+  // Removed: dead weight that inflated every write/sync payload for no
+  // functional benefit (and would have shown fake numbers if ever hit).
   categoryMap?: Record<string, { target: number; achieved: number; rate: number }>;
-  ict: { achieved: number; rate: number };
-  flagship: { achieved: number; rate: number };
-  phoneTablet: { achieved: number; rate: number };
-  phone: { achieved: number; rate: number };
-  laptop: { achieved: number; rate: number };
-  phukien: { achieved: number; rate: number };
-  dongho: { achieved: number; rate: number };
-  camera: { achieved: number; rate: number };
-  loa: { achieved: number; rate: number };
-  sacduphong: { achieved: number; rate: number };
-  tainghe: { achieved: number; rate: number };
-  dennangluong: { achieved: number; rate: number };
-  baohanh: { achieved: number; rate: number };
-  
+
   achievedCategories?: number;
   lastUpdated?: string;
 }

@@ -819,7 +819,6 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
       const baseTarget = currentCategoryIsRevenue ? target : 0;
       const baseAchieved = currentCategoryIsRevenue ? achieved : 0;
       const baseRate = currentCategoryIsRevenue ? rate : 0;
-      const baseIct = Math.round(baseAchieved * 0.35);
       const catMap: Record<string, { target: number; achieved: number; rate: number }> = {};
       if (currentCategoryName) {
         catMap[currentCategoryName] = {
@@ -841,19 +840,6 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
         rate: baseRate,
         rank: 0,
         categoryMap: catMap,
-        ict: { achieved: baseIct, rate: Number((baseRate * 1.02).toFixed(1)) },
-        flagship: { achieved: Math.round(baseAchieved * 0.12), rate: Number((baseRate * 1.05).toFixed(1)) },
-        phoneTablet: { achieved: Math.round(baseAchieved * 0.16), rate: Number((baseRate * 1.01).toFixed(1)) },
-        phone: { achieved: Math.round(baseAchieved * 0.14), rate: Number((baseRate * 1.02).toFixed(1)) },
-        laptop: { achieved: Math.round(baseAchieved * 0.08), rate: Number((baseRate * 0.95).toFixed(1)) },
-        phukien: { achieved: Math.round(baseAchieved * 0.05), rate: Number((baseRate * 1.1).toFixed(1)) },
-        dongho: { achieved: Math.round(baseAchieved * 0.03), rate: Number((baseRate * 1.08).toFixed(1)) },
-        camera: { achieved: Math.round(baseAchieved * 0.02), rate: Number((baseRate * 0.98).toFixed(1)) },
-        loa: { achieved: Math.round(baseAchieved * 0.025), rate: Number((baseRate * 0.99).toFixed(1)) },
-        sacduphong: { achieved: Math.round(baseAchieved * 0.015), rate: Number((baseRate * 1.12).toFixed(1)) },
-        tainghe: { achieved: Math.round(baseAchieved * 0.01), rate: Number((baseRate * 1.05).toFixed(1)) },
-        dennangluong: { achieved: Math.round(baseAchieved * 0.005), rate: Number((baseRate * 0.85).toFixed(1)) },
-        baohanh: { achieved: Math.round(baseAchieved * 0.06), rate: Number((baseRate * 1.03).toFixed(1)) },
         lastUpdated: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       });
     }
@@ -1205,25 +1191,6 @@ export function getCategoryData(
       achieved: item.achieved || 0,
       rate: item.rate || 0,
     };
-  }
-  const legacyMap: Record<string, { achieved: number; rate: number } | undefined> = {
-    'Điện thoại Flagship Samsung Galaxy S/Z Series': s.flagship,
-    'Điện thoại & Tablet Android': s.phoneTablet,
-    'Điện thoại Realme': s.phone,
-    'Điện thoại Vivo': s.phone,
-    'Laptop': s.laptop,
-    'Phụ kiện - Đồng hồ': s.phukien,
-    'Đồng hồ (DHTT + SMW)': s.dongho,
-    'Camera': s.camera,
-    'Loa': s.loa,
-    'Sạc dự phòng': s.sacduphong,
-    'Tai nghe Bluetooth': s.tainghe,
-    'Đèn năng lượng mặt trời': s.dennangluong,
-    'Bảo hiểm': s.baohanh,
-  };
-  const legacy = legacyMap[cName];
-  if (legacy) {
-    return { target: 0, achieved: legacy.achieved || 0, rate: legacy.rate || 0 };
   }
   return { target: 0, achieved: 0, rate: 0 };
 }
