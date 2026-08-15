@@ -268,8 +268,13 @@ export async function exportElementAsImage(
 ): Promise<Blob | null> {
   const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
 
-  const scrollContainer = element.querySelector<HTMLElement>('.overflow-x-auto');
   const tableEl = element.querySelector<HTMLElement>('table');
+  // Scope the scroll wrapper lookup to the table itself — a plain element-wide
+  // querySelector would match the FIRST ".overflow-x-auto" in DOM order, which
+  // is often the (export-hidden) search/action toolbar above the table, not the
+  // table's own scroll wrapper. That mismeasured a narrow table's width against
+  // the wider toolbar and left blank padding on the right of the exported image.
+  const scrollContainer = tableEl?.closest<HTMLElement>('.overflow-x-auto') || element.querySelector<HTMLElement>('.overflow-x-auto');
   const liveTableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
   const liveScrollWidth = scrollContainer ? Math.ceil(Math.max(scrollContainer.scrollWidth, scrollContainer.offsetWidth)) : 0;
   const isMultiColumnTable = (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 20) || (liveTableWidth > 800);
