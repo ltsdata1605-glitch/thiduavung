@@ -293,8 +293,6 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     onClose();
   };
 
-  const ungroupedCount = categoryList.filter((c) => !draftMap[c.id]).length;
-
   const getGroupBadgeStyle = (group: string) => {
     if (group === UNGROUPED || !group) {
       return 'bg-slate-100 text-slate-500 border-slate-200';

@@ -10,6 +10,7 @@ import {
   resolveCategoryDisplayName,
   isExcludedStore,
   isExcludedChannel,
+  getFormattedNow,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
@@ -26,14 +27,10 @@ interface GroupReportViewProps {
   stores: StoreRecord[];
   selectedChannels: Channel[];
   selectedProvince: string;
-  selectedBoss: string;
   selectedCategory: string;
-  selectedCategoryGroup: string;
-  categoryGroupMap: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
   categoryDisplayNameMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
-  onOpenTagBossModal?: () => void;
 }
 
 /** Distinct pastel colors per channel for headers & badges */
@@ -535,12 +532,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   selectedChannels,
   selectedProvince,
   selectedCategory,
-  selectedCategoryGroup,
-  categoryGroupMap,
   categoryOrderMap = {},
   categoryDisplayNameMap = {},
   bossAssignments = [],
-  onOpenTagBossModal,
 }) => {
   // Extract all category names dynamically from real uploaded/pasted store dataset
   const allCategoryNames = useMemo(() => {
@@ -704,12 +698,12 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   // that shared function's Unicode-normalization fix and any future fix
   // made to the one true version.
 
-  // Real timestamp string for banners
-  const nowStr = lastUpdated || (timeMode === 'realtime' ? '19:10:51 NGÀY 12/8/2026' : '08:00:00 NGÀY 12/8/2026');
+  // Real timestamp string for banners — falls back to the actual current
+  // moment (not a fixed hardcoded date) when no real lastUpdated is synced yet.
+  const nowStr = lastUpdated || getFormattedNow();
 
   // Formats "19:10:51 NGÀY 12/8/2026" => "19:10:51 - 12/8"
   const formattedTimeStr = useMemo(() => {
-    if (!nowStr) return '19:10:51 - 12/8';
     let cleaned = nowStr.replace(/THỜI GIAN ĐẾN:\s*/i, '').trim();
     cleaned = cleaned.replace(/\s*NGÀY\s*/i, ' - ');
     cleaned = cleaned.replace(/\/20\d\d/, '');

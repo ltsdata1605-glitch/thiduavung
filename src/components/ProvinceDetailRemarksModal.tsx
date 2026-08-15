@@ -67,7 +67,7 @@ export function generateProvinceDetailRemarksText(params: {
   } = params;
 
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
-  const fullTime = lastUpdated || `${formattedTimeStr} NGÀY 13/8/2026`;
+  const fullTime = lastUpdated || formattedTimeStr;
   const formatInt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
 
   // 1. Filter stores in this province & selected channels

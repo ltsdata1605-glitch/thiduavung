@@ -855,6 +855,24 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
   return records;
 }
 
+/**
+ * "HH:MM:SS NGÀY DD/M/YYYY" for the current moment — the shared fallback
+ * used whenever a real `lastUpdated` timestamp isn't available yet (e.g. a
+ * fresh deploy or a remarks template built before any data synced). Several
+ * call sites used to hardcode a fixed past date/time string here instead,
+ * which looked increasingly wrong the further it got from when it was written.
+ */
+export function getFormattedNow(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  return `${hours}:${minutes}:${seconds} NGÀY ${day}/${month}/${year}`;
+}
+
 export function formatVND(amount: number): string {
   if (amount >= 1000) {
     return (amount / 1000).toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + ' Tỷ';
@@ -922,6 +940,57 @@ export function extractStoreCode(sieuthi: string = ''): string | null {
  * Ưu tiên 2: Dò tìm bằng Mã kho (Store Code ví dụ: DML_LAN_BLU, TGD_CTH_NKI)
  * Ưu tiên 3: Dò tìm bằng Tên Siêu Thị chuẩn hóa
  */
+// findBossAssignmentRecord used to do up to 3 full linear .find() scans of
+// bossAssignments on EVERY call — and it's called once per store from ~8
+// call sites across the app (GroupReportView, TagBossModal, ReportView,
+// TopBotRemarksModal, ProvinceDetailRemarksModal, App.tsx's bossList, ...),
+// each iterating the full store list (700-900 rows). That's O(stores ×
+// bossAssignments) — both sides routinely in the hundreds — repeated in
+// several unmemoized/re-triggered places. The exact-match tiers (MST, store
+// code, exact normalized name — which cover the overwhelming majority of
+// real lookups) are trivially indexable into Maps; only the final fuzzy
+// substring fallback genuinely requires a scan, and it only runs when every
+// exact tier already missed. Cached per bossAssignments array identity via
+// WeakMap, so a fresh paste (new array reference) naturally invalidates the
+// old index instead of ever going stale.
+interface BossAssignmentIndex {
+  byMst: Map<string, BossAssignmentRecord>;
+  byCode: Map<string, BossAssignmentRecord>;
+  byNormName: Map<string, BossAssignmentRecord>;
+}
+
+const bossIndexCache = new WeakMap<BossAssignmentRecord[], BossAssignmentIndex>();
+
+function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAssignmentIndex {
+  const cached = bossIndexCache.get(bossAssignments);
+  if (cached) return cached;
+
+  const byMst = new Map<string, BossAssignmentRecord>();
+  const byCode = new Map<string, BossAssignmentRecord>();
+  const byNormName = new Map<string, BossAssignmentRecord>();
+
+  // First occurrence wins for a given key — matches Array.find()'s
+  // "first match in array order" semantics exactly.
+  bossAssignments.forEach((b) => {
+    const mstDirect = b.mst ? b.mst.trim() : '';
+    if (mstDirect && !byMst.has(mstDirect)) byMst.set(mstDirect, b);
+    const mstFromSieuthi = extractMst(b.sieuthi);
+    if (mstFromSieuthi && !byMst.has(mstFromSieuthi)) byMst.set(mstFromSieuthi, b);
+
+    const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '');
+    if (code && !byCode.has(code)) byCode.set(code, b);
+
+    const normB = normalizeVietnameseForMatch(b.sieuthi);
+    if (normB && !byNormName.has(normB)) byNormName.set(normB, b);
+    const normBase = normalizeVietnameseForMatch(b.sieuthiBase || '');
+    if (normBase && !byNormName.has(normBase)) byNormName.set(normBase, b);
+  });
+
+  const index: BossAssignmentIndex = { byMst, byCode, byNormName };
+  bossIndexCache.set(bossAssignments, index);
+  return index;
+}
+
 export function findBossAssignmentRecord(
   storeSieuThi: string = '',
   bossAssignments: BossAssignmentRecord[] = []
@@ -929,40 +998,38 @@ export function findBossAssignmentRecord(
   if (!storeSieuThi || !bossAssignments || bossAssignments.length === 0) return null;
 
   const raw = storeSieuThi.trim();
+  const index = getBossAssignmentIndex(bossAssignments);
 
   // 1. Dò tìm chính xác bằng MST (Mã Siêu Thị / Mã Kho)
   const storeMst = extractMst(raw);
   if (storeMst) {
-    const matchByMst = bossAssignments.find((b) => {
-      if (b.mst && b.mst.trim() === storeMst) return true;
-      if (extractMst(b.sieuthi) === storeMst) return true;
-      return false;
-    });
+    const matchByMst = index.byMst.get(storeMst);
     if (matchByMst) return matchByMst;
   }
 
   // 2. Dò tìm chính xác bằng Mã Kho (ví dụ: DML_LAN_BLU, TGD_CTH_NKI, DML_AGI_CDO)
   const storeCodeKey = extractStoreCode(raw);
   if (storeCodeKey) {
-    const matchByCode = bossAssignments.find((b) => {
-      const bCode = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '');
-      return bCode === storeCodeKey;
-    });
+    const matchByCode = index.byCode.get(storeCodeKey);
     if (matchByCode) return matchByCode;
   }
 
-  // 3. Dò tìm bằng chuỗi tên chuẩn hóa
+  // 3. Dò tìm bằng chuỗi tên chuẩn hóa — khớp chính xác trước (O(1))
   const normStore = normalizeVietnameseForMatch(raw);
-  const matchByName = bossAssignments.find((b) => {
-    const normB = normalizeVietnameseForMatch(b.sieuthi);
-    const normBase = normalizeVietnameseForMatch(b.sieuthiBase || '');
-    return (
-      normB === normStore ||
-      normBase === normStore ||
-      (normStore.length > 6 && (normB.includes(normStore) || normStore.includes(normB)))
-    );
-  });
-  if (matchByName) return matchByName;
+  const matchByExactName = index.byNormName.get(normStore);
+  if (matchByExactName) return matchByExactName;
+
+  // 3b. Fallback cuối: so khớp một phần (substring) — không thể index hoá vì
+  // đây là quan hệ "chứa nhau", không phải bằng nhau, nên vẫn cần quét tuyến
+  // tính, nhưng chỉ chạy khi cả 3 tầng khớp chính xác ở trên đều không tìm
+  // thấy (trường hợp hiếm trong thực tế).
+  if (normStore.length > 6) {
+    const matchByName = bossAssignments.find((b) => {
+      const normB = normalizeVietnameseForMatch(b.sieuthi);
+      return normB.includes(normStore) || normStore.includes(normB);
+    });
+    if (matchByName) return matchByName;
+  }
 
   return null;
 }

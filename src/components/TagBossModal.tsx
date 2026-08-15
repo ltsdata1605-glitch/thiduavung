@@ -6,6 +6,7 @@ import {
   getCategoryData,
   isExcludedStore,
   isExcludedChannel,
+  getFormattedNow,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
@@ -22,7 +23,6 @@ interface TagBossModalProps {
   selectedProvince?: string;
   selectedChannels?: Channel[];
   selectedCategory?: string;
-  selectedCategoryGroup?: string;
   bossAssignments?: BossAssignmentRecord[];
   categoryDisplayNameMap?: Record<string, string>;
   timeModeName?: string;
@@ -54,7 +54,7 @@ export function generateReportRemarksText(params: {
   const safeStores = stores || [];
   const modeIcon = isLuyKe ? '📈' : '⚡';
   const modeTitle = isLuyKe ? 'CẬP NHẬT LUỸ KẾ' : 'CẬP NHẬT REALTIME';
-  const fullTime = lastUpdated || `19:59:24 NGÀY 13/8/2026`;
+  const fullTime = lastUpdated || getFormattedNow();
 
   const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
   const provinceName = isSpecificProvince ? selectedProvince.toUpperCase() : '';
@@ -329,7 +329,6 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   selectedProvince = 'ALL',
   selectedChannels = [],
   selectedCategory = 'ALL',
-  selectedCategoryGroup = 'ALL',
   bossAssignments = [],
   categoryDisplayNameMap = {},
   timeModeName = 'Luỹ kế',
@@ -343,7 +342,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   const safeStores = stores || [];
   const modeIcon = isLuyKe ? '📈' : '⚡';
   const modeTitle = isLuyKe ? 'CẬP NHẬT LUỸ KẾ' : 'CẬP NHẬT REALTIME';
-  const fullTime = lastUpdated || `19:59:24 NGÀY 13/8/2026`;
+  const fullTime = lastUpdated || getFormattedNow();
 
   const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
   const provinceName = isSpecificProvince ? selectedProvince.toUpperCase() : '';
@@ -607,58 +606,6 @@ ${botLines || 'Đang cập nhật'}
 👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
   }, [
     provinceRanking,
-    modeIcon,
-    modeTitle,
-    fullTime,
-    regionMetrics,
-    totalTarget,
-    totalAchieved,
-    selectedCategory,
-    totalCatCount,
-  ]);
-
-  // Mẫu 2 (Vùng): Top 10 & Bot 10 Siêu thị toàn vùng (Không tag tên)
-  const templateVungTopBotStore = useMemo(() => {
-    const top10 = storeRanking.slice(0, 10);
-    const storesWithTarget = storeRanking.filter((s) => s.target > 0);
-    const bot10 = storesWithTarget.slice(-10).reverse();
-
-    const topLines = top10
-      .map((s, idx) => {
-        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
-        const valuePart =
-          selectedCategory !== 'ALL'
-            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
-            : `${s.achievedCategories} / ${totalCatCount}`;
-        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
-      })
-      .join('\n');
-
-    const botLines = bot10
-      .map((s) => {
-        const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
-        const valuePart =
-          selectedCategory !== 'ALL'
-            ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
-            : `${s.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
-      })
-      .join('\n');
-
-    return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ TOÀN VÙNG TNB - ${fullTime}
-━━━━━━━━━━━━━━
-📊 KẾT QUẢ TOÀN VÙNG: ${regionMetrics.vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${regionMetrics.vungRate}%)
-🎯 Target: ${formatInt(totalTarget)} | ${modeIcon} Thực đạt: ${formatInt(totalAchieved)}
-
-🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
-${topLines || 'Đang cập nhật'}
-
-⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
-${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━
-👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
-  }, [
-    storeRanking,
     modeIcon,
     modeTitle,
     fullTime,

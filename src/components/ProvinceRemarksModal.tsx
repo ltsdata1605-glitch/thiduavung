@@ -29,7 +29,7 @@ export function generateProvinceRemarksText(params: {
 }): string {
   const { categoryName, timeMode, lastUpdated, formattedTimeStr, rows = [], totalSummary = { target: 0, achieved: 0, rate: 0 }, channelLabel = '' } = params;
 
-  const fullTime = lastUpdated || `${formattedTimeStr} NGÀY 13/8/2026`;
+  const fullTime = lastUpdated || formattedTimeStr;
   const modeIcon = timeMode === 'realtime' ? '⚡' : '📈';
   const modeTitle = timeMode === 'realtime' ? 'CẬP NHẬT REALTIME' : 'CẬP NHẬT LUỸ KẾ';
   const header = `${modeIcon} ${modeTitle} - ${categoryName.toUpperCase()} - ${fullTime}`;

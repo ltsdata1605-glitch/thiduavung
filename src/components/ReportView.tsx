@@ -1276,14 +1276,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
           stores={stores}
           selectedChannels={selectedChannels}
           selectedProvince={selectedProvince}
-          selectedBoss={selectedBoss}
           selectedCategory={selectedCategory}
-          selectedCategoryGroup={selectedCategoryGroup}
-          categoryGroupMap={categoryGroupMap}
           categoryOrderMap={categoryOrderMap}
           categoryDisplayNameMap={categoryDisplayNameMap}
           bossAssignments={bossAssignments}
-          onOpenTagBossModal={onOpenTagBossModal}
         />
       </React.Suspense>
     );
