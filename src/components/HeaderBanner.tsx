@@ -207,12 +207,18 @@ const CategoryGroupMultiSelectFilter: React.FC<{
             <button
               type="button"
               onClick={handleSelectAll}
-              className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+              className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                 isAll ? 'bg-indigo-50 text-indigo-900 font-black' : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
+              <span
+                className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-all shrink-0 ${
+                  isAll ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white'
+                }`}
+              >
+                {isAll && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+              </span>
               <span>Tất cả các nhóm</span>
-              {isAll && <Check className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5]" />}
             </button>
 
             {categoryGroupList.map((g) => {
@@ -416,12 +422,18 @@ const CategoryMultiSelectFilter: React.FC<{
             <button
               type="button"
               onClick={handleSelectAll}
-              className={`w-full px-3 py-1.5 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+              className={`w-full px-3 py-1.5 text-xs font-bold text-left rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                 isAll ? 'bg-sky-50 text-sky-900 font-black' : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
+              <span
+                className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
+                  isAll ? 'bg-sky-600 border-sky-600 text-white' : 'border-slate-300 bg-white'
+                }`}
+              >
+                {isAll && <Check className="w-3 h-3 stroke-[3]" />}
+              </span>
               <span>Tất cả ngành hàng</span>
-              {isAll && <Check className="w-3.5 h-3.5 text-sky-600 stroke-[2.5]" />}
             </button>
 
             {searchableOptions.map((c) => {
@@ -433,13 +445,12 @@ const CategoryMultiSelectFilter: React.FC<{
                   key={c.id}
                   type="button"
                   onClick={() => toggleCategory(c.id)}
-                  className={`w-full px-3 py-1.5 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                  className={`w-full px-3 py-1.5 text-xs font-bold text-left rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
                     isChecked
                       ? 'bg-sky-100 text-sky-950 font-black'
                       : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <span className="truncate">{displayName}</span>
                   <span
                     className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ${
                       isChecked
@@ -451,6 +462,7 @@ const CategoryMultiSelectFilter: React.FC<{
                   >
                     {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                   </span>
+                  <span className="truncate">{displayName}</span>
                 </button>
               );
             })}
