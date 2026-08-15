@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, BossAssignmentRecord } from '../utils/parser';
 // Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
 // instead of shipping ~1300 lines of Nhóm-only report code in the bundle
 // every user downloads to see the default VÙNG/SIÊU THỊ view.
@@ -613,41 +613,68 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // getBossForStore/getChannelForStore/getDtQdTbForStore do) means O(rows ×
   // bossAssignments) scans repeated on every render — the actual cause of the
   // freeze when switching into this view. A Map turns each row's lookup into O(1).
-  const bossByMst = useMemo(() => {
-    const map = new Map<string, BossAssignmentRecord>();
+  // Fast Multi-Index lookup for BOSS assignments:
+  // 1. By MST (numeric store code)
+  // 2. By Store Warehouse Code (e.g. "DML_LAN_BLU", "TGD_CTH_NKI")
+  // 3. By Normalized Store Name
+  const bossMap = useMemo(() => {
+    const byMst = new Map<string, BossAssignmentRecord>();
+    const byCode = new Map<string, BossAssignmentRecord>();
+    const byNormName = new Map<string, BossAssignmentRecord>();
+
     bossAssignments.forEach((b) => {
-      const mst = extractMst(b.sieuthi);
-      if (mst) map.set(mst, b);
+      if (b.mst) byMst.set(b.mst.trim(), b);
+      const mstFromSieuthi = extractMst(b.sieuthi);
+      if (mstFromSieuthi) byMst.set(mstFromSieuthi, b);
+
+      const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '');
+      if (code) byCode.set(code, b);
+
+      if (b.sieuthi) byNormName.set(normalizeVietnameseForMatch(b.sieuthi), b);
+      if (b.sieuthiBase) byNormName.set(normalizeVietnameseForMatch(b.sieuthiBase), b);
     });
-    return map;
+
+    return { byMst, byCode, byNormName };
   }, [bossAssignments]);
+
+  const findBossRecord = useCallback((sieuthi: string): BossAssignmentRecord | undefined => {
+    if (!sieuthi) return undefined;
+    const mst = extractMst(sieuthi);
+    if (mst && bossMap.byMst.has(mst)) return bossMap.byMst.get(mst);
+
+    const code = extractStoreCode(sieuthi);
+    if (code && bossMap.byCode.has(code)) return bossMap.byCode.get(code);
+
+    const norm = normalizeVietnameseForMatch(sieuthi);
+    if (bossMap.byNormName.has(norm)) return bossMap.byNormName.get(norm);
+
+    return undefined;
+  }, [bossMap]);
 
   const resolveBoss = useCallback((sieuthi: string, fallbackBoss: string = 'Chưa phân công'): string => {
     const rawFallback = (fallbackBoss || '').replace(/^Boss\s+/i, '').trim();
-    const mst = extractMst(sieuthi);
-    const match = mst ? bossByMst.get(mst) : undefined;
+    const match = findBossRecord(sieuthi);
     if (match && match.boss) {
       const cleaned = match.boss.replace(/^Boss\s+/i, '').trim();
       if (cleaned) return cleaned;
     }
     return rawFallback || 'Chưa phân công';
-  }, [bossByMst]);
+  }, [findBossRecord]);
 
+  // KÊNH strictly from Column N of the BOSS file:
   const resolveKenh = useCallback((sieuthi: string, fallbackKenh: Channel | string = 'DML'): Channel | string => {
-    const mst = extractMst(sieuthi);
-    const match = mst ? bossByMst.get(mst) : undefined;
+    const match = findBossRecord(sieuthi);
     if (match && match.kenh) return parseChannelValue(match.kenh);
     return fallbackKenh;
-  }, [bossByMst]);
+  }, [findBossRecord]);
 
   const resolveDtQd = useCallback((sieuthi: string): string => {
-    const mst = extractMst(sieuthi);
-    const match = mst ? bossByMst.get(mst) : undefined;
+    const match = findBossRecord(sieuthi);
     if (match && match.dtQdTb !== undefined && match.dtQdTb !== null && match.dtQdTb !== '') {
       return String(match.dtQdTb);
     }
     return '-';
-  }, [bossByMst]);
+  }, [findBossRecord]);
 
   // Filter stores according to active user filters
   const hasSearch = Boolean(searchTerm.trim());

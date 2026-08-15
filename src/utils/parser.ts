@@ -3,10 +3,12 @@ import { StoreRecord, Channel } from '../types';
 export interface BossAssignmentRecord {
   stt?: number;
   tinh?: string;
+  mst?: string;
   boss: string;
   bossRaw?: string;
   kenh?: Channel | string;
   sieuthi: string;
+  sieuthiBase?: string;
   chienIct?: string;
   chienCe?: string;
   slTruongCa?: string | number;
@@ -371,6 +373,14 @@ export function parseBossPastedData(text: string): {
   const results: BossAssignmentRecord[] = [];
 
   // Detect Column Indices with precise priority matching for full BI Excel format
+  let colMst = headers.findIndex((h) => h === 'MST' || h === 'MÃ SIÊU THỊ' || h === 'MA SIEU THI' || h === 'MÃ KHO' || h === 'MA KHO');
+  if (colMst === -1) {
+    colMst = headers.findIndex((h) => h.includes('MST') && !h.includes('TÊN'));
+  }
+  if (colMst === -1 && headers.length > 8) {
+    colMst = 8;
+  }
+
   let colBoss = headers.findIndex((h) => h === 'BOSS T7' || h === 'BOSS');
   if (colBoss === -1) {
     colBoss = headers.findIndex((h) => h.includes('BOSS T7'));
@@ -381,11 +391,6 @@ export function parseBossPastedData(text: string): {
   if (colBoss === -1) {
     colBoss = headers.findIndex((h) => h.includes('USER'));
   }
-  // Column M (index 12) is the confirmed BOSS column ("Tên_mã" format, e.g.
-  // "Phi_19002") in the standard BI Excel template. Excel artifacts (merged
-  // header cells, stray whitespace) can throw off the header-text search
-  // above, so once a header row is confirmed, trust this fixed position over
-  // a fuzzy match elsewhere in the row.
   if (headers.length > 12 && headers[12].replace(/\s+/g, ' ').trim().includes('BOSS')) {
     colBoss = 12;
   }
@@ -406,9 +411,13 @@ export function parseBossPastedData(text: string): {
     colTinh = headers.findIndex((h) => h.includes('TỈNH') && !h.includes('CỤM') && !h.includes('HUYỆN'));
   }
 
+  // Cột N (index 13) là cột KÊNH duy nhất từ file BOSS
   let colKenh = headers.findIndex((h) => h === 'KÊNH' || h === 'KENH');
   if (colKenh === -1) {
     colKenh = headers.findIndex((h) => h.includes('KÊNH') || h.includes('KENH'));
+  }
+  if (colKenh === -1 && headers.length > 13) {
+    colKenh = 13;
   }
 
   let colChienIct = headers.findIndex((h) => h === 'CHIẾN ICT' || h.includes('CHIẾN ICT'));
@@ -430,6 +439,9 @@ export function parseBossPastedData(text: string): {
 
     if (cells.length < 2) continue;
 
+    const rawMst = colMst >= 0 && cells[colMst] ? cells[colMst] : cells[8] || extractMst(cells[14] || cells[9] || '') || '';
+    const mst = rawMst.trim();
+
     let rawBoss = colBoss >= 0 && cells[colBoss] ? cells[colBoss] : (cells[12] || cells[2] || '');
     if (rawBoss === 'Lưu Động' || rawBoss.toUpperCase().includes('ĐML-ĐMM-ĐMS')) {
       rawBoss = cells[12] || '';
@@ -443,9 +455,12 @@ export function parseBossPastedData(text: string): {
         ? cells[colSieuThi]
         : cells[14] || cells[9] || cells[6] || cells[0] || '';
 
+    const sieuthiBase = cells[6] || cells[0] || '';
+
     const tinh =
       colTinh >= 0 && cells[colTinh] ? cells[colTinh] : cells[11] || cells[7] || cells[3] || '';
 
+    // Kênh lấy chính xác và duy nhất từ cột N (colKenh hoặc index 13)
     const rawKenh = colKenh >= 0 && cells[colKenh] ? cells[colKenh] : cells[13] || '';
     const kenh = cleanKenhValue(rawKenh, cells[13] || '');
 
@@ -465,10 +480,12 @@ export function parseBossPastedData(text: string): {
       results.push({
         stt: results.length + 1,
         tinh: tinh || 'TNB',
+        mst: mst || undefined,
         boss: bossName,
         bossRaw: bossName,
         kenh,
         sieuthi,
+        sieuthiBase: sieuthiBase || undefined,
         chienIct,
         chienCe,
         slTruongCa,
@@ -874,37 +891,93 @@ export function normalizeVietnameseForMatch(str: string = ''): string {
 }
 
 /**
- * Extracts the leading numeric MST (store code) from a "MST – TÊN SIÊU THỊ"
- * string, e.g. "908 - ĐML_AGI_LXU - 129 Trần Hưng Đạo" -> "908".
+ * Extracts the numeric MST (store code) from a store string.
+ * Supports "1165 - ĐML_LAN_BLU...", "(1165)", "... - 1165 - ...", etc.
  */
 export function extractMst(sieuthi: string = ''): string | null {
-  const m = (sieuthi || '').trim().match(/^(\d{3,6})/);
-  return m ? m[1] : null;
+  if (!sieuthi) return null;
+  const str = sieuthi.trim();
+  // 1. Chuỗi bắt đầu bằng mã số (ví dụ: "1165 - ĐML_LAN_BLU..." hoặc "1165")
+  const mLeading = str.match(/^(\d{2,6})/);
+  if (mLeading) return mLeading[1];
+
+  // 2. Mã số đứng riêng lẻ bên trong chuỗi (ví dụ: "... - 1165 - ..." hoặc "(1165)")
+  const mMiddle = str.match(/(?:^|\s|-|_|\[|\()(\d{3,6})(?:\s|-|_|\]|\)|$)/);
+  if (mMiddle) return mMiddle[1];
+
+  return null;
 }
 
 /**
- * Finds the bossAssignments record whose MST (leading store code) matches the
- * report row's MST exactly. This is the only reliable join key between the
- * Report and the uploaded BOSS file — two different stores can share very
- * similar or even identical names (e.g. two branches in the same "cụm"/ward),
- * so matching by name similarity risks pulling the wrong store's BOSS/KÊNH.
- * Returns null (no fallback guessing) when the MST can't be found on either
- * side or doesn't match anything in bossAssignments.
+ * Extracts store warehouse code (ví dụ: "DML_LAN_BLU", "TGD_CTH_NKI", "DML_AGI_CDO").
  */
-function findByExactMst(
+export function extractStoreCode(sieuthi: string = ''): string | null {
+  if (!sieuthi) return null;
+  const m = sieuthi.match(/([a-zđA-ZĐ]{3}_[a-z0-9A-Z0-9]{2,5}_[a-z0-9A-Z0-9]{2,5})/i);
+  return m ? m[1].toUpperCase().replace(/Đ/g, 'D') : null;
+}
+
+/**
+ * Dò tìm chính xác siêu thị trong danh sách file BOSS:
+ * Ưu tiên 1: Dò tìm bằng MST (Mã Siêu Thị / Mã Kho từ Cột I)
+ * Ưu tiên 2: Dò tìm bằng Mã kho (Store Code ví dụ: DML_LAN_BLU, TGD_CTH_NKI)
+ * Ưu tiên 3: Dò tìm bằng Tên Siêu Thị chuẩn hóa
+ */
+export function findBossAssignmentRecord(
+  storeSieuThi: string = '',
+  bossAssignments: BossAssignmentRecord[] = []
+): BossAssignmentRecord | null {
+  if (!storeSieuThi || !bossAssignments || bossAssignments.length === 0) return null;
+
+  const raw = storeSieuThi.trim();
+
+  // 1. Dò tìm chính xác bằng MST (Mã Siêu Thị / Mã Kho)
+  const storeMst = extractMst(raw);
+  if (storeMst) {
+    const matchByMst = bossAssignments.find((b) => {
+      if (b.mst && b.mst.trim() === storeMst) return true;
+      if (extractMst(b.sieuthi) === storeMst) return true;
+      return false;
+    });
+    if (matchByMst) return matchByMst;
+  }
+
+  // 2. Dò tìm chính xác bằng Mã Kho (ví dụ: DML_LAN_BLU, TGD_CTH_NKI, DML_AGI_CDO)
+  const storeCodeKey = extractStoreCode(raw);
+  if (storeCodeKey) {
+    const matchByCode = bossAssignments.find((b) => {
+      const bCode = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '');
+      return bCode === storeCodeKey;
+    });
+    if (matchByCode) return matchByCode;
+  }
+
+  // 3. Dò tìm bằng chuỗi tên chuẩn hóa
+  const normStore = normalizeVietnameseForMatch(raw);
+  const matchByName = bossAssignments.find((b) => {
+    const normB = normalizeVietnameseForMatch(b.sieuthi);
+    const normBase = normalizeVietnameseForMatch(b.sieuthiBase || '');
+    return (
+      normB === normStore ||
+      normBase === normStore ||
+      (normStore.length > 6 && (normB.includes(normStore) || normStore.includes(normB)))
+    );
+  });
+  if (matchByName) return matchByName;
+
+  return null;
+}
+
+export function findByExactMst(
   storeSieuThi: string,
   bossAssignments: BossAssignmentRecord[]
 ): BossAssignmentRecord | null {
-  const storeCode = extractMst(storeSieuThi);
-  if (!storeCode) return null;
-  return bossAssignments.find((b) => extractMst(b.sieuthi) === storeCode) || null;
+  return findBossAssignmentRecord(storeSieuThi, bossAssignments);
 }
 
 /**
- * Matches a store's MST (leading store code) against bossAssignments (from the
- * uploaded BOSS file) and returns the exact assigned Boss name in Tên_mãUser
- * format (e.g. "Linh_3031", "Danh_39470", "Đạt_49412"). Falls back to the
- * report's own boss value when no exact MST match exists.
+ * Matches a store against bossAssignments (from the uploaded BOSS file)
+ * and returns the exact assigned Boss name in Tên_mãUser format.
  */
 export function getBossForStore(
   storeSieuThi: string,
@@ -913,7 +986,7 @@ export function getBossForStore(
 ): string {
   const rawFallback = (fallbackBoss || '').replace(/^Boss\s+/i, '').trim();
 
-  const match = findByExactMst(storeSieuThi, bossAssignments);
+  const match = findBossAssignmentRecord(storeSieuThi, bossAssignments);
   if (match && match.boss) {
     const cleanMatchedBoss = match.boss.replace(/^Boss\s+/i, '').trim();
     if (cleanMatchedBoss) return cleanMatchedBoss;
@@ -928,13 +1001,13 @@ export function getBossForStore(
 export function parseChannelValue(rawVal: string = ''): Channel | string {
   const u = (rawVal || '').toUpperCase().trim();
   if (u === 'OFF' || u.includes('OFFLINE')) return 'OFF';
-  if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG')) return 'LƯU ĐỘNG';
+  if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
   if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
   if (u.includes('DMM') || u.includes('ĐMM')) return 'DMM';
   if (u.includes('DMS') || u.includes('ĐMS')) return 'DMS';
   if (u.includes('TGD') || u.includes('TGDD')) return 'TGD';
   if (u.includes('DML') || u.includes('ĐML')) return 'DML';
-  return 'DML';
+  return rawVal.trim() || 'DML';
 }
 
 /**
@@ -946,8 +1019,8 @@ export function getChannelLabel(kenh: string = ''): string {
 }
 
 /**
- * Helper to match a store's name/code against bossAssignments (from file BOSS)
- * and return the exact Channel assigned in the BOSS file (e.g. "TopZone", "TGD", "DMM", "DMS", "DML").
+ * Lấy chính xác KÊNH từ file BOSS (Cột N) thông qua dò tìm MST / Mã kho.
+ * Tuyệt đối không đoán kênh từ mã kho hay tên siêu thị.
  */
 export function getChannelForStore(
   storeSieuThi: string,
@@ -958,7 +1031,7 @@ export function getChannelForStore(
     return fallbackKenh;
   }
 
-  const match = findByExactMst(storeSieuThi, bossAssignments);
+  const match = findBossAssignmentRecord(storeSieuThi, bossAssignments);
   if (match && match.kenh) {
     return parseChannelValue(match.kenh);
   }

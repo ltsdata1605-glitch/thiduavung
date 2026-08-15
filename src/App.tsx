@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount } from './types';
 import { initialUserProfile, initialSettings } from './data/sampleData';
-import { getBossForStore, extractMst, BossAssignmentRecord } from './utils/parser';
+import { getBossForStore, extractMst, findBossAssignmentRecord, BossAssignmentRecord } from './utils/parser';
 import { Sidebar } from './components/Sidebar';
 import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
@@ -774,22 +774,9 @@ function AppInner() {
   const handleUpdateBossData = async (newBossAssignments: BossAssignmentRecord[]) => {
     if (newBossAssignments.length === 0) return;
 
-    // Keyed by MST (leading store code) — the only reliable join key between
-    // datasets; two different stores can have very similar names (e.g. two
-    // branches in the same "cụm"/ward), so matching by name text risks
-    // pulling the wrong store's BOSS/KÊNH. This also turns what used to be an
-    // O(stores × bossAssignments) substring-scan fallback into an O(1) lookup
-    // per store, which matters once both lists run into the hundreds.
-    const bossMstMap = new Map<string, BossAssignmentRecord>();
-    newBossAssignments.forEach((b) => {
-      const mst = extractMst(b.sieuthi);
-      if (mst) bossMstMap.set(mst, b);
-    });
-
     const updateStores = (stores: StoreRecord[]) =>
       stores.map((s) => {
-        const mst = extractMst(s.sieuthi);
-        const found = mst ? bossMstMap.get(mst) : undefined;
+        const found = findBossAssignmentRecord(s.sieuthi, newBossAssignments);
         if (found) {
           return {
             ...s,
