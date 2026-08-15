@@ -410,11 +410,21 @@ export async function exportElementAsImage(
     const tableInClone = clone.querySelector('table');
     const actualTableWidth = tableInClone ? Math.ceil(Math.max(tableInClone.scrollWidth, tableInClone.offsetWidth, tableInClone.getBoundingClientRect().width)) : 0;
     
-    // Account for card padding/borders so the rightmost table column is never clipped
+    // Account for card padding/borders so the rightmost table column is never clipped.
+    // This used to add a flat +20px "safety" buffer on top — but a table with
+    // table-layout:auto does NOT reliably stretch to fill width:100% of a
+    // wider container (verified: forcing width:100% on a container 20px wider
+    // than the table's natural content left the table sitting at its own
+    // natural width regardless), so that buffer was never actually absorbed
+    // into extra column width. It just sat there as a permanent blank strip
+    // on the right of every single-card export (most visible on a card with
+    // no whole-table border, like the TGD/ĐMX overview cards). A small +4px
+    // margin still covers genuine sub-pixel measurement rounding without
+    // leaving a visible gap.
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const totalRequiredWidth = (actualTableWidth > 0 ? actualTableWidth : liveTableWidth) + padLeft + padRight + 20;
+    const totalRequiredWidth = (actualTableWidth > 0 ? actualTableWidth : liveTableWidth) + padLeft + padRight + 4;
 
     let finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
     if (isMultiColumnTable) {
@@ -740,11 +750,15 @@ export async function exportGroupSpecificElement(
     const tableEl = clone.querySelector('table');
     const tableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
     
+    // See exportElementAsImage's identical calculation above for why this is
+    // a small +4px margin rather than the flat +20px it used to be — a
+    // table-layout:auto table doesn't reliably stretch into extra width:100%
+    // headroom, so a bigger buffer here just becomes a visible blank strip.
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const minWidth = groupKey === 'quick' ? (tableWidth + padLeft + padRight + 20) : 600;
-    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight + 20, minWidth));
+    const minWidth = groupKey === 'quick' ? (tableWidth + padLeft + padRight + 4) : 600;
+    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight + 4, minWidth));
 
     // Explicitly constrain clone, captureContainer, and all child div containers to finalWidth
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
