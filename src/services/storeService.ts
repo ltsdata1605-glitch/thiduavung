@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { doc, setDoc, getDoc, collection, writeBatch, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, writeBatch, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { StoreRecord, AppSettings } from '../types';
 import { BossAssignmentRecord } from '../utils/parser';
 import { idbGet, idbSet } from './indexedDbCache';
@@ -247,7 +247,12 @@ async function saveChunkedStoreDataset(
     for (let i = newChunks.length; i < newChunks.length + STALE_CHUNK_LOOKAHEAD; i++) {
       batch.delete(doc(chunksRef, String(i)));
     }
-    batch.set(doc(db, COLLECTION, docKey), { chunkCount: newChunks.length, lastUpdated, updatedBy });
+    // Server-resolved timestamp in Firestore itself (immune to the writing
+    // device's own clock being wrong) — the client's own `lastUpdated` ISO
+    // string above is still what goes into the local cache immediately below,
+    // since serverTimestamp() only resolves to a real value after the round
+    // trip completes.
+    batch.set(doc(db, COLLECTION, docKey), { chunkCount: newChunks.length, lastUpdated: serverTimestamp(), updatedBy });
 
     // Issue the network write first, then use the in-flight wait time to do
     // the local cache write (localStorage.setItem of a multi-MB payload isn't
@@ -282,7 +287,7 @@ async function saveDataset(
 
   try {
     const docRef = doc(db, COLLECTION, docKey);
-    const sanitized = sanitizeForFirestore({ data: value, lastUpdated, updatedBy });
+    const sanitized = { ...sanitizeForFirestore({ data: value, updatedBy }), lastUpdated: serverTimestamp() };
     // Overlap the local cache write with the in-flight network write instead
     // of paying for both sequentially — see saveChunkedStoreDataset for why.
     const setPromise = setDoc(docRef, sanitized);
@@ -422,9 +427,15 @@ export function subscribeToFirebaseData(
         hasSeenFirstSnapshot = true;
         if (docSnap.exists()) {
           const raw = docSnap.data();
+          // lastUpdated is a Firestore server Timestamp now (was a client ISO
+          // string) — normalize back to ISO string so every consumer downstream
+          // keeps working with a plain string regardless of which form a given
+          // document was last written with (old docs may still hold a string).
+          const rawLastUpdated = raw.lastUpdated;
+          const lastUpdatedIso = rawLastUpdated instanceof Timestamp ? rawLastUpdated.toDate().toISOString() : rawLastUpdated;
           const partial: Partial<FirebaseDataPayload> = {
             [field]: raw.data,
-            lastUpdated: raw.lastUpdated,
+            lastUpdated: lastUpdatedIso,
             updatedBy: raw.updatedBy,
           } as Partial<FirebaseDataPayload>;
           writeLocalCache(partial);
