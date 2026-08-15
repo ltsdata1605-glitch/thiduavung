@@ -239,12 +239,21 @@ async function saveChunkedStoreDataset(
     });
     // Clear out any stale chunks left over from a previous, larger save.
     // Deleting a doc that doesn't exist is a harmless no-op in Firestore, so
-    // this skips the getDocs() read-before-write round trip entirely — a
-    // generous fixed lookahead comfortably covers any realistic shrink (up to
-    // ~10,000 fewer records) while keeping the batch well under Firestore's
-    // 500-operation cap.
-    const STALE_CHUNK_LOOKAHEAD = 100;
-    for (let i = newChunks.length; i < newChunks.length + STALE_CHUNK_LOOKAHEAD; i++) {
+    // this skips the getDocs() read-before-write round trip entirely. Used to
+    // always append a blind 100-delete lookahead on top of the real chunk
+    // writes — tripling+ the batch's operation count on every single save
+    // (every save has stale-chunk deletes appended, virtually none of which
+    // are ever needed since store counts rarely shrink between pastes), which
+    // adds real server-side processing (security rule evaluation + write
+    // validation per operation) on top of the actual data upload. The local
+    // cache already knows how many chunks the last save for this exact
+    // docKey produced — bound the lookahead to that plus a generous margin
+    // instead of a fixed 100, with zero added network round trips.
+    const previousCount = (getLocalCache()[field] as StoreRecord[] | undefined)?.length || 0;
+    const previousChunkCount = previousCount > 0 ? Math.ceil(previousCount / STORE_CHUNK_SIZE) : 0;
+    const STALE_CHUNK_SAFETY_MARGIN = 10; // covers this device's local cache being a few saves behind
+    const staleChunkLookaheadEnd = Math.max(newChunks.length, previousChunkCount) + STALE_CHUNK_SAFETY_MARGIN;
+    for (let i = newChunks.length; i < staleChunkLookaheadEnd; i++) {
       batch.delete(doc(chunksRef, String(i)));
     }
     // Server-resolved timestamp in Firestore itself (immune to the writing

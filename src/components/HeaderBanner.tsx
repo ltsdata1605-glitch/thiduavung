@@ -843,7 +843,13 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               <select
                 disabled={entityScope === 'nhom'}
                 value={selectedTinhMoi}
-                onChange={(e) => setSelectedTinhMoi(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedTinhMoi(val);
+                  if (val !== 'ALL') {
+                    setSelectedProvince('ALL');
+                  }
+                }}
                 className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
               >
                 <option value="ALL">Tất cả</option>
@@ -862,7 +868,13 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             <select
               disabled={entityScope === 'nhom'}
               value={selectedProvince}
-              onChange={(e) => setSelectedProvince(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedProvince(val);
+                if (setSelectedTinhMoi && val !== 'ALL') {
+                  setSelectedTinhMoi('ALL');
+                }
+              }}
               className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
             >
               <option value="ALL">Tất cả</option>
