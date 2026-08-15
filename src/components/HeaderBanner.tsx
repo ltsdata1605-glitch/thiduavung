@@ -79,6 +79,184 @@ const getCategoryGroup = (catLabel: string, map?: Record<string, string>): strin
   return 'Chưa phân nhóm';
 };
 
+const CategoryGroupMultiSelectFilter: React.FC<{
+  disabled?: boolean;
+  selectedCategoryGroup: string;
+  setSelectedCategoryGroup: (group: string) => void;
+  categoryGroupList: string[];
+  categoryGroupMap?: Record<string, string>;
+}> = ({
+  disabled,
+  selectedCategoryGroup,
+  setSelectedCategoryGroup,
+  categoryGroupList,
+  categoryGroupMap = {},
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // Parse current selection
+  const selectedList = React.useMemo(() => {
+    if (!selectedCategoryGroup || selectedCategoryGroup === 'ALL') return [];
+    return selectedCategoryGroup.split(',').map((s) => s.trim()).filter(Boolean);
+  }, [selectedCategoryGroup]);
+
+  const isAll = selectedList.length === 0 || selectedCategoryGroup === 'ALL';
+
+  // Close when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const toggleGroup = (groupName: string) => {
+    if (isAll) {
+      // If previously ALL, selecting one group now selects ONLY this group
+      setSelectedCategoryGroup(groupName);
+    } else {
+      const exists = selectedList.includes(groupName);
+      let nextList: string[];
+      if (exists) {
+        nextList = selectedList.filter((g) => g !== groupName);
+      } else {
+        nextList = [...selectedList, groupName];
+      }
+
+      if (nextList.length === 0 || nextList.length === categoryGroupList.length) {
+        setSelectedCategoryGroup('ALL');
+      } else {
+        setSelectedCategoryGroup(nextList.join(','));
+      }
+    }
+  };
+
+  const handleSelectAll = () => {
+    setSelectedCategoryGroup('ALL');
+  };
+
+  // Count categories in each group
+  const groupCategoryCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    categoryGroupList.forEach((g) => {
+      counts[g] = Object.values(categoryGroupMap).filter((mapped) => mapped === g).length;
+    });
+    return counts;
+  }, [categoryGroupList, categoryGroupMap]);
+
+  // Compute trigger button label
+  const triggerLabel = React.useMemo(() => {
+    if (isAll) return 'Tất cả';
+    if (selectedList.length === 1) {
+      return selectedList[0];
+    }
+    if (selectedList.length === categoryGroupList.length) {
+      return 'Tất cả';
+    }
+    return selectedList.join(', ');
+  }, [isAll, selectedList, categoryGroupList]);
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-auto min-w-[110px] max-w-[190px] bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-800 flex items-center justify-between gap-1.5 cursor-pointer shadow-2xs transition-all ${
+          disabled ? 'opacity-50 cursor-not-allowed bg-slate-100 text-slate-400' : 'hover:border-slate-300'
+        } ${!isAll ? 'border-indigo-500 bg-indigo-50 text-indigo-900' : ''}`}
+        title="Chọn một hoặc nhiều nhóm ngành hàng"
+      >
+        <span className="truncate">{triggerLabel}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute left-0 top-full mt-1.5 w-64 bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in text-left">
+          {/* Header Actions */}
+          <div className="p-2.5 border-b border-slate-100 bg-slate-50/90 flex items-center justify-between text-[11px] font-bold text-slate-500">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className={`hover:text-indigo-600 cursor-pointer flex items-center gap-1 ${isAll ? 'text-indigo-600 font-extrabold' : ''}`}
+            >
+              <Check className="w-3 h-3" /> Chọn tất cả
+            </button>
+            {!isAll && (
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="hover:text-rose-600 cursor-pointer text-slate-400"
+              >
+                Khôi phục tất cả
+              </button>
+            )}
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
+            {/* "Tất cả" option */}
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                isAll ? 'bg-indigo-50 text-indigo-900 font-black' : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>Tất cả các nhóm</span>
+              {isAll && <Check className="w-3.5 h-3.5 text-indigo-600 stroke-[2.5]" />}
+            </button>
+
+            {categoryGroupList.map((g) => {
+              const isChecked = !isAll && selectedList.includes(g);
+              const count = groupCategoryCounts[g] || 0;
+
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => toggleGroup(g)}
+                  className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                    isChecked
+                      ? 'bg-indigo-100 text-indigo-950 font-black'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-all ${
+                        isChecked
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {isChecked && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                    </div>
+                    <span>{g}</span>
+                  </div>
+                  {count > 0 && (
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      ({count} ngành hàng)
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CategoryMultiSelectFilter: React.FC<{
   disabled?: boolean;
   selectedCategory: string;
@@ -369,12 +547,19 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
     }
   };
 
-  // Filter Ngành Hàng dropdown options depending on selected Nhóm N.Hàng
-  const filteredCategoryOptions = categoryList.filter((c) => {
-    if (selectedCategoryGroup === 'ALL') return true;
-    const catGroup = getCategoryGroup(c.label, categoryGroupMap);
-    return catGroup === selectedCategoryGroup;
-  });
+  // Filter Ngành Hàng dropdown options depending on selected Nhóm N.Hàng (supports multi-group)
+  const filteredCategoryOptions = React.useMemo(() => {
+    const selectedGroups = !selectedCategoryGroup || selectedCategoryGroup === 'ALL'
+      ? []
+      : selectedCategoryGroup.split(',').map((s) => s.trim()).filter(Boolean);
+
+    return categoryList.filter((c) => {
+      if (c.id === 'ALL') return true;
+      if (selectedGroups.length === 0) return true;
+      const catGroup = getCategoryGroup(c.label || c.id, categoryGroupMap);
+      return selectedGroups.includes(catGroup);
+    });
+  }, [selectedCategoryGroup, categoryList, categoryGroupMap]);
 
   // Reset selectedCategory to ALL if current selection is not in the filtered options
   React.useEffect(() => {
@@ -610,7 +795,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </select>
           </div>
 
-          {/* Select Category Group Dropdown (Clickable Label Opens Modal) */}
+          {/* Select Category Group Dropdown (Multi-Select Filter) */}
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -622,19 +807,13 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               <span>Nhóm N.Hàng:</span>
               <Settings2 className="w-3 h-3 text-indigo-500 hover:text-indigo-700" />
             </button>
-            <select
+            <CategoryGroupMultiSelectFilter
               disabled={entityScope === 'nhom'}
-              value={selectedCategoryGroup}
-              onChange={(e) => setSelectedCategoryGroup(e.target.value)}
-              className="w-[110px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-            >
-              <option value="ALL">Tất cả</option>
-              {categoryGroupList.map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
+              selectedCategoryGroup={selectedCategoryGroup}
+              setSelectedCategoryGroup={setSelectedCategoryGroup}
+              categoryGroupList={categoryGroupList}
+              categoryGroupMap={categoryGroupMap}
+            />
           </div>
 
           {/* Select Category Dropdown (Dynamically filtered by selected Nhóm N.Hàng with Multi-Select and Search) */}

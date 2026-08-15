@@ -17,6 +17,19 @@ export interface BossAssignmentRecord {
 }
 
 /**
+ * Canonicalize Vietnamese text to NFC before any channel/exclusion string
+ * comparison. Text pasted from Excel/Google Sheets can arrive as NFD
+ * (decomposed — base letter + separate combining diacritic marks) instead
+ * of the NFC form every hardcoded literal in this file is written in
+ * ("LƯU ĐỘNG" etc.) — visually identical, byte-for-byte different, so a
+ * plain .includes() silently fails depending on which encoding the source
+ * cell happened to use. This was very likely why the same store showed up
+ * as "LƯU ĐỘNG" in one screen (whichever comparison happened not to hit
+ * the encoding mismatch) and "ĐML" in another (whichever comparison did).
+ */
+const normVN = (s: string = ''): string => s.normalize('NFC');
+
+/**
  * Smart Shortening Engine for Category Column Headers.
  * Converts long Vietnamese BI category names into clean, compact abbreviations.
  */
@@ -246,7 +259,7 @@ export function validateBossHeaders(headers: string[]): BossValidationResult {
  * Prevents full store name strings from being read as channel names.
  */
 export function cleanKenhValue(rawVal: string, fallbackVal: string = ''): string {
-  const val = (rawVal || fallbackVal || '').trim();
+  const val = normVN(rawVal || fallbackVal || '').trim();
   if (!val) return 'TGD';
 
   const u = val.toUpperCase();
@@ -270,7 +283,7 @@ export function cleanKenhValue(rawVal: string, fallbackVal: string = ''): string
  * Checks if a channel string is excluded from ranking and reports
  */
 export function isExcludedChannel(k?: string): boolean {
-  const u = (k || '').toString().toUpperCase().trim();
+  const u = normVN((k || '').toString()).toUpperCase().trim();
   return u === 'OFF' || u.includes('OFFLINE') || u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u === 'LUUDONG';
 }
 
@@ -282,10 +295,10 @@ export function isExcludedStore(
   store: { sieuthi?: string; kenh?: string; boss?: string },
   bossAssignments: BossAssignmentRecord[] = []
 ): boolean {
-  const sieuthi = (store.sieuthi || '').toUpperCase();
-  const rawKenh = (store.kenh || '').toUpperCase();
-  const boss = (store.boss || '').toUpperCase();
-  const effectiveKenh = (getChannelForStore(store.sieuthi || '', bossAssignments, store.kenh) || '').toString().toUpperCase();
+  const sieuthi = normVN(store.sieuthi || '').toUpperCase();
+  const rawKenh = normVN(store.kenh || '').toUpperCase();
+  const boss = normVN(store.boss || '').toUpperCase();
+  const effectiveKenh = normVN((getChannelForStore(store.sieuthi || '', bossAssignments, store.kenh) || '').toString()).toUpperCase();
 
   return (
     effectiveKenh === 'OFF' ||
@@ -629,7 +642,7 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
   };
 
   const kenhFromSieuThi = (sieuthi: string): Channel | string => {
-    const u = sieuthi.toUpperCase();
+    const u = normVN(sieuthi).toUpperCase();
     if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
     if (u.includes('OFF') || u.includes('OFFLINE')) return 'OFF';
     if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
@@ -758,11 +771,11 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
     const tinh = tinhRaw;
     const boss = colBoss >= 0 ? cells[colBoss] : 'Boss Quản Lý';
 
-    let rawKenh = colKenh >= 0 ? (cells[colKenh] || '').toUpperCase() : '';
+    let rawKenh = colKenh >= 0 ? normVN(cells[colKenh] || '').toUpperCase() : '';
     let kenh: Channel | string;
     if (rawKenh.includes('LƯU ĐỘNG') || rawKenh.includes('LUU DONG') || rawKenh === 'LUUDONG') kenh = 'LƯU ĐỘNG';
     else if (rawKenh.includes('OFF') || rawKenh.includes('OFFLINE')) kenh = 'OFF';
-    else if (sieuthiRaw.toUpperCase().includes('LƯU ĐỘNG') || sieuthiRaw.toUpperCase().includes('LUU DONG') || sieuthiRaw.toUpperCase().includes('LUUDONG')) kenh = 'LƯU ĐỘNG';
+    else if (normVN(sieuthiRaw).toUpperCase().includes('LƯU ĐỘNG') || sieuthiRaw.toUpperCase().includes('LUU DONG') || sieuthiRaw.toUpperCase().includes('LUUDONG')) kenh = 'LƯU ĐỘNG';
     else if (rawKenh.includes('TOPZONE') || rawKenh.includes('TOP ZONE') || rawKenh.includes('TZ') || rawKenh.includes('AAR')) kenh = 'TopZone';
     else if (rawKenh.includes('TGD')) kenh = 'TGD';
     else if (rawKenh.includes('DMM')) kenh = 'DMM';
@@ -999,7 +1012,7 @@ export function getBossForStore(
  * Helper to parse raw channel text string into standard Channel type.
  */
 export function parseChannelValue(rawVal: string = ''): Channel | string {
-  const u = (rawVal || '').toUpperCase().trim();
+  const u = normVN(rawVal || '').toUpperCase().trim();
   if (u === 'OFF' || u.includes('OFFLINE')) return 'OFF';
   if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
   if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
@@ -1050,7 +1063,7 @@ export function getChannelForStore(
  * 7: Other
  */
 export function getChannelRank(kenh: string = ''): number {
-  const k = (kenh || '').toUpperCase().trim();
+  const k = normVN(kenh || '').toUpperCase().trim();
   if (k === 'DML' || k.includes('DML') || k.includes('ĐML')) return 1;
   if (k === 'DMM' || k.includes('DMM') || k.includes('ĐMM')) return 2;
   if (k === 'DMS' || k.includes('DMS') || k.includes('ĐMS')) return 3;
@@ -1147,7 +1160,7 @@ export function getDtQdTbForProvince(
 
   const matchingBossRecords = bossAssignments.filter((b) => {
     if (!b.tinh) return false;
-    const kenhU = (b.kenh || '').toString().toUpperCase();
+    const kenhU = normVN((b.kenh || '').toString()).toUpperCase();
     if (kenhU === 'OFF' || kenhU.includes('LƯU ĐỘNG') || kenhU.includes('LUU DONG') || kenhU === 'LUUDONG') {
       return false;
     }

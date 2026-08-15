@@ -698,11 +698,11 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
   // NO useEffect sync from header filters — header bộ lọc KHÔNG tác dụng
   // xuống các bộ lọc bên dưới. Mỗi card tự quản lý state riêng.
-
-  const isExcludedChannel = (k: string = ''): boolean => {
-    const u = (k || '').toUpperCase();
-    return u === 'OFF' || u.includes('OFFLINE') || u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u === 'LUUDONG';
-  };
+  //
+  // isExcludedChannel is imported from utils/parser.ts (see top of file) —
+  // a local re-implementation used to shadow it here, silently bypassing
+  // that shared function's Unicode-normalization fix and any future fix
+  // made to the one true version.
 
   // Real timestamp string for banners
   const nowStr = lastUpdated || (timeMode === 'realtime' ? '19:10:51 NGÀY 12/8/2026' : '08:00:00 NGÀY 12/8/2026');

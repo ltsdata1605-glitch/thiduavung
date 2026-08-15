@@ -847,7 +847,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
         });
       })()
     : filteredStores), [isProvinceView, filteredStores, timeMode, bossAssignments, resolveDtQd]);
-
   // Ordered list of 38 categories grouped by categoryGroupMap (falling back to DEFAULT_CATEGORY_GROUP) and ordered by categoryOrderMap
   const orderedHardcodedCategoryNames = useMemo(() => (() => {
     const grouped = new Map<string, string[]>();
@@ -867,12 +866,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return result;
   })(), [categoryGroupMap, categoryOrderMap]);
 
-  // Ngành hàng belonging to the selected Nhóm (Category Group) — ordered by custom position ordering
+  // Selected Category Groups list (supports multi-selection e.g. "ICT,CE & GD")
+  const selectedCategoryGroupsList = useMemo(() => {
+    if (!selectedCategoryGroup || selectedCategoryGroup === 'ALL') return [];
+    return selectedCategoryGroup.split(',').map((g) => g.trim()).filter(Boolean);
+  }, [selectedCategoryGroup]);
+
+  const isAllCategoryGroups = selectedCategoryGroupsList.length === 0 || selectedCategoryGroup === 'ALL';
+
+  // Ngành hàng belonging to the selected Nhóm (Category Groups) — ordered by custom position ordering
   const categoriesInSelectedGroup = useMemo(() => (
-    selectedCategoryGroup !== 'ALL'
+    !isAllCategoryGroups
       ? (() => {
           const selected = new Set(
-            Object.keys(categoryGroupMap).filter((cat) => categoryGroupMap[cat] === selectedCategoryGroup)
+            Object.keys(categoryGroupMap).filter((cat) =>
+              selectedCategoryGroupsList.includes(categoryGroupMap[cat])
+            )
           );
           const list = ALL_HARDCODED_CATEGORY_NAMES.filter((cat) => selected.has(cat));
           const unknown = Array.from(selected).filter((cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat));
@@ -881,10 +890,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
           );
         })()
       : []
-  ), [selectedCategoryGroup, categoryGroupMap, categoryOrderMap]);
+  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap]);
 
   // Whichever category columns are actually shown in the table right now
-  const baseDisplayedCategoryNames = selectedCategoryGroup !== 'ALL' ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;
+  const baseDisplayedCategoryNames = !isAllCategoryGroups ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;
 
   const selectedCategoriesList = useMemo(() => {
     if (!selectedCategory || selectedCategory === 'ALL') return [];
@@ -906,17 +915,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Number of category columns actually rendered right now
   const categoryColumnCount = Math.max(displayedCategoryNames.length, 1);
 
-  // When a specific custom Nhóm N.Hàng is filtered, every column shown
-  // belongs to that ONE group by definition — color the whole selection as a
-  // single band matching that group's own identity (ICT/Dịch vụ/CE&GD if the
-  // name matches a known preset, else a neutral fallback), instead of
-  // re-deriving each category's *native* preset group. Re-deriving natively
-  // is what fragmented a category the user explicitly reassigned (e.g. "Sim
-  // Tổng" moved into a custom "ICT" group) back into its old "Dịch vụ" color.
-  const unifiedFilterStyle = selectedCategoryGroup !== 'ALL' ? resolveStyleByGroupName(selectedCategoryGroup) : null;
+  // If exactly 1 group is selected, unifiedFilterStyle colors all columns consistently.
+  // If multiple groups or ALL are selected, unifiedFilterStyle is null and columns use dynamic grouping bands.
+  const unifiedFilterStyle = selectedCategoryGroupsList.length === 1 ? resolveStyleByGroupName(selectedCategoryGroupsList[0]) : null;
 
   // Contiguous same-preset-Nhóm runs within the active selection (only used
-  // for the unfiltered "ALL" view, which can span multiple native Nhóm).
+  // for the unfiltered "ALL" view or multi-group selection).
   const groupBandRuns: { style: ReturnType<typeof getPresetGroupStyle>; count: number }[] = unifiedFilterStyle
     ? (displayedCategoryNames.length > 0 ? [{ style: unifiedFilterStyle, count: displayedCategoryNames.length }] : [])
     : (() => {
@@ -950,7 +954,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // A Nhóm selection takes precedence over a single Ngành hàng selection —
   // they're two different granularities of the same filter, not meant to combine.
   const storesToDisplay = useMemo(() => baseRows.map((s) => {
-    if (selectedCategoryGroup !== 'ALL') {
+    if (!isAllCategoryGroups) {
       let target = 0;
       let achieved = 0;
       let rateSum = 0;
@@ -1156,8 +1160,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Dynamic Header Titles
   const mainHeaderTitle = (() => {
     const modeStr = isLuyke ? 'LUỸ KẾ' : 'REALTIME';
-    if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
-      return `${modeStr} THI ĐUA NHÓM ${selectedCategoryGroup.toUpperCase()}`;
+    if (!isAllCategoryGroups) {
+      const groupsStr = selectedCategoryGroupsList.map((g) => g.toUpperCase()).join(' + ');
+      return `${modeStr} THI ĐUA NHÓM ${groupsStr}`;
     }
     if (selectedCategoriesList.length === 1) {
       const catName = resolveCategoryDisplayName(selectedCategoriesList[0], categoryDisplayNameMap).toUpperCase();
@@ -1177,8 +1182,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
     if (selectedCategoriesList.length > 1) {
       return `CHỈ TÍNH ${selectedCategoriesList.length} NGÀNH HÀNG ĐÃ CHỌN`;
     }
-    if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
-      return `CHỈ TÍNH THI ĐUA NHÓM ${selectedCategoryGroup.toUpperCase()}`;
+    if (!isAllCategoryGroups) {
+      const groupsStr = selectedCategoryGroupsList.map((g) => g.toUpperCase()).join(' + ');
+      return `CHỈ TÍNH THI ĐUA NHÓM ${groupsStr}`;
     }
     const cleanChannels = selectedChannels.filter((c) => {
       const u = String(c).toUpperCase();
@@ -2039,7 +2045,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
               {sortedStores.length === 0 && (
                 <tr>
                   <td
-                    colSpan={(isProvinceView ? 5 : 8) + (selectedCategoryGroup !== 'ALL' ? Math.max(categoriesInSelectedGroup.length, 1) : ALL_HARDCODED_CATEGORY_NAMES.length)}
+                    colSpan={(isProvinceView ? 4 : 7) + (showDtQdTbColumn ? 1 : 0) + Math.max(displayedCategoryNames.length, 1)}
                     className="py-8 text-center text-slate-400 font-semibold font-sans"
                   >
                     Không tìm thấy siêu thị nào phù hợp với bộ lọc hiện tại.
