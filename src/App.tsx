@@ -42,7 +42,7 @@ import { usePersistedState } from './hooks/usePersistedState';
 import { exportElementAsImage, exportCategoryGroupImages } from './services/imageExport';
 import confetti from 'canvas-confetti';
 
-export default function App() {
+function AppInner() {
   // Authentication State — requires an actual login; no silent Super Admin bypass
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentSession());
 
@@ -273,6 +273,16 @@ export default function App() {
   // Sync browser document tab title
   useEffect(() => {
     document.title = 'Report thi đua - TNB Leaderboard';
+  }, []);
+
+  // AppInner successfully mounting means this load is healthy — clear the
+  // one-shot auto-reload flag ErrorBoundary sets on a stale-chunk error, so
+  // a *future* deploy that hits the same issue can still recover itself
+  // instead of silently staying stuck on a flag left over from today.
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem('tnb_chunk_reload_attempted');
+    } catch {}
   }, []);
 
   // Show Cloud Sync Modal when launching on a fresh device (when local store cache is empty)
@@ -1298,5 +1308,22 @@ export default function App() {
         onSave={handleSaveCategoryGroups}
       />
     </div>
+  );
+}
+
+// Top-level safety net: previously only the Report tab's content was wrapped
+// in an ErrorBoundary, so an uncaught error anywhere else (LoginView, the
+// Sidebar/HeaderBanner shell, an effect firing during the login/logout
+// transition, a lazy-chunk import failing after a fresh deploy invalidated
+// the old chunk hash the browser still had loaded) unmounted the *entire*
+// React tree with nothing left to render — a blank white page the user had
+// to manually refresh to recover from. Wrapping the whole app here means
+// every one of those cases now shows the same "Tải lại trang" recovery UI
+// instead of silence.
+export default function App() {
+  return (
+    <ErrorBoundary fallbackTitle="Đã xảy ra sự cố — vui lòng tải lại trang">
+      <AppInner />
+    </ErrorBoundary>
   );
 }

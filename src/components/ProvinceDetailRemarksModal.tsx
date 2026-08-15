@@ -6,6 +6,7 @@ import {
   getCategoryData,
   formatStoreDisplayName,
   resolveCategoryDisplayName,
+  isExcludedStore,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { X, Copy, Check, MessageSquare } from 'lucide-react';
@@ -72,8 +73,8 @@ export function generateProvinceDetailRemarksText(params: {
   // 1. Filter stores in this province & selected channels
   const provStores = stores.filter((s) => {
     if (s.tinh !== province) return false;
+    if (isExcludedStore(s, bossAssignments)) return false;
     const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
     if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
     return true;
   });

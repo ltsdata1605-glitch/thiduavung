@@ -26,6 +26,29 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo);
+
+    // Code-split chunks (React.lazy) are fetched by a content-hashed
+    // filename baked into the JS the browser already has loaded. After a
+    // fresh deploy, that old filename no longer exists on the server — the
+    // dynamic import rejects, and with nothing catching it that used to
+    // blank the whole page. A single reload fetches the current
+    // index.html, which points at the chunks that actually exist now, so
+    // this recovers automatically instead of leaving the user stuck. The
+    // sessionStorage flag stops a *genuinely* broken deploy from reload-looping.
+    const message = `${error?.message || ''} ${error?.name || ''}`.toLowerCase();
+    const isChunkLoadError =
+      message.includes('dynamically imported module') ||
+      message.includes('failed to fetch dynamically') ||
+      message.includes('chunkloaderror') ||
+      message.includes('importing a module script failed');
+
+    if (isChunkLoadError) {
+      const RELOAD_FLAG = 'tnb_chunk_reload_attempted';
+      if (!sessionStorage.getItem(RELOAD_FLAG)) {
+        sessionStorage.setItem(RELOAD_FLAG, '1');
+        window.location.reload();
+      }
+    }
   }
 
   private handleReload = () => {

@@ -249,19 +249,61 @@ export function cleanKenhValue(rawVal: string, fallbackVal: string = ''): string
 
   const u = val.toUpperCase();
 
-  if (u.includes('ĐML') || u.includes('DML')) return 'ĐML';
+  if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
+  if (u === 'OFF' || u.includes('OFFLINE')) return 'OFF';
+  if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ')) return 'TOPZONE';
   if (u.includes('ĐMM') || u.includes('DMM')) return 'ĐMM';
   if (u.includes('ĐMS') || u.includes('DMS')) return 'ĐMS';
-  if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ')) return 'TOPZONE';
   if (u.includes('TGD')) return 'TGD';
-  if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG')) return 'LƯU ĐỘNG';
-  if (u.includes('OFF')) return 'OFF';
+  if (u.includes('ĐML') || u.includes('DML')) return 'ĐML';
 
   if (val.length <= 15 && !val.includes('-') && !val.includes('(')) {
     return val.toUpperCase().trim();
   }
 
   return 'TGD';
+}
+
+/**
+ * Checks if a channel string is excluded from ranking and reports
+ */
+export function isExcludedChannel(k?: string): boolean {
+  const u = (k || '').toString().toUpperCase().trim();
+  return u === 'OFF' || u.includes('OFFLINE') || u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u === 'LUUDONG';
+}
+
+/**
+ * Checks if a store record is excluded from ranking and reports
+ * (e.g. stores belonging to "LƯU ĐỘNG", "OFF", "OFFLINE" channels, store names or boss assignments).
+ */
+export function isExcludedStore(
+  store: { sieuthi?: string; kenh?: string; boss?: string },
+  bossAssignments: BossAssignmentRecord[] = []
+): boolean {
+  const sieuthi = (store.sieuthi || '').toUpperCase();
+  const rawKenh = (store.kenh || '').toUpperCase();
+  const boss = (store.boss || '').toUpperCase();
+  const effectiveKenh = (getChannelForStore(store.sieuthi || '', bossAssignments, store.kenh) || '').toString().toUpperCase();
+
+  return (
+    effectiveKenh === 'OFF' ||
+    effectiveKenh.includes('OFFLINE') ||
+    effectiveKenh.includes('LƯU ĐỘNG') ||
+    effectiveKenh.includes('LUU DONG') ||
+    effectiveKenh === 'LUUDONG' ||
+    rawKenh === 'OFF' ||
+    rawKenh.includes('OFFLINE') ||
+    rawKenh.includes('LƯU ĐỘNG') ||
+    rawKenh.includes('LUU DONG') ||
+    rawKenh === 'LUUDONG' ||
+    sieuthi.includes('LƯU ĐỘNG') ||
+    sieuthi.includes('LUU DONG') ||
+    sieuthi.includes('LUUDONG') ||
+    sieuthi.includes('LƯU ĐỘNG') ||
+    boss.includes('LƯU ĐỘNG') ||
+    boss.includes('LUU DONG') ||
+    boss === 'LUUDONG'
+  );
 }
 
 /**
@@ -569,8 +611,11 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
     return isNaN(num) ? 0 : num;
   };
 
-  const kenhFromSieuThi = (sieuthi: string): Channel => {
+  const kenhFromSieuThi = (sieuthi: string): Channel | string => {
     const u = sieuthi.toUpperCase();
+    if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
+    if (u.includes('OFF') || u.includes('OFFLINE')) return 'OFF';
+    if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
     if (u.includes('ĐMM') || u.includes('DMM')) return 'DMM';
     if (u.includes('ĐMS') || u.includes('DMS')) return 'DMS';
     if (u.includes('TGD')) return 'TGD';
@@ -698,7 +743,10 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
 
     let rawKenh = colKenh >= 0 ? (cells[colKenh] || '').toUpperCase() : '';
     let kenh: Channel | string;
-    if (rawKenh.includes('LƯU ĐỘNG') || rawKenh.includes('LUU DONG')) kenh = 'LƯU ĐỘNG';
+    if (rawKenh.includes('LƯU ĐỘNG') || rawKenh.includes('LUU DONG') || rawKenh === 'LUUDONG') kenh = 'LƯU ĐỘNG';
+    else if (rawKenh.includes('OFF') || rawKenh.includes('OFFLINE')) kenh = 'OFF';
+    else if (sieuthiRaw.toUpperCase().includes('LƯU ĐỘNG') || sieuthiRaw.toUpperCase().includes('LUU DONG') || sieuthiRaw.toUpperCase().includes('LUUDONG')) kenh = 'LƯU ĐỘNG';
+    else if (rawKenh.includes('TOPZONE') || rawKenh.includes('TOP ZONE') || rawKenh.includes('TZ') || rawKenh.includes('AAR')) kenh = 'TopZone';
     else if (rawKenh.includes('TGD')) kenh = 'TGD';
     else if (rawKenh.includes('DMM')) kenh = 'DMM';
     else if (rawKenh.includes('DMS')) kenh = 'DMS';

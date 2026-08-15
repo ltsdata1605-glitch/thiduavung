@@ -6,6 +6,7 @@ import {
   getCategoryData,
   formatStoreDisplayName,
   resolveCategoryDisplayName,
+  isExcludedStore,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { formatBossTag } from './ProvinceDetailRemarksModal';
@@ -59,8 +60,8 @@ export function generateTopBotRemarksText(params: {
   // Filter stores according to provinceScope & selectedChannels
   const eligibleStores = stores.filter((s) => {
     if (provinceScope !== 'ALL' && s.tinh !== provinceScope) return false;
+    if (isExcludedStore(s, bossAssignments)) return false;
     const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
     if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
     return true;
   });

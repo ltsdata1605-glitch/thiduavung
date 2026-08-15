@@ -4,16 +4,12 @@ import {
   formatStoreDisplayName,
   getChannelForStore,
   getCategoryData,
+  isExcludedStore,
+  isExcludedChannel,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
-
-function isExcludedChannel(k?: string): boolean {
-  if (!k) return false;
-  const u = String(k).toUpperCase();
-  return u === 'LUUDONG' || u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u === 'OFF' || u === 'OFFLINE';
-}
 
 function formatInt(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
@@ -65,8 +61,8 @@ export function generateReportRemarksText(params: {
 
   const filteredStores = safeStores.filter((s) => {
     if (isSpecificProvince && s.tinh !== selectedProvince) return false;
+    if (isExcludedStore(s, bossAssignments)) return false;
     const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
     if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
     return true;
   });
@@ -89,8 +85,8 @@ export function generateReportRemarksText(params: {
   }>();
 
   safeStores.forEach((s) => {
+    if (isExcludedStore(s, bossAssignments)) return;
     const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-    if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
     if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
 
     const tinh = s.tinh || 'Khác';
@@ -357,8 +353,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   const filteredStores = useMemo(() => {
     return safeStores.filter((s) => {
       if (isSpecificProvince && s.tinh !== selectedProvince) return false;
+      if (isExcludedStore(s, bossAssignments)) return false;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
       if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return false;
       return true;
     });
@@ -387,8 +383,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
     }>();
 
     safeStores.forEach((s) => {
+      if (isExcludedStore(s, bossAssignments)) return;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
       if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
 
       const tinh = s.tinh || 'Khác';
@@ -464,8 +460,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
     let totalAchievedVal = 0;
 
     safeStores.forEach((s) => {
+      if (isExcludedStore(s, bossAssignments)) return;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
       if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) return;
 
       totalTargetVal += (s.target || 0);

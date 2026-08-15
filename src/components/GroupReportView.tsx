@@ -8,6 +8,8 @@ import {
   getCategoryData,
   formatStoreDisplayName,
   resolveCategoryDisplayName,
+  isExcludedStore,
+  isExcludedChannel,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
@@ -344,8 +346,8 @@ const ProvinceSummaryCard: React.FC<{
   const provinceSummaryRows = useMemo(() => {
     const map = new Map<string, { target: number; achieved: number; rate: number }>();
     stores.forEach((s) => {
+      if (isExcludedStore(s, bossAssignments)) return;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return;
       if (config.channels.length > 0 && !config.channels.includes(effectiveKenh as Channel)) return;
 
       const data = getCategoryData(s, config.category);
@@ -727,8 +729,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   const provinceDetailedStores = useMemo(() => {
     return stores.filter((s) => {
       if (s.tinh !== selectedProvinceCard) return false;
+      if (isExcludedStore(s, bossAssignments)) return false;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
       if (channelsCard2.length > 0 && !channelsCard2.includes(effectiveKenh as Channel)) return false;
       return true;
     });
@@ -756,8 +758,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   const topBotLeaderboard = useMemo(() => {
     const valid = stores.filter((s) => {
       if (selectedProvinceCard3 !== 'ALL' && s.tinh !== selectedProvinceCard3) return false;
+      if (isExcludedStore(s, bossAssignments)) return false;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
-      if (isExcludedChannel(effectiveKenh) || isExcludedChannel(s.kenh)) return false;
       if (channelsCard3.length > 0 && !channelsCard3.includes(effectiveKenh as Channel)) return false;
       return true;
     });

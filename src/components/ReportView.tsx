@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, BossAssignmentRecord } from '../utils/parser';
 // Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
 // instead of shipping ~1300 lines of Nhóm-only report code in the bundle
 // every user downloads to see the default VÙNG/SIÊU THỊ view.
@@ -660,21 +660,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // typing in the search box). useMemo below makes it only redo the work
   // when something it actually reads has changed.
   const filteredStores = useMemo(() => stores.filter((s) => {
-    // Exclude stores with channel "OFF" or "LƯU ĐỘNG"
-    const effectiveKenh = resolveKenh(s.sieuthi, s.kenh);
-    const upperEffectiveKenh = (effectiveKenh || '').toString().toUpperCase().trim();
-    const upperRawKenh = (s.kenh || '').toString().toUpperCase().trim();
-
-    if (
-      upperEffectiveKenh === 'OFF' ||
-      upperEffectiveKenh.includes('OFFLINE') ||
-      upperEffectiveKenh.includes('LƯU ĐỘNG') ||
-      upperEffectiveKenh.includes('LUU DONG') ||
-      upperRawKenh === 'OFF' ||
-      upperRawKenh.includes('OFFLINE') ||
-      upperRawKenh.includes('LƯU ĐỘNG') ||
-      upperRawKenh.includes('LUU DONG')
-    ) {
+    // Exclude stores with channel "OFF" or "LƯU ĐỘNG" or store name containing "LƯU ĐỘNG"
+    if (isExcludedStore(s, bossAssignments)) {
       return false;
     }
 
@@ -699,6 +686,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
 
     // Channel filter (derived from BOSS file assignments)
+    const effectiveKenh = resolveKenh(s.sieuthi, s.kenh);
     if (selectedChannels.length > 0 && !selectedChannels.includes(effectiveKenh as Channel)) {
       return false;
     }
