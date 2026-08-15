@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount, UserRole } from '../types';
-import { 
-  initializeUsersCollection, 
-  createUserAccount, 
-  updateUserAccount, 
-  deleteUserAccount 
+import {
+  initializeUsersCollection,
+  getUsersFromCache,
+  createUserAccount,
+  updateUserAccount,
+  deleteUserAccount
 } from '../services/authService';
 import { X, UserPlus, Shield, Key, Trash2, Check, RefreshCw, UserCheck } from 'lucide-react';
 
@@ -21,6 +22,12 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // Distinguishes "never loaded yet, nothing to show" (skeleton) from a
+  // background refresh (keep showing whatever's already there) and from a
+  // genuinely empty result — "Tổng số tài khoản: 0" used to be indistinguishable
+  // from "still loading, give it a second", which on a slow connection reads
+  // as the screen being broken/stuck.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -33,12 +40,21 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const loadUsers = async () => {
     setIsLoading(true);
     try {
+      // Instant paint from Firestore's own local cache (if this device has
+      // opened this screen before) — a local IndexedDB read, not a network
+      // call — while the authoritative network read below is still in
+      // flight. Skipped entirely on a first-ever open (cache empty), which
+      // is exactly when the loading skeleton below matters most.
+      const cached = await getUsersFromCache();
+      if (cached.length > 0) setUsers(cached);
+
       const data = await initializeUsersCollection();
       setUsers(data);
     } catch (e) {
       // ignore
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -131,7 +147,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           {/* Action Bar */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="text-xs font-bold text-slate-700">
-              Tổng số tài khoản: <strong className="text-blue-600 font-extrabold">{users.length}</strong>
+              Tổng số tài khoản:{' '}
+              <strong className="text-blue-600 font-extrabold">
+                {isLoading && !hasLoadedOnce ? '...' : users.length}
+              </strong>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -244,6 +263,21 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white font-medium text-slate-800">
+                {isLoading && !hasLoadedOnce && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-slate-400 font-semibold">
+                      <RefreshCw className="w-4 h-4 inline-block mr-1.5 animate-spin align-[-2px]" />
+                      Đang tải danh sách tài khoản...
+                    </td>
+                  </tr>
+                )}
+                {!isLoading && hasLoadedOnce && users.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-slate-400 font-semibold">
+                      Chưa có tài khoản nào.
+                    </td>
+                  </tr>
+                )}
                 {users.map((user) => (
                   <tr key={user.accountId} className="hover:bg-slate-50">
                     <td className="p-3 font-extrabold text-blue-900">

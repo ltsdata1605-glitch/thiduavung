@@ -1,5 +1,5 @@
 import { db, auth, getSecondaryAuth } from './firebase';
-import { collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDoc, getDocs, getDocsFromCache, updateDoc, deleteDoc } from 'firebase/firestore';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -95,6 +95,29 @@ export const SUPER_ADMIN_ACCOUNT: UserAccount = {
 };
 
 const DEFAULT_ACCOUNTS: UserAccount[] = [SUPER_ADMIN_ACCOUNT];
+
+/**
+ * Instant-paint helper for the User Management screen: reads whatever
+ * Firestore's own persistent local cache already has for the `users`
+ * collection — a local IndexedDB lookup, not a network call — so a repeat
+ * open of that modal on the same device shows the list immediately instead
+ * of the "Tổng số tài khoản: 0" empty state sitting there for however long
+ * the actual network round trip takes. Callers should still follow up with
+ * initializeUsersCollection() for the server-authoritative list; this is
+ * only ever a (possibly stale) first paint. Empty/failed cache read (first
+ * ever open, or persistence unavailable) resolves to [] — never throws.
+ */
+export async function getUsersFromCache(): Promise<UserAccount[]> {
+  if (!db) return [];
+  try {
+    const snapshot = await getDocsFromCache(collection(db, USERS_COLLECTION));
+    const users: UserAccount[] = [];
+    snapshot.forEach((docSnap) => users.push(docSnap.data() as UserAccount));
+    return users;
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Initialize Firestore users collection with default accounts if empty.
