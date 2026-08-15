@@ -561,17 +561,30 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
     });
   }, [selectedCategoryGroup, categoryList, categoryGroupMap]);
 
-  // Reset selectedCategory to ALL if current selection is not in the filtered options
+  // Reset selectedCategory to ALL if current selection is not in the filtered options.
+  // selectedCategory can be a SINGLE id ('BH') or a MULTI-SELECT comma-joined
+  // string ('BH,CAMERA') — CategoryMultiSelectFilter's toggleCategory() below
+  // produces the latter as soon as a 2nd item is checked. This must check
+  // each id individually; comparing the whole comma-string against a single
+  // option's id never matches, so this effect used to fire on every 2nd+
+  // selection and immediately reset back to 'ALL' — the multi-select dropdown
+  // visually "kicking out" whatever the user had just picked.
   React.useEffect(() => {
     if (selectedCategory !== 'ALL') {
-      const exists = filteredCategoryOptions.some((c) => c.id === selectedCategory);
-      if (!exists) {
+      const selectedIds = selectedCategory.split(',').map((s) => s.trim()).filter(Boolean);
+      const stillValidIds = selectedIds.filter((id) => filteredCategoryOptions.some((c) => c.id === id));
+      if (stillValidIds.length === 0) {
         if (entityScope === 'nhom') {
           const firstCat = filteredCategoryOptions[0]?.id || categoryList[0]?.id || 'TRẢ CHẬM HOMECREDIT';
           setSelectedCategory(firstCat);
         } else {
           setSelectedCategory('ALL');
         }
+      } else if (stillValidIds.length !== selectedIds.length) {
+        // Some (not all) previously-selected categories dropped out of the
+        // filtered list (e.g. Nhóm N.Hàng filter changed) — keep just the
+        // ones still valid instead of wiping the whole selection.
+        setSelectedCategory(stillValidIds.join(','));
       }
     } else if (entityScope === 'nhom') {
       const firstCat = filteredCategoryOptions[0]?.id || categoryList[0]?.id || 'TRẢ CHẬM HOMECREDIT';
