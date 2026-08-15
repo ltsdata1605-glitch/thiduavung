@@ -578,7 +578,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [sortField, setSortField] = useState<string>('default');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showChartSection, setShowChartSection] = useState(true);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -1282,19 +1281,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
     });
   });
 
-  const exportMenuRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setIsExportMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
   const provinceChartData = Array.from(provinceMap.entries()).map(([tinh, stat]) => ({
     tinh,
     rate: stat.target > 0 ? Number(((stat.achieved / stat.target) * 100).toFixed(1)) : 0,
@@ -1431,92 +1417,16 @@ export const ReportView: React.FC<ReportViewProps> = ({
               <span>Xuất theo nhóm</span>
             </button>
 
-            {/* Combined Xuất Hiển Thị + Dropdown button group */}
-            <div ref={exportMenuRef} className="relative inline-flex shadow-2xs shrink-0">
-              <button
-                type="button"
-                onClick={() => (onExportGroup ? onExportGroup('all') : onExportFull?.())}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap rounded-l-xl"
-                title="Xuất 1 tấm ảnh theo bảng đang hiển thị trên màn hình"
-              >
-                <Grid className="w-3.5 h-3.5 text-white" />
-                <span>Xuất hiển thị</span>
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExportMenuOpen(!isExportMenuOpen);
-                }}
-                className="px-2 py-1.5 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center cursor-pointer transition-all border-l border-blue-500 rounded-r-xl"
-                title="Tùy chọn xuất từng nhóm đơn lẻ"
-              >
-                <ChevronDown className={`w-3.5 h-3.5 text-white transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isExportMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[100] py-1.5 font-sans text-xs animate-scale-up">
-                  <button
-                    onClick={() => {
-                      if (onExportGroup) onExportGroup('quick');
-                      setIsExportMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-slate-700 hover:bg-amber-50 hover:text-amber-900 font-bold flex items-center gap-2 cursor-pointer"
-                  >
-                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-                    <span>Xuất Nhanh (STT → Tỷ lệ %)</span>
-                  </button>
-
-                  <div className="border-t border-slate-100 my-1"></div>
-
-                  <button
-                    onClick={() => {
-                      if (onExportGroup) onExportGroup('ict');
-                      setIsExportMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-slate-700 hover:bg-sky-50 hover:text-sky-900 font-bold flex items-center gap-2 cursor-pointer"
-                  >
-                    <Smartphone className="w-4 h-4 text-sky-500 shrink-0" />
-                    <span>Xuất Nhóm ICT (12 ngành hàng)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (onExportGroup) onExportGroup('dichvu');
-                      setIsExportMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 font-bold flex items-center gap-2 cursor-pointer"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Xuất Nhóm Dịch Vụ (13 ngành hàng)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (onExportGroup) onExportGroup('ce');
-                      setIsExportMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-slate-700 hover:bg-blue-50 hover:text-blue-900 font-bold flex items-center gap-2 cursor-pointer"
-                  >
-                    <Tv className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span>Xuất Nhóm CE & GD (13 ngành hàng)</span>
-                  </button>
-
-                  <div className="border-t border-slate-100 my-1"></div>
-
-                  <button
-                    onClick={() => {
-                      if (onExportGroup) onExportGroup('all');
-                      setIsExportMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 font-extrabold flex items-center gap-2 cursor-pointer"
-                  >
-                    <Camera className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span>Xuất Hiển Thị (1 Tấm)</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Xuất Hiển Thị */}
+            <button
+              type="button"
+              onClick={() => (onExportGroup ? onExportGroup('all') : onExportFull?.())}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shrink-0"
+              title="Xuất 1 tấm ảnh theo bảng đang hiển thị trên màn hình"
+            >
+              <Grid className="w-3.5 h-3.5 text-white" />
+              <span>Xuất hiển thị</span>
+            </button>
           </div>
         </div>
 
