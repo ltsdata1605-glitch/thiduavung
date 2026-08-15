@@ -463,24 +463,32 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
 
           {(() => {
             const freshness = checkDataFreshness(lastUpdated, 60);
+            const shortTimeStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '');
             return (
               <div className="export-hide min-w-0">
                 {freshness.isOutdated ? (
                   <div
                     title="Dữ liệu chưa được cập nhật trong hơn 1 giờ qua hoặc chưa cập nhật mới!"
-                    className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border-2 border-rose-400 text-rose-700 rounded-xl font-black text-xs sm:text-sm shadow-xs animate-pulse"
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1 bg-rose-50 border border-rose-300 sm:border-2 sm:border-rose-400 text-rose-700 rounded-xl font-bold sm:font-black text-[11px] sm:text-xs shadow-xs animate-pulse whitespace-nowrap"
                   >
-                    <AlertTriangle className="w-4 h-4 text-rose-600 animate-bounce shrink-0" />
-                    <span className="tracking-tight uppercase">THỜI GIAN ĐẾN: {freshness.displayText}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-rose-600 text-white font-black rounded-md tracking-wider uppercase shrink-0">
-                      Chưa cập nhật mới
+                    <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-600 animate-bounce shrink-0" />
+                    <span className="tracking-tight uppercase hidden sm:inline">
+                      THỜI GIAN ĐẾN: {freshness.displayText}
+                    </span>
+                    <span className="tracking-tight uppercase sm:hidden text-[10.5px]">
+                      {shortTimeStr}
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-rose-600 text-white font-black rounded-md tracking-wider uppercase shrink-0">
+                      <span className="hidden sm:inline">Chưa cập nhật mới</span>
+                      <span className="sm:hidden">Chưa mới</span>
                     </span>
                   </div>
                 ) : (
-                  <p className="text-xs sm:text-sm font-extrabold text-slate-700 flex flex-wrap items-center gap-2 mt-0.5">
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/80 border border-emerald-200 text-emerald-800 rounded-xl shadow-2xs font-extrabold">
+                  <p className="text-[11px] sm:text-xs font-bold sm:font-extrabold text-slate-700 flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1 bg-emerald-50/80 border border-emerald-200 text-emerald-800 rounded-xl shadow-2xs">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-                      THỜI GIAN ĐẾN: {freshness.displayText}
+                      <span className="hidden sm:inline">THỜI GIAN ĐẾN: {freshness.displayText}</span>
+                      <span className="sm:hidden text-[10.5px]">ĐẾN: {shortTimeStr}</span>
                     </span>
                   </p>
                 )}
