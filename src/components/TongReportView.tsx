@@ -11,7 +11,8 @@ import {
 import { getCategoryGroup } from './ReportView';
 import { exportElementAsImage } from '../services/imageExport';
 import { ExportLoadingModal } from './ExportLoadingModal';
-import { Camera, Download, Layers, ShieldCheck, Sparkles, Check } from 'lucide-react';
+import { Camera, Download, Layers, ShieldCheck, Sparkles, Check, MessageSquare } from 'lucide-react';
+import { TongRemarksModal, generateTongRemarksText } from './TongRemarksModal';
 
 interface TongReportViewProps {
   timeMode: TimeMode;
@@ -50,6 +51,12 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
+  const [remarksModalData, setRemarksModalData] = useState<{
+    isOpen: boolean;
+    channelTitle: 'TGD' | 'ĐMX';
+    channelSubText: string;
+    sections: GroupSectionMetric[];
+  } | null>(null);
 
   // 1. Format Time String matching the image:
   // "REALTIME ĐẾN THỜI GIAN : 15:03:43 || NGÀY 15/08/2026"
@@ -231,12 +238,40 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
   const dmxData = useMemo(() => buildGroupSections(dmxStores, true), [dmxStores, allCategoryNames, categoryGroupMap, categoryDisplayNameMap]);
 
   // Export handlers
-  const handleExportCard = async (elementId: string, filename: string, titleMsg: string) => {
+  const handleExportCard = async (
+    elementId: string,
+    filename: string,
+    titleMsg: string,
+    channelForRemark?: 'TGD' | 'ĐMX'
+  ) => {
     const el = document.getElementById(elementId);
     if (!el) return;
     setIsExporting(true);
     setExportMessage(titleMsg);
     try {
+      // Auto-copy remark text to clipboard on export
+      if (channelForRemark === 'TGD') {
+        const text = generateTongRemarksText({
+          channelTitle: 'TGD',
+          channelSubText: 'Kênh : TGD + TZ',
+          timeMode,
+          lastUpdated,
+          formattedHeaderTime,
+          sections: tgdData.sections,
+        });
+        navigator.clipboard.writeText(text).catch(() => {});
+      } else if (channelForRemark === 'ĐMX') {
+        const text = generateTongRemarksText({
+          channelTitle: 'ĐMX',
+          channelSubText: 'Kênh : DML + DMM + DMS + LƯU ĐỘNG',
+          timeMode,
+          lastUpdated,
+          formattedHeaderTime,
+          sections: dmxData.sections,
+        });
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+
       await new Promise((r) => setTimeout(r, 150));
       await exportElementAsImage(el, filename, {
         scale: 2.5,
@@ -350,20 +385,39 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                handleExportCard(
-                  'tong-card-tgd',
-                  `Bang_TGD_${timeMode}_${Date.now()}.png`,
-                  'Đang xuất ảnh bảng TGD...'
-                )
-              }
-              title="Xuất ảnh bảng TGD"
-              className="p-2 bg-white hover:bg-amber-200 text-amber-700 rounded-lg transition-all flex items-center justify-center border border-amber-400 cursor-pointer shadow-xs shrink-0 export-hide"
-            >
-              <Camera className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0 export-hide">
+              <button
+                type="button"
+                onClick={() =>
+                  setRemarksModalData({
+                    isOpen: true,
+                    channelTitle: 'TGD',
+                    channelSubText: 'Kênh : TGD + TZ',
+                    sections: tgdData.sections,
+                  })
+                }
+                title="Xem & Sao chép Nhận xét kênh TGD"
+                className="p-2 bg-white hover:bg-amber-200 text-amber-900 rounded-lg transition-all flex items-center justify-center border border-amber-400 cursor-pointer shadow-xs"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleExportCard(
+                    'tong-card-tgd',
+                    `Bang_TGD_${timeMode}_${Date.now()}.png`,
+                    'Đang xuất ảnh bảng TGD...',
+                    'TGD'
+                  )
+                }
+                title="Xuất ảnh bảng TGD (Tự động sao chép nhận xét)"
+                className="p-2 bg-white hover:bg-amber-200 text-amber-700 rounded-lg transition-all flex items-center justify-center border border-amber-400 cursor-pointer shadow-xs"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Table Content */}
@@ -523,20 +577,39 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                handleExportCard(
-                  'tong-card-dmx',
-                  `Bang_DMX_${timeMode}_${Date.now()}.png`,
-                  'Đang xuất ảnh bảng ĐMX...'
-                )
-              }
-              title="Xuất ảnh bảng ĐMX"
-              className="p-2 bg-white hover:bg-sky-200 text-sky-700 rounded-lg transition-all flex items-center justify-center border border-sky-400 cursor-pointer shadow-xs shrink-0 export-hide"
-            >
-              <Camera className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0 export-hide">
+              <button
+                type="button"
+                onClick={() =>
+                  setRemarksModalData({
+                    isOpen: true,
+                    channelTitle: 'ĐMX',
+                    channelSubText: 'Kênh : DML + DMM + DMS + Lưu động',
+                    sections: dmxData.sections,
+                  })
+                }
+                title="Xem & Sao chép Nhận xét kênh ĐMX"
+                className="p-2 bg-white hover:bg-sky-200 text-sky-900 rounded-lg transition-all flex items-center justify-center border border-sky-400 cursor-pointer shadow-xs"
+              >
+                <MessageSquare className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleExportCard(
+                    'tong-card-dmx',
+                    `Bang_DMX_${timeMode}_${Date.now()}.png`,
+                    'Đang xuất ảnh bảng ĐMX...',
+                    'ĐMX'
+                  )
+                }
+                title="Xuất ảnh bảng ĐMX (Tự động sao chép nhận xét)"
+                className="p-2 bg-white hover:bg-sky-200 text-sky-700 rounded-lg transition-all flex items-center justify-center border border-sky-400 cursor-pointer shadow-xs"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Table Content */}
@@ -672,6 +745,20 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
 
       {/* Export loading modal */}
       <ExportLoadingModal isOpen={isExporting} exportTitle={exportMessage} />
+
+      {/* Tong Remarks Modal */}
+      {remarksModalData && (
+        <TongRemarksModal
+          isOpen={remarksModalData.isOpen}
+          onClose={() => setRemarksModalData(null)}
+          channelTitle={remarksModalData.channelTitle}
+          channelSubText={remarksModalData.channelSubText}
+          timeMode={timeMode}
+          lastUpdated={lastUpdated}
+          formattedHeaderTime={formattedHeaderTime}
+          sections={remarksModalData.sections}
+        />
+      )}
     </div>
   );
 };
