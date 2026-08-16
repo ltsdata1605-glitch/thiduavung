@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StoreRecord, TimeMode, Channel } from '../types';
+import { StoreRecord, TimeMode, Channel, RemarkDisplayMode } from '../types';
 import {
   getBossForStore,
   getChannelForStore,
@@ -7,9 +7,10 @@ import {
   formatStoreDisplayName,
   resolveCategoryDisplayName,
   isExcludedStore,
+  formatBossTag,
+  formatStoreRemarkLine,
   BossAssignmentRecord,
 } from '../utils/parser';
-import { formatBossTag } from './ProvinceDetailRemarksModal';
 import { X, Copy, Check, MessageSquare } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -39,6 +40,7 @@ export function generateTopBotRemarksText(params: {
   selectedChannels: Channel[];
   bossAssignments: BossAssignmentRecord[];
   isExcludedChannel: (k?: string) => boolean;
+  remarkDisplayMode?: RemarkDisplayMode;
 }): string {
   const {
     provinceScope,
@@ -51,6 +53,7 @@ export function generateTopBotRemarksText(params: {
     selectedChannels = [],
     bossAssignments = [],
     isExcludedChannel,
+    remarkDisplayMode = 'user',
   } = params;
 
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
@@ -92,8 +95,14 @@ export function generateTopBotRemarksText(params: {
   const topLines = top10
     .map((s, idx) => {
       const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
-      const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-      return `${medal} #${idx + 1} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
+      return formatStoreRemarkLine({
+        prefix: `${medal} #${idx + 1}`,
+        storeName: s.storeName,
+        bossTag: s.bossTag,
+        valuePart: `${formatInt(s.achieved)} / ${formatInt(s.target)}`,
+        rate: s.rate,
+        mode: remarkDisplayMode,
+      });
     })
     .join('\n');
 
@@ -103,8 +112,14 @@ export function generateTopBotRemarksText(params: {
   const botLines = bot10
     .map((s) => {
       const rank = sortedAll.findIndex((item) => item.storeName === s.storeName) + 1;
-      const tagPart = s.bossTag ? ` (${s.bossTag})` : '';
-      return `🔻 #${rank} ${s.storeName}${tagPart}: ${formatInt(s.achieved)} / ${formatInt(s.target)} (${Math.round(s.rate)}%)`;
+      return formatStoreRemarkLine({
+        prefix: `🔻 #${rank}`,
+        storeName: s.storeName,
+        bossTag: s.bossTag,
+        valuePart: `${formatInt(s.achieved)} / ${formatInt(s.target)}`,
+        rate: s.rate,
+        mode: remarkDisplayMode,
+      });
     })
     .join('\n');
 
@@ -139,6 +154,7 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
   isExcludedChannel,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
   const [customText, setCustomText] = useState('');
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
 
@@ -155,6 +171,7 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
       selectedChannels,
       bossAssignments,
       isExcludedChannel,
+      remarkDisplayMode,
     });
     setCustomText(text);
     setCopied(false);
@@ -170,6 +187,7 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
     selectedChannels,
     bossAssignments,
     isExcludedChannel,
+    remarkDisplayMode,
   ]);
 
   if (!isOpen) return null;
@@ -204,8 +222,40 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
 
         {/* Content */}
         <div className="p-5 space-y-3 overflow-y-auto flex-1">
-          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
-            <span>Nội dung nhận xét (Tối đa 10 Top / 10 Bot cho Line & Zalo):</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 font-semibold px-1">
+            <span>Nội dung nhận xét:</span>
+
+            {/* Checkbox Options */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+              {(
+                [
+                  { id: 'user', label: 'User' },
+                  { id: 'sieuthi', label: 'Siêu thị' },
+                  { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setRemarkDisplayMode(opt.id)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    remarkDisplayMode === opt.id
+                      ? 'bg-violet-600 text-white shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
+                  }`}
+                >
+                  <span
+                    className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
+                      remarkDisplayMode === opt.id ? 'border-white bg-white text-violet-600' : 'border-slate-400 bg-white'
+                    }`}
+                  >
+                    {remarkDisplayMode === opt.id && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                  </span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+
             <span className="text-[11px] text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200 font-bold">
               Line/Zalo Tag Limit: 20
             </span>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StoreRecord, Channel, EntityScope } from '../types';
+import { StoreRecord, Channel, EntityScope, RemarkDisplayMode } from '../types';
 import {
   formatStoreDisplayName,
   getChannelForStore,
@@ -7,6 +7,9 @@ import {
   isExcludedStore,
   isExcludedChannel,
   getFormattedNow,
+  getBossForStore,
+  formatBossTag,
+  formatStoreRemarkLine,
   BossAssignmentRecord,
 } from '../utils/parser';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
@@ -38,6 +41,7 @@ export function generateReportRemarksText(params: {
   timeModeName?: string;
   lastUpdated?: string;
   entityScope?: EntityScope;
+  remarkDisplayMode?: RemarkDisplayMode;
 }): string {
   const {
     stores = [],
@@ -48,6 +52,7 @@ export function generateReportRemarksText(params: {
     timeModeName = 'Luỹ kế',
     lastUpdated,
     entityScope = 'sieuthi',
+    remarkDisplayMode = 'user',
   } = params;
 
   const isLuyKe = !timeModeName.toLowerCase().includes('real');
@@ -221,6 +226,9 @@ export function generateReportRemarksText(params: {
           ? Math.round((achieved / target) * 100)
           : 0;
 
+      const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
+      const bossTag = formatBossTag(boss);
+
       return {
         tinh: s.tinh,
         storeName: formatStoreDisplayName(s.sieuthi),
@@ -228,6 +236,7 @@ export function generateReportRemarksText(params: {
         achieved,
         achievedCategories,
         rate,
+        bossTag,
       };
     })
     .sort((a, b) => {
@@ -290,7 +299,14 @@ ${botLines || 'Đang cập nhật'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `${medal} #${idx + 1}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -301,7 +317,14 @@ ${botLines || 'Đang cập nhật'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `🔻 #${rank}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -336,6 +359,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
   const [customText, setCustomText] = useState<string>('');
 
   const isLuyKe = !timeModeName.toLowerCase().includes('real');
@@ -530,6 +554,9 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
             ? Math.round((achieved / target) * 100)
             : 0;
 
+        const boss = getBossForStore(s.sieuthi, bossAssignments, s.boss);
+        const bossTag = formatBossTag(boss);
+
         return {
           tinh: s.tinh,
           storeName: formatStoreDisplayName(s.sieuthi),
@@ -537,6 +564,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
           achieved,
           achievedCategories,
           rate,
+          bossTag,
         };
       })
       .sort((a, b) => {
@@ -545,7 +573,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
         }
         return b.rate - a.rate;
       });
-  }, [filteredStores, activeCategoryList, selectedCategory]);
+  }, [filteredStores, activeCategoryList, selectedCategory, bossAssignments]);
 
   // Highlights
   const top1Province = provinceRanking[0];
@@ -670,7 +698,7 @@ ${botLines || 'Đang cập nhật'}
   // TEMPLATES FOR TAB SIÊU THỊ / TỪNG TỈNH CỤ THỂ
   // =========================================================================
 
-  // Mẫu 1 (Tỉnh): Top 10 & Bot 10 Siêu thị trong Tỉnh (Không tag tên)
+  // Mẫu 1 (Tỉnh): Top 10 & Bot 10 Siêu thị trong Tỉnh
   const templateTinhTopBotStore = useMemo(() => {
     const top10 = storeRanking.slice(0, 10);
     const storesWithTarget = storeRanking.filter((s) => s.target > 0);
@@ -683,7 +711,14 @@ ${botLines || 'Đang cập nhật'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `${medal} #${idx + 1}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -694,7 +729,14 @@ ${botLines || 'Đang cập nhật'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `🔻 #${rank}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -721,6 +763,7 @@ ${botLines || 'Đang cập nhật'}
     totalRate,
     selectedCategory,
     totalCatCount,
+    remarkDisplayMode,
   ]);
 
   // Mẫu 2 (Tỉnh): Danh sách siêu thị cần tăng tốc trong Tỉnh (<100%)
@@ -733,7 +776,14 @@ ${botLines || 'Đang cập nhật'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `🔻 #${idx + 1}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -756,6 +806,7 @@ ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
     totalRate,
     selectedCategory,
     totalCatCount,
+    remarkDisplayMode,
   ]);
 
   // Mẫu 3 (Tỉnh): Tóm tắt ngắn gọn Tỉnh
@@ -771,7 +822,14 @@ ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `${medal} #${idx + 1} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `${medal} #${idx + 1}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -782,7 +840,14 @@ ${storeLines || 'Tất cả siêu thị đều đạt tiến độ tốt!'}
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${rank} ${s.storeName}: ${valuePart} (${Math.round(s.rate)}%)`;
+        return formatStoreRemarkLine({
+          prefix: `🔻 #${rank}`,
+          storeName: s.storeName,
+          bossTag: s.bossTag,
+          valuePart,
+          rate: s.rate,
+          mode: remarkDisplayMode,
+        });
       })
       .join('\n');
 
@@ -808,6 +873,7 @@ ${botLines || 'Đang cập nhật'}
     totalRate,
     selectedCategory,
     totalCatCount,
+    remarkDisplayMode,
   ]);
 
   if (!isOpen) return null;
@@ -895,12 +961,47 @@ ${botLines || 'Đang cập nhật'}
             </div>
           </div>
 
-          {/* Template Selector Tabs */}
+          {/* Template Selector Tabs & Remark Format Selector */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <label className="text-xs font-extrabold text-slate-700">
                 Chọn mẫu nội dung nhận xét ({scopeLabel}):
               </label>
+
+              {/* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User */}
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+                {(
+                  [
+                    { id: 'user', label: 'User' },
+                    { id: 'sieuthi', label: 'Siêu thị' },
+                    { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setRemarkDisplayMode(opt.id);
+                      setCustomText('');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      remarkDisplayMode === opt.id
+                        ? 'bg-amber-500 text-white shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
+                    }`}
+                  >
+                    <span
+                      className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
+                        remarkDisplayMode === opt.id ? 'border-white bg-white text-amber-600' : 'border-slate-400 bg-white'
+                      }`}
+                    >
+                      {remarkDisplayMode === opt.id && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                    </span>
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+
               {isSpecificProvince && (
                 <span className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
                   Đang lọc: {provinceName}
@@ -995,7 +1096,7 @@ ${botLines || 'Đang cập nhật'}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-extrabold text-slate-700">
-                Nội dung nhận xét (không tag tên, có thể chỉnh sửa trực tiếp):
+                Nội dung nhận xét (có thể chỉnh sửa trực tiếp):
               </label>
               {customText && (
                 <button

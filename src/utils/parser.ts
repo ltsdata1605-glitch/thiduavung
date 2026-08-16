@@ -1,4 +1,4 @@
-import { StoreRecord, Channel } from '../types';
+import { StoreRecord, Channel, RemarkDisplayMode } from '../types';
 
 export interface BossAssignmentRecord {
   stt?: number;
@@ -1380,6 +1380,57 @@ export function checkDataFreshness(
   }
 
   return { isOutdated: false, ageMinutes: 0, displayText: cleaned, badgeText: '' };
+}
+
+/**
+ * Formats raw boss string (e.g. "Thành_106654", "53136", "Sơn_21707") into user tag ("@106654", "@53136", "@21707").
+ */
+export function formatBossTag(rawBoss: string = ''): string {
+  if (!rawBoss) return '';
+  const trimmed = rawBoss.trim().replace(/^Boss\s+/i, '');
+  if (!trimmed || trimmed === 'Chưa phân công') return '';
+  if (trimmed.includes('_')) {
+    const parts = trimmed.split('_');
+    const idPart = parts[parts.length - 1]?.trim();
+    if (idPart) return `@${idPart}`;
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return `@${trimmed}`;
+  }
+  return `@${trimmed}`;
+}
+
+/**
+ * Formats a single store ranking remark line based on RemarkDisplayMode:
+ * - 'user': 🥇 #1. @53136
+ * - 'sieuthi': 🥇 #1. ĐMS_AGI_CPH - Bình Thủy: 11 / 38 (29%)
+ * - 'sieuthi_user': 🥇 #1. ĐMS_AGI_CPH - Bình Thủy: 11 / 38 (29%) @53136
+ */
+export function formatStoreRemarkLine(params: {
+  prefix: string; // e.g. "🥇 #1" or "🔻 #73"
+  storeName: string;
+  bossTag: string;
+  valuePart: string;
+  rate: number;
+  mode?: RemarkDisplayMode;
+}): string {
+  const { prefix, storeName, bossTag, valuePart, rate, mode = 'user' } = params;
+  const tag = bossTag ? (bossTag.startsWith('@') ? bossTag : `@${bossTag}`) : '';
+  const cleanPrefix = prefix.trim();
+  const prefixWithDot = cleanPrefix.endsWith('.') ? cleanPrefix : `${cleanPrefix}.`;
+
+  if (mode === 'user') {
+    return tag ? `${prefixWithDot} ${tag}` : `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%)`;
+  }
+
+  if (mode === 'sieuthi') {
+    return `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%)`;
+  }
+
+  // mode === 'sieuthi_user'
+  return tag
+    ? `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%) ${tag}`
+    : `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%)`;
 }
 
 

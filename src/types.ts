@@ -6,6 +6,8 @@ export type EntityScope = 'tong' | 'vung' | 'sieuthi' | 'nhom';
 
 export type Channel = 'DML' | 'DMM' | 'DMS' | 'TGD' | 'TopZone';
 
+export type RemarkDisplayMode = 'user' | 'sieuthi' | 'sieuthi_user';
+
 export interface CategoryData {
   id: string;
   name: string;
