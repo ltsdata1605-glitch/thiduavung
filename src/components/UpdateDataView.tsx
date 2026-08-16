@@ -1115,8 +1115,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
               onClick={() => fileInputRef.current?.click()}
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
-              <FileSpreadsheet className="w-4 h-4" />
-              Tải file Excel BOSS (.xlsx)
+              <Upload className="w-4 h-4" />
+              Upload file BOSS
             </button>
           </div>
         </div>
