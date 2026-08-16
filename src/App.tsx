@@ -120,7 +120,7 @@ function AppInner() {
   // instant same-device reload, AND synced to Firestore per-account (see the
   // userFiltersMap effects below) so the last-used filter set follows the
   // account across devices too.
-  const [selectedChannels, setSelectedChannels] = usePersistedState<Channel[]>('tnb_selectedChannels', ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
+  const [selectedChannels, setSelectedChannels] = usePersistedState<Channel[]>('tnb_selectedChannels', ['TGD']);
   const [selectedProvince, setSelectedProvince] = usePersistedState<string>('tnb_selectedProvince', 'ALL');
   const [selectedBoss, setSelectedBoss] = usePersistedState<string>('tnb_selectedBoss', 'ALL');
   const [selectedCategory, setSelectedCategory] = usePersistedState<string>('tnb_selectedCategory', 'ALL');
@@ -566,10 +566,11 @@ function AppInner() {
         const firstProvince = Array.from(new Set(stores.map((s: StoreRecord) => s.tinh))).sort()[0];
         if (firstProvince) setSelectedProvince(firstProvince);
       } else if (entityScope === 'sieuthi' || entityScope === 'tong') {
-        // VÙNG / TỔNG (the overview scopes) are meant to show everything, so
-        // clear back to "Tất cả" / all kênh checked.
+        // SIÊU THỊ / TỔNG (the overview scopes) are meant to show everything
+        // by default, so clear filters back to "Tất cả" — except Kênh, whose
+        // default across every tab is TGD-only, not every channel checked.
         setSelectedProvince('ALL');
-        setSelectedChannels(['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
+        setSelectedChannels(['TGD']);
         setSelectedCategoryGroup('ALL');
         setSelectedCategory('ALL');
         setSelectedPhanLoaiShop('ALL');
