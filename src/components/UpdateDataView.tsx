@@ -1210,7 +1210,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
               </div>
             </div>
 
-            {isBossTableVisible ? (
+            {isBossTableVisible && (
               <>
                 <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-[600px] overflow-y-auto">
                   <table className="w-full text-left text-xs border-collapse">
@@ -1284,17 +1284,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   </span>
                 </div>
               </>
-            ) : (
-              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
-                <span>Bảng danh sách BOSS đang được ẩn mặc định để giao diện gọn gàng hơn.</span>
-                <button
-                  type="button"
-                  onClick={() => setIsBossTableVisible(true)}
-                  className="text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer shrink-0"
-                >
-                  Bấm để mở xem chi tiết ({sortedBossItems.length} siêu thị)
-                </button>
-              </div>
             )}
           </div>
         )}
