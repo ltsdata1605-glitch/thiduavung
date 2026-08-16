@@ -1334,31 +1334,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   const freshness = checkDataFreshness(lastUpdated, 60, timeMode);
                   const updateTimeStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ').replace(/\/20\d\d/, '');
                   return (
-                    <>
-                      {/* Trạng thái trên màn hình web: Có cảnh báo đỏ nếu dữ liệu cũ */}
-                      <span className="export-hide inline-flex items-center gap-2">
-                        <span className="text-slate-300">|</span>
-                        {freshness.isOutdated ? (
-                          <span className="inline-flex items-center gap-1 text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-300 font-black animate-pulse">
-                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-bounce" />
-                            Update: {updateTimeStr}
-                            <span className="text-[9px] px-1 bg-rose-600 text-white rounded-sm font-black uppercase">
-                              {freshness.badgeText || (timeMode === 'luyke' ? 'Cũ > 1 ngày' : 'Cũ > 1h')}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-sky-700 font-black">
-                            Update: {updateTimeStr}
-                          </span>
-                        )}
-                      </span>
-
-                      {/* Trạng thái khi xuất ảnh: Luôn hiển thị chữ màu bình thường, không khung đỏ, không icon cảnh báo */}
-                      <span className="export-show hidden text-slate-500 font-bold text-xs sm:text-sm items-center gap-1.5">
-                        <span className="text-slate-300">|</span>
-                        <span>Update: {updateTimeStr}</span>
-                      </span>
-                    </>
+                    /* Trạng thái khi xuất ảnh: Luôn hiển thị chữ màu bình thường, không khung đỏ, không icon cảnh báo */
+                    <span className="export-show hidden text-slate-500 font-bold text-xs sm:text-sm items-center gap-1.5">
+                      <span className="text-slate-300">|</span>
+                      <span>Update: {updateTimeStr}</span>
+                    </span>
                   );
                 })()}
               </p>
