@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppSettings, UserProfile } from '../types';
-import { Settings, Save, Check, User, Palette, Shield } from 'lucide-react';
+import { Settings, Save, Check, Palette, Shield } from 'lucide-react';
 
 interface SettingsViewProps {
   settings: AppSettings;
@@ -127,55 +127,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 />
                 <span className="text-xs font-bold text-slate-500">%</span>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* User Info Config */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
-          <div className="text-sm font-extrabold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
-            <User className="w-4 h-4 text-emerald-600" /> THÔNG TIN NGƯỜI ĐĂNG NHẬP
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Họ và Tên</label>
-              <input
-                type="text"
-                value={userData.name}
-                onChange={(e) => setUserData({ ...userData, name: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Chức danh / Vị trí</label>
-              <input
-                type="text"
-                value={userData.title}
-                onChange={(e) => setUserData({ ...userData, title: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Vùng quản lý</label>
-              <input
-                type="text"
-                value={userData.region}
-                onChange={(e) => setUserData({ ...userData, region: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-600 mb-1">Avatar Image URL</label>
-              <input
-                type="text"
-                value={userData.avatarUrl}
-                onChange={(e) => setUserData({ ...userData, avatarUrl: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
             </div>
           </div>
         </div>
