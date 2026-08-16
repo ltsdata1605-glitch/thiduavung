@@ -21,6 +21,7 @@ import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { CategoryGroupModal } from './components/CategoryGroupModal';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { ExportLoadingModal } from './components/ExportLoadingModal';
+import { RefreshCw, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { getCurrentSession, logoutUser } from './services/authService';
 import {
   subscribeToFirebaseData,
@@ -354,7 +355,7 @@ function AppInner() {
         return;
       }
       lastShownRemoteUpdateRef.current = { key, time: now };
-      showInfoToast(`🔄 Đang tải dữ liệu mới... (${labels.join(', ')})`);
+      showInfoToast(`Đang tải dữ liệu mới... (${labels.join(', ')})`);
     }, 600);
   };
 
@@ -1211,27 +1212,35 @@ function AppInner() {
           <div
             className={`${
               toastBanner.type === 'error'
-                ? 'bg-red-600'
+                ? 'bg-red-600 border-b border-red-700'
                 : toastBanner.type === 'warning'
-                ? 'bg-amber-500'
+                ? 'bg-amber-500 border-b border-amber-600'
                 : toastBanner.type === 'info'
-                ? 'bg-rose-400'
-                : 'bg-emerald-600'
-            } text-white px-4 py-2 text-center text-xs font-bold shadow-md animate-fade-in flex items-center justify-center gap-2 shrink-0 z-50`}
+                ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-600 border-b-2 border-red-800 shadow-lg shadow-red-500/30'
+                : 'bg-emerald-600 border-b border-emerald-700'
+            } text-white px-4 py-2 text-center text-xs sm:text-[13px] font-black shadow-md animate-fade-in flex items-center justify-center gap-2.5 shrink-0 z-50`}
           >
-            <span>
-              {toastBanner.type === 'error' ? '⚠️' : toastBanner.type === 'warning' ? '📭' : toastBanner.type === 'info' ? '🔄' : '✨'} {toastBanner.text}
-            </span>
-            {(toastBanner.type === 'error' || toastBanner.type === 'warning') && (
-              <button
-                type="button"
-                onClick={() => setToastBanner(null)}
-                className="ml-1 hover:opacity-70 shrink-0"
-                aria-label="Đóng thông báo"
-              >
-                ✕
-              </button>
-            )}
+            <div className="flex items-center gap-2 tracking-wide">
+              {toastBanner.type === 'info' ? (
+                <RefreshCw className="w-4 h-4 text-white animate-spin shrink-0 stroke-[2.5]" />
+              ) : toastBanner.type === 'error' ? (
+                <AlertTriangle className="w-4 h-4 text-white shrink-0 stroke-[2.5]" />
+              ) : toastBanner.type === 'warning' ? (
+                <AlertTriangle className="w-4 h-4 text-white shrink-0 stroke-[2.5]" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-white shrink-0 stroke-[2.5]" />
+              )}
+              <span>{toastBanner.text.replace(/^🔄\s*/, '')}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setToastBanner(null)}
+              className="ml-3 hover:bg-white/30 p-1 rounded-lg cursor-pointer shrink-0 transition-colors bg-white/15 text-white flex items-center justify-center"
+              aria-label="Đóng thông báo"
+            >
+              <X className="w-3.5 h-3.5 stroke-[3]" />
+            </button>
           </div>
         )}
 
