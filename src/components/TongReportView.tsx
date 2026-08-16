@@ -248,6 +248,44 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
     }
   };
 
+const getGroupBadgeAndCellTheme = (groupName: string) => {
+  const u = (groupName || '').toUpperCase().trim();
+  if (u.includes('ICT')) {
+    return {
+      groupLabel: 'ICT',
+      badgeClass: 'border border-amber-600/30 bg-amber-500 text-white font-black shadow-xs',
+      mergedCellBg: 'bg-amber-50/80',
+      kpiCellBg: 'bg-amber-50/40',
+      groupBorderBottom: 'border-b-2 border-amber-300',
+    };
+  }
+  if (u.includes('DỊCH VỤ') || u.includes('DICH VU')) {
+    return {
+      groupLabel: 'DỊCH VỤ',
+      badgeClass: 'border border-emerald-700/30 bg-emerald-600 text-white font-black shadow-xs',
+      mergedCellBg: 'bg-emerald-50/80',
+      kpiCellBg: 'bg-emerald-50/40',
+      groupBorderBottom: 'border-b-2 border-emerald-300',
+    };
+  }
+  if (u.includes('CE') || u.includes('GIA DỤNG') || u.includes('GD')) {
+    return {
+      groupLabel: 'C.E & GD',
+      badgeClass: 'border border-blue-700/30 bg-blue-600 text-white font-black shadow-xs',
+      mergedCellBg: 'bg-blue-50/80',
+      kpiCellBg: 'bg-blue-50/40',
+      groupBorderBottom: 'border-b-2 border-blue-300',
+    };
+  }
+  return {
+    groupLabel: groupName,
+    badgeClass: 'border border-purple-700/30 bg-purple-600 text-white font-black shadow-xs',
+    mergedCellBg: 'bg-purple-50/80',
+    kpiCellBg: 'bg-purple-50/40',
+    groupBorderBottom: 'border-b-2 border-purple-300',
+  };
+};
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Top Action Bar */}
@@ -292,7 +330,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
            ======================================================================= */}
         <div
           id="tong-card-tgd"
-          className="bg-white border border-amber-300 shadow-sm flex flex-col"
+          className="bg-white border border-amber-300 shadow-sm flex flex-col rounded-sm overflow-hidden"
         >
           {/* Header Banner */}
           <div className="bg-amber-100 p-4 sm:p-5 flex items-start justify-between gap-3 border-b border-amber-300">
@@ -332,36 +370,38 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-amber-100 text-slate-700 font-bold text-center border-b border-amber-300">
-                  <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider">STT</th>
-                  <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider">Ngành hàng</th>
-                  <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider">Nhóm hàng</th>
-                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider">% Hoàn thành</th>
+                <tr className="bg-slate-100 text-slate-800 font-extrabold text-center border-b-2 border-slate-300">
+                  <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">STT</th>
+                  <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">Ngành hàng</th>
+                  <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider border-r border-slate-200">Nhóm hàng</th>
+                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">% Hoàn thành</th>
                   <th className="py-2.5 px-2 w-[130px] text-center uppercase text-[10.5px] tracking-wider" colSpan={2}>
                     Tỉ lệ hoàn thành trên 100%
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-amber-100">
+              <tbody>
                 {(() => {
                   let runningStt = 0;
                   return tgdData.sections.map((sec, secIdx) => {
                     const groupRowCount = sec.items.length;
+                    const theme = getGroupBadgeAndCellTheme(sec.groupName);
 
                     return sec.items.map((item, itemIdx) => {
                       runningStt += 1;
                       const isFirstInGroup = itemIdx === 0;
+                      const isLastInGroup = itemIdx === groupRowCount - 1;
                       const isAchieved = item.rate >= 100;
 
                       return (
                         <tr
                           key={`${sec.groupName}-${item.catName}-${itemIdx}`}
-                          className={`hover:bg-amber-50 transition-colors ${
-                            isAchieved ? 'bg-emerald-50/60' : ''
+                          className={`hover:bg-slate-50/80 transition-colors ${
+                            isLastInGroup ? theme.groupBorderBottom : 'border-b border-slate-200/70'
                           }`}
                         >
                           {/* STT */}
-                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-amber-100">
+                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-slate-200">
                             {runningStt}
                           </td>
 
@@ -369,24 +409,24 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                           {isFirstInGroup && (
                             <td
                               rowSpan={groupRowCount}
-                              className="py-2 px-2 text-center align-middle border-r border-amber-100"
+                              className={`py-2 px-2 text-center align-middle border-r border-slate-200 ${theme.mergedCellBg}`}
                             >
-                              <span className="inline-block px-2 py-1 rounded-md border border-amber-300 bg-amber-100 text-amber-800 font-bold uppercase text-[10.5px] tracking-wide">
-                                {sec.groupName}
+                              <span className={`inline-block px-2.5 py-1 rounded-lg uppercase text-[11px] font-black tracking-wider ${theme.badgeClass}`}>
+                                {theme.groupLabel}
                               </span>
                             </td>
                           )}
 
                           {/* NHÓM HÀNG (Category Display Name) */}
-                          <td className="py-1.5 px-3 font-semibold text-slate-700 uppercase truncate max-w-[240px] border-r border-amber-100">
+                          <td className="py-1.5 px-3 font-semibold text-slate-800 uppercase truncate max-w-[240px] border-r border-slate-200">
                             {item.displayName}
                           </td>
 
                           {/* % HOÀN THÀNH */}
                           <td
-                            className={`py-1.5 px-2 text-center font-bold border-r border-amber-100 ${
+                            className={`py-1.5 px-2 text-center font-extrabold border-r border-slate-200 ${
                               isAchieved
-                                ? 'bg-emerald-100 text-emerald-700'
+                                ? 'bg-emerald-100/90 text-emerald-800'
                                 : 'text-rose-500'
                             }`}
                           >
@@ -398,16 +438,16 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                             <>
                               <td
                                 rowSpan={groupRowCount}
-                                className="py-2 px-2 text-center font-bold text-slate-600 align-middle border-r border-amber-100"
+                                className={`py-2 px-2 text-center font-extrabold text-slate-700 align-middle border-r border-slate-200 ${theme.kpiCellBg}`}
                               >
                                 {sec.achievedCount}/{sec.totalCount}
                               </td>
                               <td
                                 rowSpan={groupRowCount}
-                                className={`py-2 px-2 text-center font-black align-middle ${
+                                className={`py-2 px-2 text-center font-black align-middle ${theme.kpiCellBg} ${
                                   sec.ratePercent >= 100
-                                    ? 'text-emerald-600'
-                                    : 'text-rose-500'
+                                    ? 'text-emerald-700'
+                                    : 'text-rose-600'
                                 }`}
                               >
                                 {sec.ratePercent}%
@@ -421,11 +461,11 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                 })()}
 
                 {/* FOOTER ROW: TỔNG CỘNG */}
-                <tr className="bg-amber-200/80 text-slate-900 font-black text-sm border-t border-amber-300">
-                  <td colSpan={4} className="py-2.5 px-4 text-center uppercase tracking-wider">
+                <tr className="bg-amber-100 text-slate-900 font-black text-sm border-t-2 border-amber-300">
+                  <td colSpan={4} className="py-2.5 px-4 text-center uppercase tracking-wider border-r border-amber-200">
                     Tổng cộng
                   </td>
-                  <td className="py-2.5 px-2 text-center font-black w-[65px]">
+                  <td className="py-2.5 px-2 text-center font-black w-[65px] border-r border-amber-200">
                     {tgdData.totalAchieved}/{tgdData.totalCategories}
                   </td>
                   <td
@@ -446,7 +486,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
            ======================================================================= */}
         <div
           id="tong-card-dmx"
-          className="bg-white border border-sky-300 shadow-sm flex flex-col"
+          className="bg-white border border-sky-300 shadow-sm flex flex-col rounded-sm overflow-hidden"
         >
           {/* Header Banner */}
           <div className="bg-sky-100 p-4 sm:p-5 flex items-start justify-between gap-3 border-b border-sky-300">
@@ -463,7 +503,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                   {modePrefix} đến thời gian :{' '}
                   <span className="text-rose-600 font-black">{formattedHeaderTime}</span>
                 </div>
-                <div className="text-[10px] sm:text-[10.5px] font-bold text-slate-400 normal-case pt-0.5 tracking-normal">
+                <div className="text-[10px] sm:text-[10.5px] font-bold text-slate-500 normal-case pt-0.5 tracking-normal">
                   D.thu C.E + GD do TGD + TZ bán sẽ tính cho Vùng, không cộng cho ĐMX
                 </div>
               </div>
@@ -489,36 +529,38 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="bg-sky-100 text-slate-700 font-bold text-center border-b border-sky-300">
-                  <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider">STT</th>
-                  <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider">Ngành hàng</th>
-                  <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider">Nhóm hàng</th>
-                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider">% Hoàn thành</th>
+                <tr className="bg-slate-100 text-slate-800 font-extrabold text-center border-b-2 border-slate-300">
+                  <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">STT</th>
+                  <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">Ngành hàng</th>
+                  <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider border-r border-slate-200">Nhóm hàng</th>
+                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">% Hoàn thành</th>
                   <th className="py-2.5 px-2 w-[130px] text-center uppercase text-[10.5px] tracking-wider" colSpan={2}>
                     Tỉ lệ hoàn thành trên 100%
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-sky-100">
+              <tbody>
                 {(() => {
                   let runningStt = 0;
                   return dmxData.sections.map((sec, secIdx) => {
                     const groupRowCount = sec.items.length;
+                    const theme = getGroupBadgeAndCellTheme(sec.groupName);
 
                     return sec.items.map((item, itemIdx) => {
                       runningStt += 1;
                       const isFirstInGroup = itemIdx === 0;
+                      const isLastInGroup = itemIdx === groupRowCount - 1;
                       const isAchieved = item.rate >= 100;
 
                       return (
                         <tr
                           key={`${sec.groupName}-${item.catName}-${itemIdx}`}
-                          className={`hover:bg-sky-50 transition-colors ${
-                            isAchieved ? 'bg-emerald-50/60' : ''
+                          className={`hover:bg-slate-50/80 transition-colors ${
+                            isLastInGroup ? theme.groupBorderBottom : 'border-b border-slate-200/70'
                           }`}
                         >
                           {/* STT */}
-                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-sky-100">
+                          <td className="py-1.5 px-2 text-center font-semibold text-slate-500 border-r border-slate-200">
                             {runningStt}
                           </td>
 
@@ -526,24 +568,24 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                           {isFirstInGroup && (
                             <td
                               rowSpan={groupRowCount}
-                              className="py-2 px-2 text-center align-middle border-r border-sky-100"
+                              className={`py-2 px-2 text-center align-middle border-r border-slate-200 ${theme.mergedCellBg}`}
                             >
-                              <span className="inline-block px-2 py-1 rounded-md border border-sky-300 bg-sky-100 text-sky-800 font-bold uppercase text-[10.5px] tracking-wide">
-                                {sec.groupName}
+                              <span className={`inline-block px-2.5 py-1 rounded-lg uppercase text-[11px] font-black tracking-wider ${theme.badgeClass}`}>
+                                {theme.groupLabel}
                               </span>
                             </td>
                           )}
 
                           {/* NHÓM HÀNG (Category Display Name) */}
-                          <td className="py-1.5 px-3 font-semibold text-slate-700 uppercase truncate max-w-[240px] border-r border-sky-100">
+                          <td className="py-1.5 px-3 font-semibold text-slate-800 uppercase truncate max-w-[240px] border-r border-slate-200">
                             {item.displayName}
                           </td>
 
                           {/* % HOÀN THÀNH */}
                           <td
-                            className={`py-1.5 px-2 text-center font-bold border-r border-sky-100 ${
+                            className={`py-1.5 px-2 text-center font-extrabold border-r border-slate-200 ${
                               isAchieved
-                                ? 'bg-emerald-100 text-emerald-700'
+                                ? 'bg-emerald-100/90 text-emerald-800'
                                 : 'text-rose-500'
                             }`}
                           >
@@ -555,16 +597,16 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                             <>
                               <td
                                 rowSpan={groupRowCount}
-                                className="py-2 px-2 text-center font-bold text-slate-600 align-middle border-r border-sky-100"
+                                className={`py-2 px-2 text-center font-extrabold text-slate-700 align-middle border-r border-slate-200 ${theme.kpiCellBg}`}
                               >
                                 {sec.achievedCount}/{sec.totalCount}
                               </td>
                               <td
                                 rowSpan={groupRowCount}
-                                className={`py-2 px-2 text-center font-black align-middle ${
+                                className={`py-2 px-2 text-center font-black align-middle ${theme.kpiCellBg} ${
                                   sec.ratePercent >= 100
-                                    ? 'text-emerald-600'
-                                    : 'text-rose-500'
+                                    ? 'text-emerald-700'
+                                    : 'text-rose-600'
                                 }`}
                               >
                                 {sec.ratePercent}%
@@ -578,11 +620,11 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
                 })()}
 
                 {/* FOOTER ROW: TỔNG CỘNG */}
-                <tr className="bg-sky-200/80 text-slate-900 font-black text-sm border-t border-sky-300">
-                  <td colSpan={4} className="py-2.5 px-4 text-center uppercase tracking-wider">
+                <tr className="bg-sky-100 text-slate-900 font-black text-sm border-t-2 border-sky-300">
+                  <td colSpan={4} className="py-2.5 px-4 text-center uppercase tracking-wider border-r border-sky-200">
                     Tổng cộng
                   </td>
-                  <td className="py-2.5 px-2 text-center font-black w-[65px]">
+                  <td className="py-2.5 px-2 text-center font-black w-[65px] border-r border-sky-200">
                     {dmxData.totalAchieved}/{dmxData.totalCategories}
                   </td>
                   <td
