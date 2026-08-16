@@ -593,36 +593,60 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     try {
       const XLSX = await import('xlsx');
       const excelRows = itemsToExport.map((item, idx) => ({
-        'STT': item.stt || idx + 1,
-        'TỈNH': item.tinh || '',
+        'VỊ TRÍ SIÊU THỊ': item.viTriSieuThi || '',
+        'HUYỆN của siêu thị': item.huyenCuaSieuThi || '',
+        'QL phụ trách': item.qlPhuTrach || '',
+        'TỈNH BASE': item.tinhBase || '',
+        'CỤM MỚI': item.cumMoi || '',
+        'MÃ BASE MỚI': item.maBaseMoi || '',
+        'SIÊU THỊ BASE': item.sieuthiBase || '',
         'TỈNH MỚI 2026': item.tinhMoi || '',
         'MST': item.mst || extractMst(item.sieuthi) || '',
-        'SIÊU THỊ BASE': item.sieuthiBase || '',
-        'BOSS T7': item.bossRaw || item.boss || '',
+        'SIÊU THỊ': item.sieuthiNgan || '',
+        'USER': item.user || '',
+        'TỈNH': item.tinh || '',
+        'BOSS': item.bossRaw || item.boss || '',
         'KÊNH': item.kenh || '',
         'MST – TÊN SIÊU THỊ': item.sieuthi || '',
         'CHIẾN ICT': item.chienIct || '',
         'CHIẾN CE': item.chienCe || '',
+        'SL SHOP': item.slShop || 1,
+        'Số tháng làm việc': item.soThangLamViec || '-',
+        'ST KD LAPTOP': item.stKdLaptop || '',
         'SL TRƯỞNG CA': item.slTruongCa || 1,
         'DT QĐ TB 5T26': item.dtQdTb || '',
         'PHÂN LOẠI SHOP': item.phanLoaiShop || '',
+        'CÓ TỦ ĐỒNG HỒ': item.coTuDongHo || '',
+        'CÓ KD LAPTOP': item.coKdLaptop || '',
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(excelRows);
       const colWidths = [
-        { wch: 6 },  // STT
-        { wch: 15 }, // TỈNH
-        { wch: 18 }, // TỈNH MỚI 2026
-        { wch: 10 }, // MST
-        { wch: 35 }, // SIÊU THỊ BASE
-        { wch: 22 }, // BOSS T7
-        { wch: 10 }, // KÊNH
-        { wch: 45 }, // MST – TÊN SIÊU THỊ
-        { wch: 18 }, // CHIẾN ICT
-        { wch: 18 }, // CHIẾN CE
-        { wch: 15 }, // SL TRƯỞNG CA
-        { wch: 16 }, // DT QĐ TB 5T26
-        { wch: 18 }, // PHÂN LOẠI SHOP
+        { wch: 18 }, // A: VỊ TRÍ SIÊU THỊ
+        { wch: 22 }, // B: HUYỆN của siêu thị
+        { wch: 18 }, // C: QL phụ trách
+        { wch: 15 }, // D: TỈNH BASE
+        { wch: 15 }, // E: CỤM MỚI
+        { wch: 14 }, // F: MÃ BASE MỚI
+        { wch: 45 }, // G: SIÊU THỊ BASE
+        { wch: 16 }, // H: TỈNH MỚI 2026
+        { wch: 10 }, // I: MST
+        { wch: 45 }, // J: SIÊU THỊ
+        { wch: 14 }, // K: USER
+        { wch: 15 }, // L: TỈNH
+        { wch: 20 }, // M: BOSS
+        { wch: 10 }, // N: KÊNH
+        { wch: 45 }, // O: MST – TÊN SIÊU THỊ
+        { wch: 18 }, // P: CHIẾN ICT
+        { wch: 18 }, // Q: CHIẾN CE
+        { wch: 10 }, // R: SL SHOP
+        { wch: 18 }, // S: Số tháng làm việc
+        { wch: 18 }, // T: ST KD LAPTOP
+        { wch: 15 }, // U: SL TRƯỞNG CA
+        { wch: 16 }, // V: DT QĐ TB 5T26
+        { wch: 18 }, // W: PHÂN LOẠI SHOP
+        { wch: 16 }, // X: CÓ TỦ ĐỒNG HỒ
+        { wch: 16 }, // Y: CÓ KD LAPTOP
       ];
       worksheet['!cols'] = colWidths;
 
@@ -1431,14 +1455,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             {/* Standard BI Sheet Reference Helper */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
               <div className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                💡 Cấu trúc chuẩn tiêu đề file Excel BI BOSS (Cột A ➔ Q):
+                💡 Cấu trúc 25 cột chuẩn của file Excel BOSS do Anh Miêng cung cấp (Cột A ➔ Y):
               </div>
-              <div className="text-[11px] font-mono text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200 max-h-28 overflow-y-auto space-y-1">
-                <div>A: VỊ TRÍ SIÊU THỊ | B: HUYỆN | C: QL phụ trách</div>
-                <div>D: TỈNH BASE | E: CỤM MỚI | F: MÃ BASE MỚI | G: SIÊU THỊ BASE</div>
-                <div>H: TỈNH MỚI 2026 | <strong>I: MST</strong> | <strong>J: SIÊU THỊ</strong> | K: USER</div>
-                <div><strong>L: TỈNH</strong> | <strong>M: BOSS T7</strong> | <strong>N: KÊNH</strong> | <strong>O: MST – TÊN SIÊU THỊ</strong></div>
-                <div>P: CHIẾN ICT | Q: CHIẾN CE | W: PHÂN LOẠI SHOP</div>
+              <div className="text-[11px] font-mono text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200 max-h-36 overflow-y-auto space-y-1">
+                <div>A: VỊ TRÍ SIÊU THỊ | B: HUYỆN của siêu thị | C: QL phụ trách</div>
+                <div>D: TỈNH BASE | E: CỤM MỚI | F: MÃ BASE MỚI | <strong>G: SIÊU THỊ BASE</strong></div>
+                <div>H: TỈNH MỚI 2026 | <strong>I: MST</strong> | J: SIÊU THỊ | K: USER</div>
+                <div><strong>L: TỈNH</strong> | <strong>M: BOSS</strong> | <strong>N: KÊNH</strong> | <strong>O: MST – TÊN SIÊU THỊ</strong></div>
+                <div><strong>P: CHIẾN ICT</strong> | <strong>Q: CHIẾN CE</strong> | R: SL SHOP | S: Số tháng làm việc</div>
+                <div>T: ST KD LAPTOP | <strong>U: SL TRƯỞNG CA</strong> | V: DT QĐ TB 5T26 | <strong>W: PHÂN LOẠI SHOP</strong></div>
+                <div>X: CÓ TỦ ĐỒNG HỒ | Y: CÓ KD LAPTOP</div>
               </div>
             </div>
 

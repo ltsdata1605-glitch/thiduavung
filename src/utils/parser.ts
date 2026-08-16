@@ -2,19 +2,33 @@ import { StoreRecord, Channel, RemarkDisplayMode } from '../types';
 
 export interface BossAssignmentRecord {
   stt?: number;
-  tinh?: string;
-  mst?: string;
-  boss: string;
+  // All 25 columns from Anh Mieng's standard BOSS file (A -> Y)
+  viTriSieuThi?: string;        // A: VỊ TRÍ SIÊU THỊ
+  huyenCuaSieuThi?: string;     // B: HUYỆN của siêu thị
+  qlPhuTrach?: string;          // C: QL phụ trách
+  tinhBase?: string;            // D: TỈNH BASE
+  cumMoi?: string;              // E: CỤM MỚI
+  maBaseMoi?: string;           // F: MÃ BASE MỚI
+  sieuthiBase?: string;         // G: SIÊU THỊ BASE
+  tinhMoi?: string;             // H: TỈNH MỚI 2026
+  mst?: string;                 // I: MST
+  sieuthiNgan?: string;         // J: SIÊU THỊ
+  user?: string;                // K: USER
+  tinh?: string;                // L: TỈNH
+  boss: string;                 // M: BOSS
   bossRaw?: string;
-  kenh?: Channel | string;
-  sieuthi: string;
-  sieuthiBase?: string;
-  chienIct?: string;
-  chienCe?: string;
-  slTruongCa?: string | number;
-  dtQdTb?: string | number;
-  phanLoaiShop?: string;
-  tinhMoi?: string;
+  kenh?: Channel | string;      // N: KÊNH
+  sieuthi: string;              // O: MST – TÊN SIÊU THỊ
+  chienIct?: string;            // P: CHIẾN ICT
+  chienCe?: string;             // Q: CHIẾN CE
+  slShop?: string | number;     // R: SL SHOP
+  soThangLamViec?: string;      // S: Số tháng làm việc
+  stKdLaptop?: string;          // T: ST KD LAPTOP
+  slTruongCa?: string | number; // U: SL TRƯỞNG CA
+  dtQdTb?: string | number;     // V: DT QĐ TB 5T26
+  phanLoaiShop?: string;        // W: PHÂN LOẠI SHOP
+  coTuDongHo?: string;          // X: CÓ TỦ ĐỒNG HỒ
+  coKdLaptop?: string;          // Y: CÓ KD LAPTOP
 }
 
 /**
@@ -149,27 +163,57 @@ export interface BossValidationResult {
 export function validateBossHeaders(headers: string[]): BossValidationResult {
   const normalizedHeaders = headers.map((h) => h.trim().toUpperCase());
 
-  // Key required columns for BOSS mapping
+  // Strict required columns from Anh Mieng's standard 25-column BOSS Excel file
   const requiredSpecs = [
     {
-      key: 'SIÊU THỊ',
-      label: 'SIÊU THỊ (hoặc MST – TÊN SIÊU THỊ)',
-      match: (h: string) => h.includes('SIÊU THỊ') || h.includes('SIEU THI') || h.includes('STORE'),
+      key: 'TỈNH',
+      label: 'TỈNH',
+      match: (h: string) => h === 'TỈNH' || h === 'TINH' || (h.includes('TỈNH') && !h.includes('MỚI') && !h.includes('BASE')),
     },
     {
-      key: 'BOSS T7',
-      label: 'BOSS T7 (hoặc BOSS / USER)',
-      match: (h: string) => h.includes('BOSS') || h.includes('USER') || h.includes('QUẢN LÝ'),
+      key: 'MST',
+      label: 'MST (Mã siêu thị)',
+      match: (h: string) => h === 'MST' || h === 'MÃ SIÊU THỊ' || h === 'MÃ KHO' || h === 'MÃ BASE MỚI',
+    },
+    {
+      key: 'SIÊU THỊ BASE',
+      label: 'SIÊU THỊ BASE',
+      match: (h: string) => h.includes('SIÊU THỊ BASE') || h.includes('SIEU THI BASE'),
+    },
+    {
+      key: 'BOSS',
+      label: 'BOSS (hoặc BOSS T7)',
+      match: (h: string) => h === 'BOSS' || h === 'BOSS T7' || (h.includes('BOSS') && !h.includes('QL')),
     },
     {
       key: 'KÊNH',
       label: 'KÊNH',
-      match: (h: string) => h.includes('KÊNH') || h.includes('KENH') || h.includes('CHANNEL'),
+      match: (h: string) => h === 'KÊNH' || h === 'KENH' || h.includes('KÊNH') || h.includes('KENH'),
     },
     {
-      key: 'TỈNH',
-      label: 'TỈNH',
-      match: (h: string) => h.includes('TỈNH') || h.includes('TINH') || h.includes('PROVINCE'),
+      key: 'MST – TÊN SIÊU THỊ',
+      label: 'MST – TÊN SIÊU THỊ',
+      match: (h: string) => h.includes('MST – TÊN SIÊU THỊ') || h.includes('MST - TÊN SIÊU THỊ') || h.includes('MST – TEN SIEU THI'),
+    },
+    {
+      key: 'CHIẾN ICT',
+      label: 'CHIẾN ICT',
+      match: (h: string) => h.includes('CHIẾN ICT') || h.includes('CHIEN ICT'),
+    },
+    {
+      key: 'CHIẾN CE',
+      label: 'CHIẾN CE',
+      match: (h: string) => h.includes('CHIẾN CE') || h.includes('CHIEN CE'),
+    },
+    {
+      key: 'SL TRƯỞNG CA',
+      label: 'SL TRƯỞNG CA',
+      match: (h: string) => h.includes('TRƯỞNG CA') || h.includes('TRUONG CA'),
+    },
+    {
+      key: 'PHÂN LOẠI SHOP',
+      label: 'PHÂN LOẠI SHOP',
+      match: (h: string) => h.includes('PHÂN LOẠI') || h.includes('PHAN LOAI'),
     },
   ];
 
@@ -182,7 +226,7 @@ export function validateBossHeaders(headers: string[]): BossValidationResult {
     }
   }
 
-  // Known standard BI BOSS sheet columns (A -> W)
+  // Known 25 columns from Anh Mieng's standard BOSS sheet (A -> Y)
   const knownBIColumns = [
     'VỊ TRÍ SIÊU THỊ',
     'VI TRI SIEU THI',
@@ -219,12 +263,18 @@ export function validateBossHeaders(headers: string[]): BossValidationResult {
     'CHIEN ICT',
     'CHIẾN CE',
     'CHIEN CE',
+    'SL SHOP',
+    'SỐ THÁNG LÀM VIỆC',
+    'ST KD LAPTOP',
     'SL TRƯỞNG CA',
     'SL TRUONG CA',
+    'DT QĐ TB 5T26',
     'DT QĐ TB',
     'PHÂN LOẠI SHOP',
     'PHAN LOAI SHOP',
     'PHÂN LOẠI',
+    'CÓ TỦ ĐỒNG HỒ',
+    'CÓ KD LAPTOP',
     'STT',
   ];
 
@@ -386,14 +436,48 @@ export function parseBossPastedData(text: string): {
 
   const results: BossAssignmentRecord[] = [];
 
-  // Detect Column Indices with precise priority matching for full BI Excel format
+  // Detect Column Indices with precise priority matching for full 25-column BI Excel format (A -> Y)
+  let colViTriSieuThi = headers.findIndex((h) => h.includes('VỊ TRÍ') || h.includes('VI TRI'));
+  if (colViTriSieuThi === -1 && headers.length > 0) colViTriSieuThi = 0;
+
+  let colHuyenCuaSieuThi = headers.findIndex((h) => h.includes('HUYỆN') || h.includes('HUYEN'));
+  if (colHuyenCuaSieuThi === -1 && headers.length > 1) colHuyenCuaSieuThi = 1;
+
+  let colQlPhuTrach = headers.findIndex((h) => h.includes('QL PHỤ TRÁCH') || h.includes('QL PHU TRACH'));
+  if (colQlPhuTrach === -1 && headers.length > 2) colQlPhuTrach = 2;
+
+  let colTinhBase = headers.findIndex((h) => h.includes('TỈNH BASE') || h.includes('TINH BASE'));
+  if (colTinhBase === -1 && headers.length > 3) colTinhBase = 3;
+
+  let colCumMoi = headers.findIndex((h) => h.includes('CỤM MỚI') || h.includes('CUM MOI') || h === 'CỤM');
+  if (colCumMoi === -1 && headers.length > 4) colCumMoi = 4;
+
+  let colMaBaseMoi = headers.findIndex((h) => h.includes('MÃ BASE') || h.includes('MA BASE'));
+  if (colMaBaseMoi === -1 && headers.length > 5) colMaBaseMoi = 5;
+
+  let colSieuThiBase = headers.findIndex((h) => h.includes('SIÊU THỊ BASE') || h.includes('SIEU THI BASE'));
+  if (colSieuThiBase === -1 && headers.length > 6) colSieuThiBase = 6;
+
+  let colTinhMoi = headers.findIndex((h) => h.includes('TỈNH MỚI') || h.includes('TINH MOI'));
+  if (colTinhMoi === -1 && headers.length > 7) colTinhMoi = 7;
+
   let colMst = headers.findIndex((h) => h === 'MST' || h === 'MÃ SIÊU THỊ' || h === 'MA SIEU THI' || h === 'MÃ KHO' || h === 'MA KHO');
   if (colMst === -1) {
     colMst = headers.findIndex((h) => h.includes('MST') && !h.includes('TÊN'));
   }
-  if (colMst === -1 && headers.length > 8) {
-    colMst = 8;
+  if (colMst === -1 && headers.length > 8) colMst = 8;
+
+  let colSieuThiNgan = headers.findIndex((h, idx) => (h === 'SIÊU THỊ' || h === 'SIEU THI') && idx !== colSieuThiBase);
+  if (colSieuThiNgan === -1 && headers.length > 9) colSieuThiNgan = 9;
+
+  let colUser = headers.findIndex((h) => h === 'USER' || h.includes('MÃ USER') || h.includes('TAG'));
+  if (colUser === -1 && headers.length > 10) colUser = 10;
+
+  let colTinh = headers.findIndex((h, idx) => (h === 'TỈNH' || h === 'TINH') && idx !== colTinhBase && idx !== colTinhMoi);
+  if (colTinh === -1) {
+    colTinh = headers.findIndex((h) => h.includes('TỈNH') && !h.includes('CỤM') && !h.includes('HUYỆN'));
   }
+  if (colTinh === -1 && headers.length > 11) colTinh = 11;
 
   let colBoss = headers.findIndex((h) => h === 'BOSS T7' || h === 'BOSS');
   if (colBoss === -1) {
@@ -405,50 +489,52 @@ export function parseBossPastedData(text: string): {
   if (colBoss === -1) {
     colBoss = headers.findIndex((h) => h.includes('USER'));
   }
-  if (headers.length > 12 && headers[12].replace(/\s+/g, ' ').trim().includes('BOSS')) {
-    colBoss = 12;
-  }
+  if (colBoss === -1 && headers.length > 12) colBoss = 12;
 
-  let colSieuThi = headers.findIndex((h) => h === 'MST – TÊN SIÊU THỊ' || h === 'MST - TÊN SIÊU THỊ');
-  if (colSieuThi === -1) {
-    colSieuThi = headers.findIndex((h) => h.includes('MST – TÊN SIÊU THỊ') || h.includes('MST - TÊN SIÊU THỊ'));
-  }
-  if (colSieuThi === -1) {
-    colSieuThi = headers.findIndex((h, idx) => idx > 5 && (h === 'SIÊU THỊ' || h.includes('TÊN SIÊU THỊ')));
-  }
-
-  let colTinh = headers.findIndex((h) => h === 'TỈNH');
-  if (colTinh === -1) {
-    colTinh = headers.findIndex((h) => h === 'TỈNH MỚI 2026' || h === 'TỈNH BASE');
-  }
-  if (colTinh === -1) {
-    colTinh = headers.findIndex((h) => h.includes('TỈNH') && !h.includes('CỤM') && !h.includes('HUYỆN'));
-  }
-
-  // Cột N (index 13) là cột KÊNH duy nhất từ file BOSS
   let colKenh = headers.findIndex((h) => h === 'KÊNH' || h === 'KENH');
   if (colKenh === -1) {
     colKenh = headers.findIndex((h) => h.includes('KÊNH') || h.includes('KENH'));
   }
-  if (colKenh === -1 && headers.length > 13) {
-    colKenh = 13;
-  }
+  if (colKenh === -1 && headers.length > 13) colKenh = 13;
 
-  let colChienIct = headers.findIndex((h) => h === 'CHIẾN ICT' || h.includes('CHIẾN ICT'));
-  let colChienCe = headers.findIndex((h) => h === 'CHIẾN CE' || h.includes('CHIẾN CE'));
-  let colSlTruongCa = headers.findIndex((h) => h === 'SL TRƯỞNG CA' || h.includes('TRƯỞNG CA'));
+  let colSieuThi = headers.findIndex((h) => h.includes('MST – TÊN SIÊU THỊ') || h.includes('MST - TÊN SIÊU THỊ') || h.includes('MST – TEN SIEU THI'));
+  if (colSieuThi === -1) {
+    colSieuThi = headers.findIndex((h, idx) => idx > 5 && (h === 'SIÊU THỊ' || h.includes('TÊN SIÊU THỊ')));
+  }
+  if (colSieuThi === -1 && headers.length > 14) colSieuThi = 14;
+
+  let colChienIct = headers.findIndex((h) => h.includes('CHIẾN ICT') || h.includes('CHIEN ICT'));
+  if (colChienIct === -1 && headers.length > 15) colChienIct = 15;
+
+  let colChienCe = headers.findIndex((h) => h.includes('CHIẾN CE') || h.includes('CHIEN CE'));
+  if (colChienCe === -1 && headers.length > 16) colChienCe = 16;
+
+  let colSlShop = headers.findIndex((h) => h.includes('SL SHOP') || h.includes('SỐ SHOP'));
+  if (colSlShop === -1 && headers.length > 17) colSlShop = 17;
+
+  let colSoThangLamViec = headers.findIndex((h) => h.includes('THÁNG LÀM VIỆC') || h.includes('THANG LAM VIEC'));
+  if (colSoThangLamViec === -1 && headers.length > 18) colSoThangLamViec = 18;
+
+  let colStKdLaptop = headers.findIndex((h) => h.includes('ST KD LAPTOP') || h.includes('SHOP KD LAPTOP'));
+  if (colStKdLaptop === -1 && headers.length > 19) colStKdLaptop = 19;
+
+  let colSlTruongCa = headers.findIndex((h) => h.includes('SL TRƯỞNG CA') || h.includes('TRƯỞNG CA') || h.includes('TRUONG CA'));
+  if (colSlTruongCa === -1 && headers.length > 20) colSlTruongCa = 20;
+
   let colDtQdTb = headers.findIndex((h) => h.includes('DT QĐ TB') || h.includes('5T26') || h.includes('QĐ TB'));
-  let colPhanLoaiShop = headers.findIndex((h) => h === 'PHÂN LOẠI SHOP' || h === 'PHÂN LOẠI');
+  if (colDtQdTb === -1 && headers.length > 21) colDtQdTb = 21;
+
+  let colPhanLoaiShop = headers.findIndex((h) => h.includes('PHÂN LOẠI SHOP') || h.includes('PHAN LOAI SHOP') || h === 'PHÂN LOẠI');
   if (colPhanLoaiShop === -1) {
     colPhanLoaiShop = headers.findIndex((h) => h.includes('PHÂN LOẠI') && !h.includes('CỬA HÀNG'));
   }
-  // Cột H — "TỈNH MỚI 2026": tỉnh sáp nhập mới, độc lập với cột TỈNH (K) hiện
-  // hành dùng cho b.tinh — không dùng chung logic dò cột với colTinh vì file
-  // luôn có cả 2 cột riêng biệt và cần giữ đúng dữ liệu của từng cột.
-  let colTinhMoi = headers.findIndex((h) => h === 'TỈNH MỚI 2026' || h === 'TINH MOI 2026');
-  if (colTinhMoi === -1) {
-    colTinhMoi = headers.findIndex((h) => h.includes('TỈNH MỚI') || h.includes('TINH MOI'));
-  }
+  if (colPhanLoaiShop === -1 && headers.length > 22) colPhanLoaiShop = 22;
+
+  let colCoTuDongHo = headers.findIndex((h) => h.includes('TỦ ĐỒNG HỒ') || h.includes('TU DONG HO') || h.includes('TỦ ĐH'));
+  if (colCoTuDongHo === -1 && headers.length > 23) colCoTuDongHo = 23;
+
+  let colCoKdLaptop = headers.findIndex((h) => h.includes('KD LAPTOP') || h.includes('CÓ KD LAPTOP'));
+  if (colCoKdLaptop === -1 && headers.length > 24) colCoKdLaptop = 24;
 
   const startRow = 1; // Since validation verified headers on row 0
 
@@ -460,8 +546,22 @@ export function parseBossPastedData(text: string): {
 
     if (cells.length < 2) continue;
 
-    const rawMst = colMst >= 0 && cells[colMst] ? cells[colMst] : cells[8] || extractMst(cells[14] || cells[9] || '') || '';
+    const viTriSieuThi = (colViTriSieuThi >= 0 && cells[colViTriSieuThi]) ? cells[colViTriSieuThi] : cells[0] || '';
+    const huyenCuaSieuThi = (colHuyenCuaSieuThi >= 0 && cells[colHuyenCuaSieuThi]) ? cells[colHuyenCuaSieuThi] : cells[1] || '';
+    const qlPhuTrach = (colQlPhuTrach >= 0 && cells[colQlPhuTrach]) ? cells[colQlPhuTrach] : cells[2] || '';
+    const tinhBase = (colTinhBase >= 0 && cells[colTinhBase]) ? cells[colTinhBase] : cells[3] || '';
+    const cumMoi = (colCumMoi >= 0 && cells[colCumMoi]) ? cells[colCumMoi] : cells[4] || '';
+    const maBaseMoi = (colMaBaseMoi >= 0 && cells[colMaBaseMoi]) ? cells[colMaBaseMoi] : cells[5] || '';
+    const sieuthiBase = (colSieuThiBase >= 0 && cells[colSieuThiBase]) ? cells[colSieuThiBase] : cells[6] || cells[0] || '';
+    const tinhMoi = (colTinhMoi >= 0 && cells[colTinhMoi]) ? cells[colTinhMoi] : cells[7] || '-';
+
+    const rawMst = colMst >= 0 && cells[colMst] ? cells[colMst] : cells[8] || extractMst(cells[14] || cells[9] || cells[6] || '') || '';
     const mst = rawMst.trim();
+
+    const sieuthiNgan = (colSieuThiNgan >= 0 && cells[colSieuThiNgan]) ? cells[colSieuThiNgan] : cells[9] || '';
+    const user = (colUser >= 0 && cells[colUser]) ? cells[colUser] : cells[10] || '';
+
+    const tinh = (colTinh >= 0 && cells[colTinh]) ? cells[colTinh] : cells[11] || tinhBase || 'TNB';
 
     let rawBoss = colBoss >= 0 && cells[colBoss] ? cells[colBoss] : (cells[12] || cells[2] || '');
     if (rawBoss === 'Lưu Động' || rawBoss.toUpperCase().includes('ĐML-ĐMM-ĐMS')) {
@@ -471,27 +571,26 @@ export function parseBossPastedData(text: string): {
     // Keep raw boss name as-is (e.g. "Sơn_21707") without forcing "Boss " prefix or stripping underscore codes
     const bossName = rawBoss && rawBoss.trim() ? rawBoss.trim() : 'Chưa phân công';
 
-    const sieuthi =
-      colSieuThi >= 0 && cells[colSieuThi]
-        ? cells[colSieuThi]
-        : cells[14] || cells[9] || cells[6] || cells[0] || '';
-
-    const sieuthiBase = cells[6] || cells[0] || '';
-
-    const tinh =
-      colTinh >= 0 && cells[colTinh] ? cells[colTinh] : cells[11] || cells[7] || cells[3] || '';
-
     // Kênh lấy chính xác và duy nhất từ cột N (colKenh hoặc index 13)
     const rawKenh = colKenh >= 0 && cells[colKenh] ? cells[colKenh] : cells[13] || '';
     const kenh = cleanKenhValue(rawKenh, cells[13] || '');
 
+    const sieuthi =
+      colSieuThi >= 0 && cells[colSieuThi]
+        ? cells[colSieuThi]
+        : cells[14] || cells[9] || sieuthiBase || '';
+
     const chienIct = colChienIct >= 0 && cells[colChienIct] ? cells[colChienIct] : cells[15] || '-';
     const chienCe = colChienCe >= 0 && cells[colChienCe] ? cells[colChienCe] : cells[16] || '-';
-    const slTruongCa = colSlTruongCa >= 0 && cells[colSlTruongCa] ? cells[colSlTruongCa] : cells[17] || '-';
-    const dtQdTb = colDtQdTb >= 0 && cells[colDtQdTb] ? cells[colDtQdTb] : cells[18] || '-';
+    const slShop = colSlShop >= 0 && cells[colSlShop] ? cells[colSlShop] : cells[17] || '1';
+    const soThangLamViec = colSoThangLamViec >= 0 && cells[colSoThangLamViec] ? cells[colSoThangLamViec] : cells[18] || '-';
+    const stKdLaptop = colStKdLaptop >= 0 && cells[colStKdLaptop] ? cells[colStKdLaptop] : cells[19] || '-';
+    const slTruongCa = colSlTruongCa >= 0 && cells[colSlTruongCa] ? cells[colSlTruongCa] : cells[20] || '1';
+    const dtQdTb = colDtQdTb >= 0 && cells[colDtQdTb] ? cells[colDtQdTb] : cells[21] || '-';
     const phanLoaiShop =
-      colPhanLoaiShop >= 0 && cells[colPhanLoaiShop] ? cells[colPhanLoaiShop] : cells[19] || '-';
-    const tinhMoi = colTinhMoi >= 0 && cells[colTinhMoi] ? cells[colTinhMoi] : cells[7] || '-';
+      colPhanLoaiShop >= 0 && cells[colPhanLoaiShop] ? cells[colPhanLoaiShop] : cells[22] || '-';
+    const coTuDongHo = colCoTuDongHo >= 0 && cells[colCoTuDongHo] ? cells[colCoTuDongHo] : cells[23] || '-';
+    const coKdLaptop = colCoKdLaptop >= 0 && cells[colCoKdLaptop] ? cells[colCoKdLaptop] : cells[24] || '-';
 
     if (
       sieuthi &&
@@ -501,19 +600,32 @@ export function parseBossPastedData(text: string): {
     ) {
       results.push({
         stt: results.length + 1,
-        tinh: tinh || 'TNB',
+        viTriSieuThi,
+        huyenCuaSieuThi,
+        qlPhuTrach,
+        tinhBase,
+        cumMoi,
+        maBaseMoi,
+        sieuthiBase,
+        tinhMoi,
         mst: mst || undefined,
+        sieuthiNgan,
+        user,
+        tinh: tinh || 'TNB',
         boss: bossName,
         bossRaw: bossName,
         kenh,
         sieuthi,
-        sieuthiBase: sieuthiBase || undefined,
         chienIct,
         chienCe,
+        slShop,
+        soThangLamViec,
+        stKdLaptop,
         slTruongCa,
         dtQdTb,
         phanLoaiShop,
-        tinhMoi,
+        coTuDongHo,
+        coKdLaptop,
       });
     }
   }
