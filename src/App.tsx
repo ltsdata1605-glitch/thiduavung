@@ -330,13 +330,30 @@ function AppInner() {
   // of one per doc.
   const pendingRemoteLabelsRef = useRef<Set<string>>(new Set());
   const remoteUpdateToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against showing the exact same "(these sources) loading" banner
+  // twice in a row within a few seconds. In dev (npm run dev), React 18
+  // StrictMode intentionally mounts effects twice to surface missing-cleanup
+  // bugs — subscribeToFirebaseData's effect (and this whole notification
+  // sequence) genuinely runs a second time as a result, which is why the
+  // banner can flash, disappear, then reappear with the identical source
+  // list on a fresh page load. That double-run doesn't happen in the
+  // production build (only React's dev runtime does the extra pass), but
+  // this dedupe makes the notification robust either way instead of
+  // depending on that distinction.
+  const lastShownRemoteUpdateRef = useRef<{ key: string; time: number } | null>(null);
   const notifyRemoteUpdate = (label: string) => {
     pendingRemoteLabelsRef.current.add(label);
     if (remoteUpdateToastTimerRef.current) clearTimeout(remoteUpdateToastTimerRef.current);
     remoteUpdateToastTimerRef.current = setTimeout(() => {
-      const labels = Array.from(pendingRemoteLabelsRef.current);
+      const labels = Array.from(pendingRemoteLabelsRef.current).sort();
       pendingRemoteLabelsRef.current.clear();
       if (labels.length === 0) return;
+      const key = labels.join('|');
+      const now = Date.now();
+      if (lastShownRemoteUpdateRef.current && lastShownRemoteUpdateRef.current.key === key && now - lastShownRemoteUpdateRef.current.time < 4000) {
+        return;
+      }
+      lastShownRemoteUpdateRef.current = { key, time: now };
       showInfoToast(`🔄 Đang tải dữ liệu mới... (${labels.join(', ')})`);
     }, 600);
   };
@@ -1192,7 +1209,7 @@ function AppInner() {
                 : toastBanner.type === 'warning'
                 ? 'bg-amber-500'
                 : toastBanner.type === 'info'
-                ? 'bg-sky-600'
+                ? 'bg-rose-400'
                 : 'bg-emerald-600'
             } text-white px-4 py-2 text-center text-xs font-bold shadow-md animate-fade-in flex items-center justify-center gap-2 shrink-0 z-50`}
           >
