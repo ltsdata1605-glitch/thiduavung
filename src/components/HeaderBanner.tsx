@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { TimeMode, EntityScope, Channel } from '../types';
+import { TimeMode, EntityScope, Channel, UserAccount } from '../types';
 import { resolveCategoryDisplayName, checkDataFreshness } from '../utils/parser';
 import {
   Zap,
@@ -519,6 +519,7 @@ interface HeaderBannerProps {
   setValueDisplayMode?: (mode: 'percent' | 'value') => void;
   // Only Super Admin / Admin may switch to the DT Luỹ Kế/Realtime value view.
   canViewDtQdTb?: boolean;
+  currentUser?: UserAccount | null;
   systemName?: string;
   subTitle?: string;
 }
@@ -560,8 +561,14 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   valueDisplayMode = 'percent',
   setValueDisplayMode,
   canViewDtQdTb = true,
+  currentUser,
 }) => {
   const allChannels: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
+  const userAllowedChannels =
+    currentUser?.allowedChannels && currentUser.allowedChannels.length > 0
+      ? (currentUser.allowedChannels as Channel[])
+      : null;
+  const displayChannels = allChannels.filter((c) => !userAllowedChannels || userAllowedChannels.includes(c));
 
   const toggleChannel = (channel: Channel) => {
     let nextChannels: Channel[];
@@ -856,7 +863,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           {/* Channel Checkboxes */}
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">Kênh:</span>
-            {allChannels.map((ch) => {
+            {displayChannels.map((ch) => {
               const isChecked = selectedChannels.includes(ch);
               return (
                 <button

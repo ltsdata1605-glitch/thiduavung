@@ -376,28 +376,36 @@ export async function createUserAccount(
  * have. Use changeOwnPassword() for self-service password changes instead.
  */
 export async function updateUserAccount(
-  updated: Partial<UserAccount> & { accountId: string }
+  updated: Partial<UserAccount> & { accountId: string; newPassword?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  if (updated.password) {
-    return {
-      success: false,
-      error: 'Không thể đặt mật khẩu thay cho người khác. Hãy yêu cầu người dùng tự đăng nhập và đổi mật khẩu của chính họ.',
-    };
-  }
-
   if (!db) {
     return { success: false, error: 'Không thể cập nhật: chưa kết nối được Firebase.' };
   }
 
+  const normalizedId = updated.accountId.trim().toLowerCase();
+  const updateData: Record<string, any> = {};
+
+  if (updated.name !== undefined) updateData.name = updated.name.trim();
+  if (updated.role !== undefined) updateData.role = updated.role;
+  if (updated.isActive !== undefined) updateData.isActive = updated.isActive;
+  if (updated.allowedChannels !== undefined) updateData.allowedChannels = updated.allowedChannels;
+
+  if (updated.newPassword && updated.newPassword.trim().length >= 6) {
+    const passHash = await hashPassword(updated.newPassword.trim());
+    updateData.passwordHash = passHash;
+  } else if (updated.newPassword && updated.newPassword.trim().length > 0 && updated.newPassword.trim().length < 6) {
+    return { success: false, error: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };
+  }
+
   try {
-    await updateDoc(doc(db, USERS_COLLECTION, updated.accountId), updated);
+    await updateDoc(doc(db, USERS_COLLECTION, normalizedId), updateData);
   } catch (e) {
     console.error('Firestore update failed:', e);
     return { success: false, error: 'Cập nhật tài khoản lên Firebase thất bại!' };
   }
 
   const users = await initializeUsersCollection();
-  const newList = users.map((u) => (u.accountId === updated.accountId ? { ...u, ...updated } : u));
+  const newList = users.map((u) => (u.accountId.toLowerCase() === normalizedId ? { ...u, ...updateData } : u));
   writeAccountsCache(newList);
 
   return { success: true };

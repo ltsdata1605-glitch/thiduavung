@@ -89,6 +89,7 @@ export interface UserAccount {
   passwordHash?: string;
   name: string;
   role: UserRole;
+  allowedChannels?: (Channel | string)[]; // E.g., ['TGD'], ['DML', 'DMM', 'DMS'], or undefined / [] for all
   createdAt?: string;
   createdBy?: string;
   lastLogin?: string;

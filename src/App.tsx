@@ -176,6 +176,17 @@ function AppInner() {
     return (acc && cachedData.userPreferences?.[acc]) || initialUserProfile;
   });
 
+  // Tự động giới hạn các kênh được phép xem theo tài khoản
+  useEffect(() => {
+    if (currentUser?.allowedChannels && currentUser.allowedChannels.length > 0) {
+      const allowed = currentUser.allowedChannels as Channel[];
+      setSelectedChannels((prev) => {
+        const valid = prev.filter((c) => allowed.includes(c));
+        return valid.length > 0 ? valid : [allowed[0]];
+      });
+    }
+  }, [currentUser]);
+
   // Cloud Loading / Data Sync Modal state
   const [cloudSyncState, setCloudSyncState] = useState<{
     isOpen: boolean;
@@ -1292,6 +1303,7 @@ function AppInner() {
               valueDisplayMode={valueDisplayMode}
               setValueDisplayMode={setValueDisplayMode}
               canViewDtQdTb={canViewDtQdTb}
+              currentUser={currentUser}
               systemName={settings.systemName}
               subTitle={settings.subTitle}
             />
