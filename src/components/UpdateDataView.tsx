@@ -583,6 +583,47 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     e.target.value = '';
   };
 
+  const handleDownloadBossExcel = async () => {
+    if (!sortedBossItems || sortedBossItems.length === 0) return;
+    try {
+      const XLSX = await import('xlsx');
+      const excelRows = sortedBossItems.map((item, idx) => ({
+        'STT': idx + 1,
+        'TỈNH': item.tinh || '',
+        'BOSS T7': item.bossRaw || item.boss || '',
+        'KÊNH': item.kenh || '',
+        'MST – TÊN SIÊU THỊ': item.sieuthi || '',
+        'CHIẾN ICT': item.chienIct || '',
+        'CHIẾN CE': item.chienCe || '',
+        'SL TRƯỞNG CA': item.slTruongCa || 1,
+        ...(canViewDtQdTb ? { 'DT QĐ TB 5T26': item.dtQdTb || '' } : {}),
+        'PHÂN LOẠI SHOP': item.phanLoaiShop || '',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
+      const colWidths = [
+        { wch: 6 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 10 },
+        { wch: 45 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 14 },
+        ...(canViewDtQdTb ? [{ wch: 16 }] : []),
+        { wch: 18 },
+      ];
+      worksheet['!cols'] = colWidths;
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'DANH SACH BOSS');
+      const fileName = `Danh_Sach_BOSS_TNB_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } catch (err) {
+      console.error('Download Boss Excel failed:', err);
+    }
+  };
+
   const handleExportFullBackup = () => {
     const data = {
       app: 'TNB_Competition_Tracker',
@@ -1051,13 +1092,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
-                <span>KHU VỰC 3: CẬP NHẬT DANH SÁCH BOSS</span>
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full uppercase">
-                  Excel / Google Sheet
-                </span>
+                <span>CẬP NHẬT DANH SÁCH BOSS</span>
               </h3>
               <p className="text-xs text-slate-500">
-                Tải lên file Excel (.xlsx, .xls, .csv) chứa bảng phân công BOSS toàn vùng
+                Dự án chỉ hoạt động khi cập nhật đúng file BOSS do Anh Miêng cung cấp
               </p>
             </div>
           </div>
@@ -1186,6 +1224,19 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                     Hiển thị tất cả siêu thị (Bấm tiêu đề cột để sắp xếp)
                   </span>
                 )}
+
+                {/* Nút Tải xuống file BOSS */}
+                <button
+                  type="button"
+                  onClick={handleDownloadBossExcel}
+                  title="Tải xuống file Excel danh sách BOSS (.xlsx)"
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải xuống file BOSS</span>
+                </button>
+
+                {/* Nút Xem / Ẩn BOSS */}
                 <button
                   type="button"
                   onClick={() => setIsBossTableVisible((prev) => !prev)}
@@ -1198,12 +1249,12 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   {isBossTableVisible ? (
                     <>
                       <EyeOff className="w-3.5 h-3.5" />
-                      <span>Ẩn danh sách BOSS</span>
+                      <span>Ẩn BOSS</span>
                     </>
                   ) : (
                     <>
                       <Eye className="w-3.5 h-3.5" />
-                      <span>Xem danh sách BOSS ({sortedBossItems.length})</span>
+                      <span>Xem BOSS ({sortedBossItems.length})</span>
                     </>
                   )}
                 </button>
