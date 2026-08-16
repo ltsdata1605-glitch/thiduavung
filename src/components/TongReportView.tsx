@@ -423,14 +423,18 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                           </td>
 
                           {/* % HOÀN THÀNH */}
-                          <td
-                            className={`py-1.5 px-2 text-center font-extrabold border-r border-slate-200 ${
-                              isAchieved
-                                ? 'bg-emerald-100/90 text-emerald-800'
-                                : 'text-rose-500'
-                            }`}
-                          >
-                            {item.rate}%
+                          <td className="py-1.5 px-2 text-center border-r border-slate-200">
+                            <span
+                              className={
+                                item.rate >= 100
+                                  ? 'font-black text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded inline-block'
+                                  : item.rate >= 80
+                                  ? 'font-extrabold text-slate-800 inline-block'
+                                  : 'font-extrabold text-rose-500 inline-block'
+                              }
+                            >
+                              {item.rate}%
+                            </span>
                           </td>
 
                           {/* TỈ LỆ HOÀN THÀNH TRÊN 100% (Merged Count & Rate) */}
@@ -444,13 +448,19 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                               </td>
                               <td
                                 rowSpan={groupRowCount}
-                                className={`py-2 px-2 text-center font-black align-middle ${theme.kpiCellBg} ${
-                                  sec.ratePercent >= 100
-                                    ? 'text-emerald-700'
-                                    : 'text-rose-600'
-                                }`}
+                                className={`py-2 px-2 text-center align-middle border-r border-slate-200 ${theme.kpiCellBg}`}
                               >
-                                {sec.ratePercent}%
+                                <span
+                                  className={
+                                    sec.ratePercent >= 100
+                                      ? 'font-black text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded inline-block'
+                                      : sec.ratePercent >= 80
+                                      ? 'font-extrabold text-slate-800 inline-block'
+                                      : 'font-extrabold text-rose-500 inline-block'
+                                  }
+                                >
+                                  {sec.ratePercent}%
+                                </span>
                               </td>
                             </>
                           )}
@@ -468,12 +478,16 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                   <td className="py-2.5 px-2 text-center font-black w-[65px] border-r border-amber-200">
                     {tgdData.totalAchieved}/{tgdData.totalCategories}
                   </td>
-                  <td
-                    className={`py-2.5 px-2 text-center font-black w-[65px] ${
-                      tgdData.totalRate >= 100 ? 'text-emerald-700' : 'text-rose-600'
-                    }`}
-                  >
-                    {tgdData.totalRate}%
+                  <td className="py-2.5 px-2 text-center font-black w-[65px]">
+                    <span
+                      className={
+                        tgdData.totalRate >= 100
+                          ? 'font-black text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded inline-block'
+                          : 'font-extrabold text-rose-600 inline-block'
+                      }
+                    >
+                      {tgdData.totalRate}%
+                    </span>
                   </td>
                 </tr>
               </tbody>
@@ -582,14 +596,18 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                           </td>
 
                           {/* % HOÀN THÀNH */}
-                          <td
-                            className={`py-1.5 px-2 text-center font-extrabold border-r border-slate-200 ${
-                              isAchieved
-                                ? 'bg-emerald-100/90 text-emerald-800'
-                                : 'text-rose-500'
-                            }`}
-                          >
-                            {item.rate}%
+                          <td className="py-1.5 px-2 text-center border-r border-slate-200">
+                            <span
+                              className={
+                                item.rate >= 100
+                                  ? 'font-black text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded inline-block'
+                                  : item.rate >= 80
+                                  ? 'font-extrabold text-slate-800 inline-block'
+                                  : 'font-extrabold text-rose-500 inline-block'
+                              }
+                            >
+                              {item.rate}%
+                            </span>
                           </td>
 
                           {/* TỈ LỆ HOÀN THÀNH TRÊN 100% (Merged Count & Rate) */}
@@ -603,13 +621,19 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                               </td>
                               <td
                                 rowSpan={groupRowCount}
-                                className={`py-2 px-2 text-center font-black align-middle ${theme.kpiCellBg} ${
-                                  sec.ratePercent >= 100
-                                    ? 'text-emerald-700'
-                                    : 'text-rose-600'
-                                }`}
+                                className={`py-2 px-2 text-center align-middle border-r border-slate-200 ${theme.kpiCellBg}`}
                               >
-                                {sec.ratePercent}%
+                                <span
+                                  className={
+                                    sec.ratePercent >= 100
+                                      ? 'font-black text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded inline-block'
+                                      : sec.ratePercent >= 80
+                                      ? 'font-extrabold text-slate-800 inline-block'
+                                      : 'font-extrabold text-rose-500 inline-block'
+                                  }
+                                >
+                                  {sec.ratePercent}%
+                                </span>
                               </td>
                             </>
                           )}
@@ -627,12 +651,16 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                   <td className="py-2.5 px-2 text-center font-black w-[65px] border-r border-sky-200">
                     {dmxData.totalAchieved}/{dmxData.totalCategories}
                   </td>
-                  <td
-                    className={`py-2.5 px-2 text-center font-black w-[65px] ${
-                      dmxData.totalRate >= 100 ? 'text-emerald-700' : 'text-rose-600'
-                    }`}
-                  >
-                    {dmxData.totalRate}%
+                  <td className="py-2.5 px-2 text-center font-black w-[65px]">
+                    <span
+                      className={
+                        dmxData.totalRate >= 100
+                          ? 'font-black text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded inline-block'
+                          : 'font-extrabold text-rose-600 inline-block'
+                      }
+                    >
+                      {dmxData.totalRate}%
+                    </span>
                   </td>
                 </tr>
               </tbody>
