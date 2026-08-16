@@ -1003,6 +1003,8 @@ function AppInner() {
         selectedProvince,
         selectedChannels,
         selectedCategory,
+        selectedCategoryGroup,
+        categoryGroupMap,
         bossAssignments,
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
@@ -1041,6 +1043,8 @@ function AppInner() {
         selectedProvince,
         selectedChannels,
         selectedCategory,
+        selectedCategoryGroup,
+        categoryGroupMap,
         bossAssignments,
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
@@ -1092,6 +1096,8 @@ function AppInner() {
       selectedProvince,
       selectedChannels,
       selectedCategory,
+      selectedCategoryGroup,
+      categoryGroupMap,
       bossAssignments,
       timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
       lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
@@ -1372,6 +1378,8 @@ function AppInner() {
         selectedProvince={selectedProvince}
         selectedChannels={selectedChannels}
         selectedCategory={selectedCategory}
+        selectedCategoryGroup={selectedCategoryGroup}
+        categoryGroupMap={categoryGroupMap}
         bossAssignments={bossAssignments}
         categoryDisplayNameMap={categoryDisplayNameMap}
         timeModeName={timeMode === 'realtime' ? 'Realtime' : 'Luỹ kế'}

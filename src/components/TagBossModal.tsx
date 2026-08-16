@@ -12,11 +12,38 @@ import {
   formatStoreRemarkLine,
   BossAssignmentRecord,
 } from '../utils/parser';
+import { getCategoryGroup } from './ReportView';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 function formatInt(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
+}
+
+// Restricts a list of category names down to what's currently selected via
+// the Ngành Hàng (selectedCategory) and/or Nhóm N.Hàng (selectedCategoryGroup)
+// filters — both can be 'ALL' or a comma-joined multi-select string. Without
+// this, every "X/Y ngành hàng đạt" figure in the generated remarks counted
+// against the FULL category list regardless of what the user had filtered
+// down to on screen (e.g. picking only "ICT, DỊCH VỤ" in Nhóm N.Hàng still
+// showed a denominator of all ~36-38 categories instead of the ~25 in those
+// two groups).
+function filterCategoriesBySelection(
+  categoryNames: string[],
+  selectedCategory: string,
+  selectedCategoryGroup: string,
+  categoryGroupMap?: Record<string, string>
+): string[] {
+  let list = categoryNames;
+  if (selectedCategory && selectedCategory !== 'ALL') {
+    const selectedIds = new Set(selectedCategory.split(',').map((s) => s.trim()).filter(Boolean));
+    list = list.filter((c) => selectedIds.has(c));
+  }
+  if (selectedCategoryGroup && selectedCategoryGroup !== 'ALL') {
+    const selectedGroups = new Set(selectedCategoryGroup.split(',').map((s) => s.trim()).filter(Boolean));
+    list = list.filter((c) => selectedGroups.has(getCategoryGroup(c, categoryGroupMap)));
+  }
+  return list;
 }
 
 interface TagBossModalProps {
@@ -26,6 +53,8 @@ interface TagBossModalProps {
   selectedProvince?: string;
   selectedChannels?: Channel[];
   selectedCategory?: string;
+  selectedCategoryGroup?: string;
+  categoryGroupMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
   categoryDisplayNameMap?: Record<string, string>;
   timeModeName?: string;
@@ -37,6 +66,8 @@ export function generateReportRemarksText(params: {
   selectedProvince?: string;
   selectedChannels?: Channel[];
   selectedCategory?: string;
+  selectedCategoryGroup?: string;
+  categoryGroupMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
   timeModeName?: string;
   lastUpdated?: string;
@@ -48,6 +79,8 @@ export function generateReportRemarksText(params: {
     selectedProvince = 'ALL',
     selectedChannels = [],
     selectedCategory = 'ALL',
+    selectedCategoryGroup = 'ALL',
+    categoryGroupMap,
     bossAssignments = [],
     timeModeName = 'Luỹ kế',
     lastUpdated,
@@ -78,7 +111,7 @@ export function generateReportRemarksText(params: {
       Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
     }
   });
-  const activeCategoryList = Array.from(set);
+  const activeCategoryList = filterCategoriesBySelection(Array.from(set), selectedCategory, selectedCategoryGroup, categoryGroupMap);
   const totalCatCount = activeCategoryList.length || 38;
 
   // Province ranking
@@ -352,6 +385,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   selectedProvince = 'ALL',
   selectedChannels = [],
   selectedCategory = 'ALL',
+  selectedCategoryGroup = 'ALL',
+  categoryGroupMap,
   bossAssignments = [],
   categoryDisplayNameMap = {},
   timeModeName = 'Luỹ kế',
@@ -383,7 +418,9 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
     });
   }, [safeStores, isSpecificProvince, selectedProvince, bossAssignments, selectedChannels]);
 
-  // Extract all active categories
+  // Extract all active categories, restricted to whatever's currently
+  // selected via Ngành Hàng / Nhóm N.Hàng — otherwise every count-based
+  // figure below ("X/Y ngành hàng đạt") ignored those filters entirely.
   const activeCategoryList = useMemo(() => {
     const set = new Set<string>();
     filteredStores.forEach((s) => {
@@ -391,8 +428,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
         Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
       }
     });
-    return Array.from(set);
-  }, [filteredStores]);
+    return filterCategoriesBySelection(Array.from(set), selectedCategory, selectedCategoryGroup, categoryGroupMap);
+  }, [filteredStores, selectedCategory, selectedCategoryGroup, categoryGroupMap]);
 
   const totalCatCount = activeCategoryList.length || 38;
 
