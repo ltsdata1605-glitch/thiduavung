@@ -36,7 +36,9 @@ import {
   X,
   Globe,
   Store,
-  Clock
+  Clock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -284,8 +286,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     if (currentLuyKeStoresVung.length > 0) setParsedLuyKeStoresVung(currentLuyKeStoresVung);
   }, [currentLuyKeStoresVung]);
 
-  // Full view mode for BOSS table (default false for compact scroll mode)
-  const [isFullViewMode, setIsFullViewMode] = useState(false);
+  // Show/Hide toggle for BOSS table (default false = always hidden initially)
+  const [isBossTableVisible, setIsBossTableVisible] = useState(false);
 
   // Multi-select Filter states for BOSS list (persisted so they survive a refresh)
   const [searchQuery, setSearchQuery] = usePersistedState('tnb_boss_searchQuery', '');
@@ -1176,90 +1178,124 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-slate-700">
               <span className="flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-blue-600" />
-                Danh sách BOSS được nhập ({sortedBossItems.length} siêu thị):
+                <span>Danh sách BOSS được nhập ({sortedBossItems.length} siêu thị):</span>
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-slate-400 font-normal">Hiển thị tất cả siêu thị (Bấm tiêu đề cột để sắp xếp)</span>
+                {isBossTableVisible && (
+                  <span className="text-slate-400 font-normal hidden md:inline">
+                    Hiển thị tất cả siêu thị (Bấm tiêu đề cột để sắp xếp)
+                  </span>
+                )}
                 <button
-                  onClick={() => setIsFullViewMode((prev) => !prev)}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-lg text-[11px] transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                  type="button"
+                  onClick={() => setIsBossTableVisible((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 border ${
+                    isBossTableVisible
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-blue-600 shadow-sm'
+                  }`}
                 >
-                  {isFullViewMode ? '📐 Khung cuộn gọn' : '📜 Tràn màn hình'}
+                  {isBossTableVisible ? (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5" />
+                      <span>Ẩn danh sách BOSS</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Xem danh sách BOSS ({sortedBossItems.length})</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
 
-            <div className={`overflow-x-auto rounded-xl border border-slate-200 ${isFullViewMode ? 'max-h-none' : 'max-h-[600px] overflow-y-auto'}`}>
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-amber-300 text-slate-900 font-extrabold uppercase text-[11px] tracking-tight border-b border-amber-400">
-                    {renderSortHeader('STT', 'stt', 'center', 'w-12')}
-                    {renderSortHeader('TỈNH', 'tinh', 'left')}
-                    {renderSortHeader('BOSS T7', 'boss', 'left')}
-                    {renderSortHeader('KÊNH', 'kenh', 'left')}
-                    {renderSortHeader('MST – TÊN SIÊU THỊ', 'sieuthi', 'left', 'min-w-[280px]')}
-                    {renderSortHeader('CHIẾN ICT', 'chienIct', 'left')}
-                    {renderSortHeader('CHIẾN CE', 'chienCe', 'left')}
-                    {renderSortHeader('SL TRƯỞNG CA', 'slTruongCa', 'center')}
-                    {canViewDtQdTb && renderSortHeader('DT QĐ TB 5T26', 'dtQdTb', 'right')}
-                    {renderSortHeader('PHÂN LOẠI SHOP', 'phanLoaiShop', 'right')}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200/80 bg-white">
-                  {sortedBossItems.length > 0 ? (
-                    sortedBossItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-amber-50/40 transition-colors">
-                        <td className="p-2.5 font-bold text-slate-500 text-center">
-                          {idx + 1}
-                        </td>
-                        <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">{item.tinh || '-'}</td>
-                        <td className="p-2.5 font-extrabold text-indigo-900 whitespace-nowrap">{item.bossRaw || item.boss}</td>
-                        <td className="p-2.5 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded font-extrabold text-[11px] uppercase ${
-                            String(item.kenh).includes('TGD') 
-                              ? 'bg-amber-400 text-slate-900 shadow-2xs' 
-                              : String(item.kenh).includes('ĐMM') || String(item.kenh).includes('DMM')
-                              ? 'bg-emerald-600 text-white shadow-2xs'
-                              : 'bg-blue-600 text-white shadow-2xs'
-                          }`}>
-                            {item.kenh || 'TGD'}
-                          </span>
-                        </td>
-                        <td className="p-2.5 font-bold text-slate-900">{item.sieuthi}</td>
-                        <td className="p-2.5 font-semibold text-slate-700 whitespace-nowrap">{item.chienIct || '-'}</td>
-                        <td className="p-2.5 font-medium text-slate-600 whitespace-nowrap">{item.chienCe || '-'}</td>
-                        <td className="p-2.5 font-extrabold text-red-600 text-center whitespace-nowrap">{item.slTruongCa || '1'}</td>
-                        {canViewDtQdTb && (
-                          <td className="p-2.5 font-bold text-slate-800 text-right whitespace-nowrap">{item.dtQdTb || '-'}</td>
-                        )}
-                        <td className="p-2.5 font-bold text-amber-800 text-right whitespace-nowrap">{item.phanLoaiShop || '-'}</td>
+            {isBossTableVisible ? (
+              <>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 max-h-[600px] overflow-y-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-amber-300 text-slate-900 font-extrabold uppercase text-[11px] tracking-tight border-b border-amber-400">
+                        {renderSortHeader('STT', 'stt', 'center', 'w-12')}
+                        {renderSortHeader('TỈNH', 'tinh', 'left')}
+                        {renderSortHeader('BOSS T7', 'boss', 'left')}
+                        {renderSortHeader('KÊNH', 'kenh', 'left')}
+                        {renderSortHeader('MST – TÊN SIÊU THỊ', 'sieuthi', 'left', 'min-w-[280px]')}
+                        {renderSortHeader('CHIẾN ICT', 'chienIct', 'left')}
+                        {renderSortHeader('CHIẾN CE', 'chienCe', 'left')}
+                        {renderSortHeader('SL TRƯỞNG CA', 'slTruongCa', 'center')}
+                        {canViewDtQdTb && renderSortHeader('DT QĐ TB 5T26', 'dtQdTb', 'right')}
+                        {renderSortHeader('PHÂN LOẠI SHOP', 'phanLoaiShop', 'right')}
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={10} className="p-8 text-center text-slate-400 italic">
-                        Không tìm thấy siêu thị phù hợp với từ khóa hoặc bộ lọc.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/80 bg-white">
+                      {sortedBossItems.length > 0 ? (
+                        sortedBossItems.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-amber-50/40 transition-colors">
+                            <td className="p-2.5 font-bold text-slate-500 text-center">
+                              {idx + 1}
+                            </td>
+                            <td className="p-2.5 font-bold text-slate-800 whitespace-nowrap">{item.tinh || '-'}</td>
+                            <td className="p-2.5 font-extrabold text-indigo-900 whitespace-nowrap">{item.bossRaw || item.boss}</td>
+                            <td className="p-2.5 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded font-extrabold text-[11px] uppercase ${
+                                String(item.kenh).includes('TGD') 
+                                  ? 'bg-amber-400 text-slate-900 shadow-2xs' 
+                                  : String(item.kenh).includes('ĐMM') || String(item.kenh).includes('DMM')
+                                  ? 'bg-emerald-600 text-white shadow-2xs'
+                                  : 'bg-blue-600 text-white shadow-2xs'
+                              }`}>
+                                {item.kenh || 'TGD'}
+                              </span>
+                            </td>
+                            <td className="p-2.5 font-bold text-slate-900">{item.sieuthi}</td>
+                            <td className="p-2.5 font-semibold text-slate-700 whitespace-nowrap">{item.chienIct || '-'}</td>
+                            <td className="p-2.5 font-medium text-slate-600 whitespace-nowrap">{item.chienCe || '-'}</td>
+                            <td className="p-2.5 font-extrabold text-red-600 text-center whitespace-nowrap">{item.slTruongCa || '1'}</td>
+                            {canViewDtQdTb && (
+                              <td className="p-2.5 font-bold text-slate-800 text-right whitespace-nowrap">{item.dtQdTb || '-'}</td>
+                            )}
+                            <td className="p-2.5 font-bold text-amber-800 text-right whitespace-nowrap">{item.phanLoaiShop || '-'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={10} className="p-8 text-center text-slate-400 italic">
+                            Không tìm thấy siêu thị phù hợp với từ khóa hoặc bộ lọc.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* Footer Summary (Displays ALL items info) */}
-            <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
-              <div>
-                Hiển thị tất cả <strong className="text-blue-600 font-bold">{sortedBossItems.length}</strong> siêu thị
-                {parsedBossItems.length !== sortedBossItems.length && (
-                  <span className="text-slate-400 text-[11px] ml-1">
-                    (lọc từ {parsedBossItems.length} siêu thị gốc)
+                {/* Footer Summary (Displays ALL items info) */}
+                <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
+                  <div>
+                    Hiển thị tất cả <strong className="text-blue-600 font-bold">{sortedBossItems.length}</strong> siêu thị
+                    {parsedBossItems.length !== sortedBossItems.length && (
+                      <span className="text-slate-400 text-[11px] ml-1">
+                        (lọc từ {parsedBossItems.length} siêu thị gốc)
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-400 italic">
+                    Cuộn lên/xuống để xem toàn bộ danh sách
                   </span>
-                )}
+                </div>
+              </>
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
+                <span>Bảng danh sách BOSS đang được ẩn mặc định để giao diện gọn gàng hơn.</span>
+                <button
+                  type="button"
+                  onClick={() => setIsBossTableVisible(true)}
+                  className="text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer shrink-0"
+                >
+                  Bấm để mở xem chi tiết ({sortedBossItems.length} siêu thị)
+                </button>
               </div>
-              <span className="text-[11px] text-slate-400 italic">
-                Cuộn lên/xuống để xem toàn bộ danh sách
-              </span>
-            </div>
+            )}
           </div>
         )}
       </div>
