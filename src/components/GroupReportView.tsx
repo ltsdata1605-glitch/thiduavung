@@ -823,29 +823,31 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Header bar at top of Nhóm view */}
-      <div className="p-4 bg-white rounded-none border border-slate-200/80 shadow-2xs">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-none bg-sky-100 flex items-center justify-center text-sky-700 font-bold shrink-0">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-extrabold text-slate-800 tracking-wide uppercase">BÁO CÁO THI ĐUA TỈNH THEO NGÀNH HÀNG</h2>
-              <p className="text-xs text-slate-500 font-normal">Báo cáo tổng quan Vùng, chi tiết Tỉnh và Top/Bot theo từng Ngành hàng</p>
-            </div>
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 rounded-xl bg-sky-100 text-sky-700">
+            <Layers className="w-5 h-5" />
           </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
+              BÁO CÁO THI ĐUA TỈNH THEO NGÀNH HÀNG
+            </h2>
+            <p className="text-xs font-semibold text-slate-500">
+              Báo cáo tổng quan Vùng, chi tiết Tỉnh và Top/Bot theo từng Ngành hàng
+            </p>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Add another Tổng Quan Tỉnh card */}
-            <button
-              onClick={addSummaryCard}
-              title="Thêm bảng tổng quan Tỉnh mới"
-              className="px-3.5 py-2 bg-sky-100 hover:bg-sky-200 text-sky-700 font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm bảng</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Add another Tổng Quan Tỉnh card */}
+          <button
+            onClick={addSummaryCard}
+            title="Thêm bảng tổng quan Tỉnh mới"
+            className="px-3.5 py-2 bg-sky-100 hover:bg-sky-200 text-sky-700 font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm bảng</span>
+          </button>
         </div>
       </div>
 
