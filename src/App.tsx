@@ -124,7 +124,7 @@ function AppInner() {
   const [selectedProvince, setSelectedProvince] = usePersistedState<string>('tnb_selectedProvince', 'ALL');
   const [selectedBoss, setSelectedBoss] = usePersistedState<string>('tnb_selectedBoss', 'ALL');
   const [selectedCategory, setSelectedCategory] = usePersistedState<string>('tnb_selectedCategory', 'ALL');
-  const [selectedCategoryGroup, setSelectedCategoryGroup] = usePersistedState<string>('tnb_selectedCategoryGroup', 'ALL');
+  const [selectedCategoryGroup, setSelectedCategoryGroup] = usePersistedState<string>('tnb_selectedCategoryGroup', 'ICT,DỊCH VỤ');
   const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = usePersistedState<string>('tnb_selectedPhanLoaiShop', 'ALL');
   const [selectedTinhMoi, setSelectedTinhMoi] = usePersistedState<string>('tnb_selectedTinhMoi', 'ALL');
   const [valueDisplayMode, setValueDisplayMode] = usePersistedState<'percent' | 'value'>('tnb_valueDisplayMode', 'percent');

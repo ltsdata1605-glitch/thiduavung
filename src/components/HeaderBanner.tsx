@@ -120,23 +120,24 @@ const CategoryGroupMultiSelectFilter: React.FC<{
   }, [isOpen]);
 
   const toggleGroup = (groupName: string) => {
-    if (isAll) {
-      // If previously ALL, selecting one group now selects ONLY this group
-      setSelectedCategoryGroup(groupName);
+    const currentActiveList = isAll ? [...categoryGroupList] : [...selectedList];
+    const exists = currentActiveList.includes(groupName);
+    let nextList: string[];
+    if (exists) {
+      nextList = currentActiveList.filter((g) => g !== groupName);
     } else {
-      const exists = selectedList.includes(groupName);
-      let nextList: string[];
-      if (exists) {
-        nextList = selectedList.filter((g) => g !== groupName);
-      } else {
-        nextList = [...selectedList, groupName];
-      }
+      nextList = [...currentActiveList, groupName];
+    }
 
-      if (nextList.length === 0 || nextList.length === categoryGroupList.length) {
-        setSelectedCategoryGroup('ALL');
-      } else {
-        setSelectedCategoryGroup(nextList.join(','));
-      }
+    if (nextList.length === 0 || nextList.length === categoryGroupList.length) {
+      setSelectedCategoryGroup('ALL');
+    } else {
+      nextList.sort((a, b) => {
+        const orderA = a.toUpperCase().includes('ICT') ? 1 : a.toUpperCase().includes('DỊCH VỤ') || a.toUpperCase().includes('DICH VU') ? 2 : 3;
+        const orderB = b.toUpperCase().includes('ICT') ? 1 : b.toUpperCase().includes('DỊCH VỤ') || b.toUpperCase().includes('DICH VU') ? 2 : 3;
+        return orderA - orderB;
+      });
+      setSelectedCategoryGroup(nextList.join(','));
     }
   };
 
@@ -602,6 +603,26 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
       }
     }
   };
+
+  // Tự động chọn mặc định 2 nhóm ICT và DỊCH VỤ khi chỉ lọc Kênh TGD
+  React.useEffect(() => {
+    const isOnlyTgd = selectedChannels.length === 1 && selectedChannels[0] === 'TGD';
+    if (isOnlyTgd && (!selectedCategoryGroup || selectedCategoryGroup === 'ALL')) {
+      const nonCeGroups = categoryGroupList
+        .filter((g) => {
+          const upper = g.trim().toUpperCase();
+          return upper !== 'CE & GD' && upper !== 'CE & GIA DỤNG' && !upper.includes('CE');
+        })
+        .sort((a, b) => {
+          const orderA = a.toUpperCase().includes('ICT') ? 1 : a.toUpperCase().includes('DỊCH VỤ') || a.toUpperCase().includes('DICH VU') ? 2 : 3;
+          const orderB = b.toUpperCase().includes('ICT') ? 1 : b.toUpperCase().includes('DỊCH VỤ') || b.toUpperCase().includes('DICH VU') ? 2 : 3;
+          return orderA - orderB;
+        });
+      if (nonCeGroups.length > 0) {
+        setSelectedCategoryGroup(nonCeGroups.join(','));
+      }
+    }
+  }, [selectedChannels, categoryGroupList, selectedCategoryGroup, setSelectedCategoryGroup]);
 
   // Filter Ngành Hàng dropdown options depending on selected Nhóm N.Hàng (supports multi-group)
   const filteredCategoryOptions = React.useMemo(() => {
