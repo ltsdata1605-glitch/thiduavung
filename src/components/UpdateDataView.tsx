@@ -6,7 +6,8 @@ import {
   validateStoreHeaders,
   BossAssignmentRecord,
   BossValidationResult,
-  cleanKenhValue
+  cleanKenhValue,
+  extractMst
 } from '../utils/parser';
 import { 
   ClipboardPaste, 
@@ -584,34 +585,44 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   };
 
   const handleDownloadBossExcel = async () => {
-    if (!sortedBossItems || sortedBossItems.length === 0) return;
+    const itemsToExport = parsedBossItems.length > 0 ? parsedBossItems : currentBossAssignments;
+    if (!itemsToExport || itemsToExport.length === 0) {
+      alert('Chưa có dữ liệu danh sách BOSS để tải xuống.');
+      return;
+    }
     try {
       const XLSX = await import('xlsx');
-      const excelRows = sortedBossItems.map((item, idx) => ({
-        'STT': idx + 1,
+      const excelRows = itemsToExport.map((item, idx) => ({
+        'STT': item.stt || idx + 1,
         'TỈNH': item.tinh || '',
+        'TỈNH MỚI 2026': item.tinhMoi || '',
+        'MST': item.mst || extractMst(item.sieuthi) || '',
+        'SIÊU THỊ BASE': item.sieuthiBase || '',
         'BOSS T7': item.bossRaw || item.boss || '',
         'KÊNH': item.kenh || '',
         'MST – TÊN SIÊU THỊ': item.sieuthi || '',
         'CHIẾN ICT': item.chienIct || '',
         'CHIẾN CE': item.chienCe || '',
         'SL TRƯỞNG CA': item.slTruongCa || 1,
-        ...(canViewDtQdTb ? { 'DT QĐ TB 5T26': item.dtQdTb || '' } : {}),
+        'DT QĐ TB 5T26': item.dtQdTb || '',
         'PHÂN LOẠI SHOP': item.phanLoaiShop || '',
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(excelRows);
       const colWidths = [
-        { wch: 6 },
-        { wch: 16 },
-        { wch: 22 },
-        { wch: 10 },
-        { wch: 45 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 14 },
-        ...(canViewDtQdTb ? [{ wch: 16 }] : []),
-        { wch: 18 },
+        { wch: 6 },  // STT
+        { wch: 15 }, // TỈNH
+        { wch: 18 }, // TỈNH MỚI 2026
+        { wch: 10 }, // MST
+        { wch: 35 }, // SIÊU THỊ BASE
+        { wch: 22 }, // BOSS T7
+        { wch: 10 }, // KÊNH
+        { wch: 45 }, // MST – TÊN SIÊU THỊ
+        { wch: 18 }, // CHIẾN ICT
+        { wch: 18 }, // CHIẾN CE
+        { wch: 15 }, // SL TRƯỞNG CA
+        { wch: 16 }, // DT QĐ TB 5T26
+        { wch: 18 }, // PHÂN LOẠI SHOP
       ];
       worksheet['!cols'] = colWidths;
 
@@ -621,6 +632,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       XLSX.writeFile(workbook, fileName);
     } catch (err) {
       console.error('Download Boss Excel failed:', err);
+      alert('Có lỗi khi tải xuống file Excel BOSS.');
     }
   };
 
