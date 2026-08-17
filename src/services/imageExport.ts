@@ -161,19 +161,55 @@ async function shareBlob(blob: Blob, filename: string): Promise<boolean> {
 }
 
 /**
- * Hand a Blob off to the user: on mobile, open the native OS share sheet
- * (so it can go straight to Line/Zalo/Messenger/Save to Photos) with pure image.
- * If remarkTextToCopy is provided, automatically copy that remark to clipboard.
+ * Copy a PNG blob directly to clipboard on desktop/laptop.
+ */
+export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
+  try {
+    if (typeof window === 'undefined' || !navigator.clipboard) return false;
+
+    let pngBlob = blob;
+    if (blob.type !== 'image/png') {
+      pngBlob = new Blob([blob], { type: 'image/png' });
+    }
+
+    if (typeof ClipboardItem !== 'undefined') {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'image/png': pngBlob,
+        }),
+      ]);
+      return true;
+    }
+  } catch (err) {
+    console.warn('Clipboard image copy failed or unsupported:', err);
+  }
+  return false;
+}
+
+/**
+ * Hand a Blob off to the user:
+ * - On desktop/laptop: Auto copy PNG Image to clipboard by default, trigger file download,
+ *   and emit global 'export-image-success' event to trigger notification popup with Copy Image & Copy Remark options.
+ * - On mobile: open the native OS share sheet.
  */
 export function downloadBlob(blob: Blob, filename: string, forceDownload = false, remarkTextToCopy?: string) {
-  if (remarkTextToCopy) {
-    try {
-      void navigator.clipboard.writeText(remarkTextToCopy);
-    } catch (e) {
-      console.warn('Could not copy remark to clipboard', e);
-    }
+  // 1. Mặc định tự động copy ẢNH vào clipboard trên laptop/desktop
+  void copyImageToClipboard(blob);
+
+  // 2. Bắn sự kiện hiển thị Popup Thông Báo Xuất Ảnh Thành Công
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('export-image-success', {
+        detail: {
+          blob,
+          filename,
+          remarkText: remarkTextToCopy || '',
+        },
+      })
+    );
   }
 
+  // 3. Tự động tải xuống file ảnh
   if (!forceDownload && isMobileUserAgent() && canShareFiles()) {
     void shareBlob(blob, filename);
     return;

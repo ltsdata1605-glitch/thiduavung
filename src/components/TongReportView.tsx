@@ -249,9 +249,9 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
     setIsExporting(true);
     setExportMessage(titleMsg);
     try {
-      // Auto-copy remark text to clipboard on export
+      let remarkTextToCopy = '';
       if (channelForRemark === 'TGD') {
-        const text = generateTongRemarksText({
+        remarkTextToCopy = generateTongRemarksText({
           channelTitle: 'TGD',
           channelSubText: 'Kênh : TGD + TZ',
           timeMode,
@@ -259,9 +259,8 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           formattedHeaderTime,
           sections: tgdData.sections,
         });
-        navigator.clipboard.writeText(text).catch(() => {});
       } else if (channelForRemark === 'ĐMX') {
-        const text = generateTongRemarksText({
+        remarkTextToCopy = generateTongRemarksText({
           channelTitle: 'ĐMX',
           channelSubText: 'Kênh : DML + DMM + DMS + LƯU ĐỘNG',
           timeMode,
@@ -269,12 +268,30 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           formattedHeaderTime,
           sections: dmxData.sections,
         });
-        navigator.clipboard.writeText(text).catch(() => {});
+      } else {
+        const textTgd = generateTongRemarksText({
+          channelTitle: 'TGD',
+          channelSubText: 'Kênh : TGD + TZ',
+          timeMode,
+          lastUpdated,
+          formattedHeaderTime,
+          sections: tgdData.sections,
+        });
+        const textDmx = generateTongRemarksText({
+          channelTitle: 'ĐMX',
+          channelSubText: 'Kênh : DML + DMM + DMS + LƯU ĐỘNG',
+          timeMode,
+          lastUpdated,
+          formattedHeaderTime,
+          sections: dmxData.sections,
+        });
+        remarkTextToCopy = `${textTgd}\n\n====================\n\n${textDmx}`;
       }
 
       await new Promise((r) => setTimeout(r, 150));
       await exportElementAsImage(el, filename, {
         scale: 2.5,
+        remarkTextToCopy,
       });
     } catch (err) {
       console.error('Export failed:', err);

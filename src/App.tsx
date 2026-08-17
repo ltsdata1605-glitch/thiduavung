@@ -21,6 +21,7 @@ import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { CategoryGroupModal } from './components/CategoryGroupModal';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { ExportLoadingModal } from './components/ExportLoadingModal';
+import { ExportSuccessModal } from './components/ExportSuccessModal';
 import { RefreshCw, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { getCurrentSession, logoutUser } from './services/authService';
 import {
@@ -292,6 +293,40 @@ function AppInner() {
     title?: string;
     subText?: string;
   }>({ isOpen: false });
+
+  // Export Success Notification Modal state (Popup with Copy Image & Copy Remark options)
+  const [exportSuccessState, setExportSuccessState] = useState<{
+    isOpen: boolean;
+    blob?: Blob | null;
+    filename: string;
+    remarkText?: string;
+  }>({
+    isOpen: false,
+    filename: '',
+  });
+
+  useEffect(() => {
+    const handleExportSuccess = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        blob?: Blob | null;
+        filename: string;
+        remarkText?: string;
+      }>;
+      if (customEvent.detail) {
+        setExportSuccessState({
+          isOpen: true,
+          blob: customEvent.detail.blob,
+          filename: customEvent.detail.filename,
+          remarkText: customEvent.detail.remarkText,
+        });
+      }
+    };
+
+    window.addEventListener('export-image-success', handleExportSuccess);
+    return () => {
+      window.removeEventListener('export-image-success', handleExportSuccess);
+    };
+  }, []);
 
   // Siêu Thị table paginates for render performance — flip this on before an
   // image export so ReportView renders every row for the capture, then off
@@ -1390,6 +1425,15 @@ function AppInner() {
         isOpen={exportModalState.isOpen}
         exportTitle={exportModalState.title}
         subText={exportModalState.subText}
+      />
+
+      {/* Export Success Popup Modal with Copy Image & Copy Remark options */}
+      <ExportSuccessModal
+        isOpen={exportSuccessState.isOpen}
+        onClose={() => setExportSuccessState((prev) => ({ ...prev, isOpen: false }))}
+        blob={exportSuccessState.blob}
+        filename={exportSuccessState.filename}
+        remarkText={exportSuccessState.remarkText}
       />
 
       {/* Tag Boss / Quick Remarks Modal */}
