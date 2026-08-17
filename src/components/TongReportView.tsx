@@ -469,7 +469,7 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                   <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">STT</th>
                   <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">Ngành hàng</th>
                   <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider border-r border-slate-200">Nhóm hàng</th>
-                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">% Hoàn thành</th>
+                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">%DK Hoàn thành</th>
                   <th className="py-2.5 px-2 w-[130px] text-center uppercase text-[10.5px] tracking-wider" colSpan={2}>
                     Tỉ lệ hoàn thành trên 100%
                   </th>
@@ -661,7 +661,7 @@ const getGroupBadgeAndCellTheme = (groupName: string) => {
                   <th className="py-2.5 px-2 w-[40px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">STT</th>
                   <th className="py-2.5 px-2 w-[95px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">Ngành hàng</th>
                   <th className="py-2.5 px-3 text-left uppercase text-[10.5px] tracking-wider border-r border-slate-200">Nhóm hàng</th>
-                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">% Hoàn thành</th>
+                  <th className="py-2.5 px-2 w-[100px] text-center uppercase text-[10.5px] tracking-wider border-r border-slate-200">%DK Hoàn thành</th>
                   <th className="py-2.5 px-2 w-[130px] text-center uppercase text-[10.5px] tracking-wider" colSpan={2}>
                     Tỉ lệ hoàn thành trên 100%
                   </th>
