@@ -663,6 +663,20 @@ function AppInner() {
     return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
 
+  // Number of days elapsed in the month — extracted from lastUpdated timestamp
+  // (the day component of DD/MM/YYYY). Used for Luỹ Kế % HT Dự Kiến formula:
+  //   ((DTLK / daysElapsed) * daysInMonth) / Target * 100
+  const daysElapsed = useMemo(() => {
+    const text = timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe;
+    if (text) {
+      const m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) {
+        return parseInt(m[1], 10); // DD from DD/MM/YYYY
+      }
+    }
+    return new Date().getDate(); // fallback: today's date
+  }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
+
   // Get active stores depending on TimeMode & Scope (Vùng vs Siêu Thị / Tỉnh)
   // Both Tab VÙNG and Tab SIÊU THỊ use the store-level dataset so data calculates dynamically per KÊNH
   const activeStores = useMemo(() => {
@@ -1385,6 +1399,8 @@ function AppInner() {
                 valueDisplayMode={valueDisplayMode}
                 canViewDtQdTb={canViewDtQdTb}
                 stores={activeStores}
+                daysInMonth={daysInMonth}
+                daysElapsed={daysElapsed}
                 onOpenTagBossModal={() => setIsTagBossModalOpen(true)}
                 onExportCompact={handleExportCompact}
                 onExportFull={handleExportFull}

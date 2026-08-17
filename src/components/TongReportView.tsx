@@ -21,6 +21,10 @@ interface TongReportViewProps {
   categoryGroupMap?: Record<string, string>;
   categoryDisplayNameMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
+  /** Number of days in the current data month (e.g. 31 for August) */
+  daysInMonth?: number;
+  /** Number of days elapsed (day-of-month from lastUpdated, e.g. 17) */
+  daysElapsed?: number;
 }
 
 interface CategoryItemMetric {
@@ -48,6 +52,8 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
   categoryGroupMap = {},
   categoryDisplayNameMap = {},
   bossAssignments = [],
+  daysInMonth: propDaysInMonth,
+  daysElapsed: propDaysElapsed,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
@@ -176,19 +182,30 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           }
         });
 
-        // Realtime: tổng đạt / tổng chỉ tiêu (weighted by target size)
-        // Luỹ Kế: trung bình % HT Dự Kiến per store (same logic as ReportView)
-        const rate = timeMode === 'realtime'
-          ? (totalTarget > 0
-              ? Math.round((totalAchieved / totalTarget) * 100)
-              : count > 0
-              ? Math.round(rateSum / count)
-              : 0)
-          : (count > 0
-              ? Math.round(rateSum / count)
-              : totalTarget > 0
-              ? Math.round((totalAchieved / totalTarget) * 100)
-              : 0);
+        // Realtime: DT Realtime / Target Ngày (target already = LK Target / daysInMonth)
+        //   → totalAchieved / totalTarget * 100
+        // Luỹ Kế: ((DTLK / daysElapsed) * daysInMonth) / Target LK * 100
+        //   → projects full-month achievement from accumulated data
+        let rate: number;
+        if (timeMode === 'realtime') {
+          rate = totalTarget > 0
+            ? Math.round((totalAchieved / totalTarget) * 100)
+            : count > 0
+            ? Math.round(rateSum / count)
+            : 0;
+        } else {
+          // Luỹ Kế mode
+          const dim = propDaysInMonth || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+          const de = propDaysElapsed || new Date().getDate();
+          if (totalTarget > 0 && de > 0) {
+            const projectedAchieved = (totalAchieved / de) * dim;
+            rate = Math.round((projectedAchieved / totalTarget) * 100);
+          } else if (count > 0) {
+            rate = Math.round(rateSum / count);
+          } else {
+            rate = 0;
+          }
+        }
 
         const hasActivity = totalTarget > 0 || totalAchieved > 0 || count > 0 || rate > 0;
         const displayName = resolveCategoryDisplayName(catName, categoryDisplayNameMap);
@@ -241,8 +258,8 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
   };
 
   // Build metrics for TGD (no CE & GD group) and ĐMX (with CE & GD group)
-  const tgdData = useMemo(() => buildGroupSections(tgdStores, false), [tgdStores, allCategoryNames, categoryGroupMap, categoryDisplayNameMap]);
-  const dmxData = useMemo(() => buildGroupSections(dmxStores, true), [dmxStores, allCategoryNames, categoryGroupMap, categoryDisplayNameMap]);
+  const tgdData = useMemo(() => buildGroupSections(tgdStores, false), [tgdStores, allCategoryNames, categoryGroupMap, categoryDisplayNameMap, timeMode, propDaysInMonth, propDaysElapsed]);
+  const dmxData = useMemo(() => buildGroupSections(dmxStores, true), [dmxStores, allCategoryNames, categoryGroupMap, categoryDisplayNameMap, timeMode, propDaysInMonth, propDaysElapsed]);
 
   // Export handlers
   const handleExportCard = async (

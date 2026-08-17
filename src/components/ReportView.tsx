@@ -171,6 +171,10 @@ interface ReportViewProps {
   onExportGroup?: (target: 'ict' | 'dichvu' | 'ce' | 'all' | 'by_groups' | 'quick') => void;
   forceShowAllRows?: boolean;
   valueDisplayMode?: 'percent' | 'value';
+  // Days-in-month and days-elapsed for the “% HT Dự Kiến” formula used by
+  // TongReportView in Luỹ Kế mode: ((DTLK / daysElapsed) * daysInMonth) / Target.
+  daysInMonth?: number;
+  daysElapsed?: number;
   // Only Super Admin / Admin may see the DTQĐ TB column & values (a
   // revenue-per-sales-headcount figure sourced from the BOSS file) and the
   // "DT Luỹ Kế / DT Realtime" value-display toggle. Editor/Viewer accounts
@@ -573,6 +577,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
   onExportGroup,
   forceShowAllRows = false,
   valueDisplayMode: rawValueDisplayMode = 'percent',
+  daysInMonth: propDaysInMonth,
+  daysElapsed: propDaysElapsed,
   canViewDtQdTb = true,
 }) => {
   // Non-privileged accounts can never see the DT Luỹ Kế/Realtime value view
@@ -1344,6 +1350,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
           categoryGroupMap={categoryGroupMap}
           categoryDisplayNameMap={categoryDisplayNameMap}
           bossAssignments={bossAssignments}
+          daysInMonth={propDaysInMonth}
+          daysElapsed={propDaysElapsed}
         />
       </React.Suspense>
     );
