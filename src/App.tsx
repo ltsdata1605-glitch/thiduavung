@@ -663,18 +663,19 @@ function AppInner() {
     return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
 
-  // Number of days elapsed in the month — extracted from lastUpdated timestamp
-  // (the day component of DD/MM/YYYY). Used for Luỹ Kế % HT Dự Kiến formula:
+  // Number of days elapsed (completed) in the month — the day from lastUpdated
+  // MINUS 1 because the current day hasn't finished yet (e.g. ngày 17 → 16
+  // ngày đã qua). Used for Luỹ Kế % HT Dự Kiến formula:
   //   ((DTLK / daysElapsed) * daysInMonth) / Target * 100
   const daysElapsed = useMemo(() => {
     const text = timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe;
     if (text) {
       const m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
       if (m) {
-        return parseInt(m[1], 10); // DD from DD/MM/YYYY
+        return Math.max(1, parseInt(m[1], 10) - 1); // DD - 1, min 1
       }
     }
-    return new Date().getDate(); // fallback: today's date
+    return Math.max(1, new Date().getDate() - 1); // fallback: today - 1
   }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
 
   // Get active stores depending on TimeMode & Scope (Vùng vs Siêu Thị / Tỉnh)
