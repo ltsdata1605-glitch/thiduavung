@@ -176,12 +176,19 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
           }
         });
 
-        const rate =
-          totalTarget > 0
-            ? Math.round((totalAchieved / totalTarget) * 100)
-            : count > 0
-            ? Math.round(rateSum / count)
-            : 0;
+        // Realtime: tổng đạt / tổng chỉ tiêu (weighted by target size)
+        // Luỹ Kế: trung bình % HT Dự Kiến per store (same logic as ReportView)
+        const rate = timeMode === 'realtime'
+          ? (totalTarget > 0
+              ? Math.round((totalAchieved / totalTarget) * 100)
+              : count > 0
+              ? Math.round(rateSum / count)
+              : 0)
+          : (count > 0
+              ? Math.round(rateSum / count)
+              : totalTarget > 0
+              ? Math.round((totalAchieved / totalTarget) * 100)
+              : 0);
 
         const hasActivity = totalTarget > 0 || totalAchieved > 0 || count > 0 || rate > 0;
         const displayName = resolveCategoryDisplayName(catName, categoryDisplayNameMap);
