@@ -315,25 +315,25 @@ export async function createUserAccount(
   }
 
   const secondaryAuth = getSecondaryAuth();
-  if (!secondaryAuth) {
-    return { success: false, error: 'Không thể khởi tạo hệ thống xác thực phụ để tạo tài khoản mới.' };
-  }
-
-  try {
-    await createUserWithEmailAndPassword(secondaryAuth, toSyntheticEmail(normalizedId), newAccount.password);
-  } catch (e: any) {
-    const msg =
-      e?.code === 'auth/weak-password'
-        ? 'Mật khẩu quá yếu (tối thiểu 6 ký tự)!'
-        : e?.code === 'auth/email-already-in-use'
-        ? `Tài khoản ${normalizedId} đã tồn tại trong hệ thống xác thực!`
-        : 'Tạo tài khoản đăng nhập thất bại!';
-    return { success: false, error: msg };
-  } finally {
+  if (secondaryAuth) {
     try {
-      await signOut(secondaryAuth);
-    } catch (e) {
-      // ignore
+      await createUserWithEmailAndPassword(secondaryAuth, toSyntheticEmail(normalizedId), newAccount.password);
+    } catch (e: any) {
+      if (e?.code === 'auth/email-already-in-use') {
+        // Tài khoản đã từng tồn tại trong Firebase Auth (orphan user)
+        // Tiếp tục ghi profile vào Firestore và cập nhật password hash để kích hoạt lại tài khoản
+        console.warn(`Auth user ${normalizedId} already exists in Firebase Auth, syncing profile to Firestore.`);
+      } else if (e?.code === 'auth/weak-password') {
+        return { success: false, error: 'Mật khẩu quá yếu (tối thiểu 6 ký tự)!' };
+      } else {
+        console.warn('secondaryAuth createUser error:', e);
+      }
+    } finally {
+      try {
+        await signOut(secondaryAuth);
+      } catch (e) {
+        // ignore
+      }
     }
   }
 
