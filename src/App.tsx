@@ -352,10 +352,14 @@ function AppInner() {
   }, []);
 
   // Show Cloud Sync Modal when launching on a fresh device (when local store cache is empty)
+  // Only fires when the app was opened ALREADY logged in (session from localStorage) — the
+  // explicit login path in onLoginSuccess handles its own sync animation.
   const isInitialLaunchDoneRef = useRef(false);
   useEffect(() => {
     if (!isInitialLaunchDoneRef.current && currentUser) {
       isInitialLaunchDoneRef.current = true;
+      // Skip if login handler already triggered the sync animation this session
+      if (cloudSyncShownRef.current) return;
       const isFreshDevice = !cachedData.realtimeStoresTinh?.length || !cachedData.luykeStoresTinh?.length;
       if (isFreshDevice) {
         triggerCloudSyncAnimation('Đang tải dữ liệu thi đua từ máy chủ Cloud cho thiết bị mới...');
@@ -1235,6 +1239,13 @@ function AppInner() {
     return (
       <LoginView
         onLoginSuccess={(loggedInUser) => {
+          // Reset critical-sync tracking so the loading modal actually waits
+          // for Firestore data to arrive fresh, instead of resolving
+          // immediately from snapshots received while the login screen was
+          // displayed (which causes the "no data" flash).
+          criticalDocsSeenRef.current = new Set();
+          resolveCriticalSyncRef.current = null;
+          isInitialLaunchDoneRef.current = true; // prevent the useEffect duplicate
           setCurrentUser(loggedInUser);
           triggerCloudSyncAnimation('Đăng nhập thành công! Đang tải & đồng bộ dữ liệu tài khoản từ máy chủ Cloud...');
         }}
