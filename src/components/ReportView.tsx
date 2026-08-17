@@ -187,12 +187,25 @@ interface VerticalComparisonTableProps {
   timeMode: TimeMode;
   valueDisplayMode: 'percent' | 'value';
   canViewDtQdTb?: boolean;
-  onRemoveStore: (storeKey: string) => void;
+  onRemoveStore: (store: StoreRecord | string) => void;
   resolveBoss: (sieuthi: string, fallbackBoss?: string) => string;
   resolveKenh: (sieuthi: string, fallbackKenh?: Channel | string) => Channel | string;
   resolveDtQd: (sieuthi: string) => string;
   totalCatCount: number;
 }
+
+const getStoreIdentifierTag = (store: StoreRecord, fallbackIndex: number): string => {
+  if (!store) return `#${fallbackIndex + 1}`;
+  const mst = extractMst(store.sieuthi) || store.id;
+  if (mst && /^\d+$/.test(mst)) {
+    return `#${mst}`;
+  }
+  const code = extractStoreCode(store.sieuthi);
+  if (code) {
+    return `#${code}`;
+  }
+  return `#${fallbackIndex + 1}`;
+};
 
 const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
   stores,
@@ -222,6 +235,8 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
   }, [displayedCategoryNames, categoryGroupMap]);
 
   const isTwoStores = stores.length === 2;
+  const tag1 = isTwoStores ? getStoreIdentifierTag(stores[0], 0) : '#1';
+  const tag2 = isTwoStores ? getStoreIdentifierTag(stores[1], 1) : '#2';
 
   return (
     <div className="overflow-x-auto select-none border border-slate-200 shadow-xs bg-white">
@@ -236,26 +251,30 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               </div>
             </th>
             {stores.map((s, idx) => {
-              const storeKey = s.sieuthi;
+              const storeKey = s.id || s.sieuthi;
               const boss = resolveBoss(s.sieuthi, s.boss);
               const kenh = resolveKenh(s.sieuthi, s.kenh);
+              const storeTag = getStoreIdentifierTag(s, idx);
               return (
                 <th
                   key={storeKey || idx}
-                  className="p-2.5 text-center min-w-[180px] max-w-[240px] bg-slate-900 relative"
+                  className="p-2.5 text-center min-w-[180px] max-w-[240px] bg-slate-900 relative group"
                 >
                   <button
                     type="button"
-                    onClick={() => onRemoveStore(storeKey)}
-                    className="export-hide absolute right-1.5 top-1.5 p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveStore(s);
+                    }}
+                    className="export-hide absolute right-1.5 top-1.5 p-1 text-slate-400 hover:text-rose-400 hover:bg-white/10 rounded-md transition-colors cursor-pointer shrink-0 z-30"
                     title="Bỏ siêu thị này khỏi so sánh"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4 stroke-[2.5]" />
                   </button>
                   <div className="flex flex-col items-center gap-1">
                     <div className="flex items-center justify-center gap-1.5 min-w-0 w-full">
-                      <span className="w-4 h-4 rounded-full bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
-                        #{idx + 1}
+                      <span className="px-1.5 py-0.5 rounded bg-sky-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs">
+                        {storeTag}
                       </span>
                       <span className="font-black text-xs sm:text-sm text-white truncate" title={s.sieuthi}>
                         {getStoreShortName(s.sieuthi)}
@@ -317,11 +336,11 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                 <td className="p-2 text-center font-black text-xs bg-amber-100/60">
                   {diff > 0 ? (
                     <span className="text-emerald-800 font-black">
-                      #1 hơn +{diff} ngành ({diffRate > 0 ? `+${diffRate}%` : `${diffRate}%`})
+                      {tag1} hơn +{diff} ngành ({diffRate > 0 ? `+${diffRate}%` : `${diffRate}%`})
                     </span>
                   ) : diff < 0 ? (
                     <span className="text-sky-800 font-black">
-                      #2 hơn +{Math.abs(diff)} ngành ({diffRate < 0 ? `+${Math.abs(diffRate)}%` : `${diffRate}%`})
+                      {tag2} hơn +{Math.abs(diff)} ngành ({diffRate < 0 ? `+${Math.abs(diffRate)}%` : `${diffRate}%`})
                     </span>
                   ) : (
                     <span className="text-slate-600 font-bold">Ngang nhau</span>
@@ -352,12 +371,12 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
               {isTwoStores && (() => {
                 const dt1 = parseDtQdTbNum(resolveDtQd(stores[0].sieuthi));
                 const dt2 = parseDtQdTbNum(resolveDtQd(stores[1].sieuthi));
-                const diffDt = Math.round(dt1 - dt2);
+                const diffDt = Number((dt1 - dt2).toFixed(3));
                 return (
                   <td className="p-2 text-center font-bold text-xs bg-slate-200/70">
                     {diffDt !== 0 ? (
                       <span className="font-extrabold text-slate-800">
-                        {diffDt > 0 ? `#1 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ` : `#2 hơn +${Math.abs(diffDt).toLocaleString('vi-VN')} tỷ`}
+                        {diffDt > 0 ? `${tag1} hơn +${formatDtQdTb(Math.abs(diffDt))}` : `${tag2} hơn +${formatDtQdTb(Math.abs(diffDt))}`}
                       </span>
                     ) : '-'}
                   </td>
@@ -478,7 +497,7 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                                     : 'bg-sky-100 text-sky-800 border border-sky-300'
                                 }`}
                               >
-                                <span>{isStore1Better ? '#1 hơn' : '#2 hơn'}</span>
+                                <span>{isStore1Better ? `${tag1} hơn` : `${tag2} hơn`}</span>
                                 <span>+{Math.abs(diffVal).toLocaleString('vi-VN')}</span>
                               </span>
                             </td>
@@ -513,7 +532,7 @@ const VerticalComparisonTable: React.FC<VerticalComparisonTableProps> = ({
                                   : 'bg-sky-100 text-sky-800 border border-sky-300'
                               }`}
                             >
-                              <span>{isStore1Better ? '#1 hơn' : '#2 hơn'}</span>
+                              <span>{isStore1Better ? `${tag1} hơn` : `${tag2} hơn`}</span>
                               <span>+{Math.abs(diff)}%</span>
                             </span>
                           </td>
@@ -567,28 +586,55 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 50;
 
-  // Selected stores for direct side-by-side comparison
-  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
+  // Selected stores for direct side-by-side comparison (Array preserves exact selection order)
+  const [selectedStoreKeys, setSelectedStoreKeys] = useState<string[]>([]);
   const [isFilterToSelected, setIsFilterToSelected] = useState(false);
   const [comparisonLayout, setComparisonLayout] = useState<'horizontal' | 'vertical'>('horizontal');
 
-  const toggleStoreSelection = (storeKey: string) => {
-    setSelectedStoreIds((prev) => {
-      const next = new Set(prev);
-      const isAdding = !next.has(storeKey);
-      if (isAdding) {
-        next.add(storeKey);
+  const isStoreSelected = (store: StoreRecord | string) => {
+    const key = typeof store === 'string' ? store : (store.id || store.sieuthi);
+    const sieuthi = typeof store === 'string' ? store : store.sieuthi;
+    const id = typeof store === 'string' ? store : store.id;
+    return selectedStoreKeys.some((k) => k === key || k === id || k === sieuthi);
+  };
+
+  const toggleStoreSelection = (targetStore: StoreRecord | string) => {
+    const targetKey = typeof targetStore === 'string' ? targetStore : (targetStore.id || targetStore.sieuthi);
+    const targetSieuthi = typeof targetStore === 'string' ? targetStore : targetStore.sieuthi;
+    const targetId = typeof targetStore === 'string' ? targetStore : targetStore.id;
+
+    setSelectedStoreKeys((prev) => {
+      const isExisting = prev.some((k) => k === targetKey || k === targetId || k === targetSieuthi);
+      let next: string[];
+      if (isExisting) {
+        next = prev.filter((k) => k !== targetKey && k !== targetId && k !== targetSieuthi);
       } else {
-        next.delete(storeKey);
+        next = [...prev, targetKey];
       }
 
       // If user checks/selects a store while in compare mode or while searching:
       // Automatically clear the search input to instantly reveal the full comparison list!
-      if (isAdding && (isFilterToSelected || searchTerm)) {
+      if (next.length === 0) {
+        setIsFilterToSelected(false);
+      } else if (!isExisting && (isFilterToSelected || searchTerm)) {
         setSearchTerm('');
         setIsFilterToSelected(true);
       }
 
+      return next;
+    });
+  };
+
+  const handleRemoveStoreFromCompare = (targetStore: StoreRecord | string) => {
+    const targetKey = typeof targetStore === 'string' ? targetStore : (targetStore.id || targetStore.sieuthi);
+    const targetSieuthi = typeof targetStore === 'string' ? targetStore : targetStore.sieuthi;
+    const targetId = typeof targetStore === 'string' ? targetStore : targetStore.id;
+
+    setSelectedStoreKeys((prev) => {
+      const next = prev.filter((k) => k !== targetKey && k !== targetId && k !== targetSieuthi);
+      if (next.length === 0) {
+        setIsFilterToSelected(false);
+      }
       return next;
     });
   };
@@ -694,8 +740,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     // When NOT searching:
     // If user activated comparison mode, only show the selected stores
-    if (isFilterToSelected && selectedStoreIds.size > 0) {
-      return selectedStoreIds.has(storeKey) || selectedStoreIds.has(s.sieuthi);
+    if (isFilterToSelected && selectedStoreKeys.length > 0) {
+      return selectedStoreKeys.some((k) => k === storeKey || k === s.sieuthi || k === s.id);
     }
 
     // Channel filter (derived from BOSS file assignments)
@@ -734,7 +780,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     hasSearch,
     searchTerm,
     isFilterToSelected,
-    selectedStoreIds,
+    selectedStoreKeys,
     selectedChannels,
     selectedProvince,
     selectedBoss,
@@ -1002,6 +1048,16 @@ export const ReportView: React.FC<ReportViewProps> = ({
     isProvinceView,
     displayedCategoryNames,
   ]);
+
+  // Preserves EXACT selection order: store selected 1st -> column 1, store selected 2nd -> column 2
+  const verticalComparisonStores = useMemo(() => {
+    if (selectedStoreKeys.length === 0) return [];
+    return selectedStoreKeys
+      .map((key) => {
+        return storesToDisplay.find((s) => s.id === key || s.sieuthi === key || (s.id && key.includes(s.id)) || (s.sieuthi && key.includes(s.sieuthi)));
+      })
+      .filter((s): s is (typeof storesToDisplay)[number] => Boolean(s));
+  }, [selectedStoreKeys, storesToDisplay]);
 
   // Sort stores
   const sortedStores = useMemo(() => [...storesToDisplay].sort((a, b) => {
@@ -1415,14 +1471,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
         </div>
 
         {/* Comparison Floating / Highlight Bar (when 1 or more stores are selected) */}
-        {!isProvinceView && selectedStoreIds.size > 0 && (
+        {!isProvinceView && selectedStoreKeys.length > 0 && (
           <div className="export-hide mx-3.5 mb-3 p-2.5 bg-gradient-to-r from-slate-900 via-sky-900 to-indigo-950 text-white rounded-2xl shadow-lg flex flex-wrap items-center justify-between gap-3 animate-fade-in border border-sky-600/50">
             <div className="flex items-center gap-2.5">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs">
-                {selectedStoreIds.size}
+                {selectedStoreKeys.length}
               </span>
               <span className="font-extrabold text-xs text-amber-200">
-                Đã chọn {selectedStoreIds.size} siêu thị để so sánh hiệu quả thi đua
+                Đã chọn {selectedStoreKeys.length} siêu thị để so sánh hiệu quả thi đua
               </span>
             </div>
 
@@ -1444,7 +1500,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 ) : (
                   <>
                     <Scale className="w-3.5 h-3.5" />
-                    <span>Chỉ so sánh {selectedStoreIds.size} siêu thị này</span>
+                    <span>Chỉ so sánh {selectedStoreKeys.length} siêu thị này</span>
                   </>
                 )}
               </button>
@@ -1479,7 +1535,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedStoreIds(new Set());
+                  setSelectedStoreKeys([]);
                   setIsFilterToSelected(false);
                   setComparisonLayout('horizontal');
                 }}
@@ -1494,16 +1550,16 @@ export const ReportView: React.FC<ReportViewProps> = ({
         )}
 
         {/* If in Vertical Comparison Mode, render VerticalComparisonTable */}
-        {!isProvinceView && isFilterToSelected && comparisonLayout === 'vertical' && sortedStores.length > 0 ? (
+        {!isProvinceView && isFilterToSelected && comparisonLayout === 'vertical' && verticalComparisonStores.length > 0 ? (
           <VerticalComparisonTable
-            stores={sortedStores}
+            stores={verticalComparisonStores}
             displayedCategoryNames={displayedCategoryNames}
             categoryDisplayNameMap={categoryDisplayNameMap}
             categoryGroupMap={categoryGroupMap}
             timeMode={timeMode}
             valueDisplayMode={valueDisplayMode}
             canViewDtQdTb={canViewDtQdTb}
-            onRemoveStore={(storeKey) => toggleStoreSelection(storeKey)}
+            onRemoveStore={handleRemoveStoreFromCompare}
             resolveBoss={resolveBoss}
             resolveKenh={resolveKenh}
             resolveDtQd={resolveDtQd}
@@ -1744,8 +1800,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   );
                 };
 
-                const storeKey = store.id || store.sieuthi;
-                const isSelected = selectedStoreIds.has(storeKey) || selectedStoreIds.has(store.sieuthi);
+                const isSelected = isStoreSelected(store);
 
                 const rowBgClass = isSelected
                   ? 'bg-sky-100 font-medium'
@@ -1768,7 +1823,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleStoreSelection(storeKey);
+                            toggleStoreSelection(store);
                           }}
                           title={isSelected ? "Bỏ chọn so sánh siêu thị này" : "Chọn siêu thị này để so sánh"}
                           className="group/btn flex items-center justify-center gap-1 mx-auto cursor-pointer focus:outline-none"
