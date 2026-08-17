@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { doc, setDoc, getDoc, collection, writeBatch, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { StoreRecord, AppSettings } from '../types';
+import { StoreRecord, AppSettings, RemarkTemplateConfig, DEFAULT_REMARK_CONFIG } from '../types';
 import { BossAssignmentRecord } from '../utils/parser';
 import { idbGet, idbSet } from './indexedDbCache';
 
@@ -345,6 +345,46 @@ export async function saveSettingsToFirebase(settings: AppSettings, updatedBy: s
 
 export async function saveUserPreferencesToFirebase(prefs: Record<string, any>, updatedBy: string = 'Super Admin') {
   return saveDataset('user_preferences', prefs, updatedBy);
+}
+
+const REMARK_CONFIG_STORAGE_KEY = 'tnb_remark_template_config';
+
+export function getLocalRemarkConfig(): RemarkTemplateConfig {
+  try {
+    const raw = localStorage.getItem(REMARK_CONFIG_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        displayMode: parsed.displayMode || 'user',
+        templateType: parsed.templateType || 'template_1',
+        includeEmoji: parsed.includeEmoji !== false,
+        includeCallToAction: parsed.includeCallToAction !== false,
+      };
+    }
+  } catch (e) {}
+  return DEFAULT_REMARK_CONFIG;
+}
+
+export async function saveRemarkConfigToFirebaseAndLocal(
+  config: RemarkTemplateConfig,
+  currentPrefs: Record<string, any> = {},
+  accountId: string = 'global',
+  updatedBy: string = 'User'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    localStorage.setItem(REMARK_CONFIG_STORAGE_KEY, JSON.stringify(config));
+  } catch (e) {}
+
+  const updatedPrefs = {
+    ...currentPrefs,
+    [accountId]: {
+      ...(currentPrefs[accountId] || {}),
+      remarkConfig: config,
+    },
+    global_remark_config: config,
+  };
+
+  return saveUserPreferencesToFirebase(updatedPrefs, updatedBy);
 }
 
 export async function saveUserFiltersToFirebase(filters: Record<string, any>, updatedBy: string = 'Super Admin') {

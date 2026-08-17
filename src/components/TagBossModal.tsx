@@ -73,6 +73,9 @@ export function generateReportRemarksText(params: {
   lastUpdated?: string;
   entityScope?: EntityScope;
   remarkDisplayMode?: RemarkDisplayMode;
+  templateType?: 'template_1' | 'template_2' | 'template_3';
+  includeEmoji?: boolean;
+  includeCallToAction?: boolean;
 }): string {
   const {
     stores = [],
@@ -86,11 +89,14 @@ export function generateReportRemarksText(params: {
     lastUpdated,
     entityScope = 'sieuthi',
     remarkDisplayMode = 'user',
+    templateType = 'template_1',
+    includeEmoji = true,
+    includeCallToAction = true,
   } = params;
 
   const isLuyKe = !timeModeName.toLowerCase().includes('real');
   const safeStores = stores || [];
-  const modeIcon = isLuyKe ? '📈' : '⚡';
+  const modeIcon = includeEmoji ? (isLuyKe ? '📈' : '⚡') : '•';
   const modeTitle = isLuyKe ? 'CẬP NHẬT LUỸ KẾ' : 'CẬP NHẬT REALTIME';
   const fullTime = lastUpdated || getFormattedNow();
 
@@ -279,15 +285,75 @@ export function generateReportRemarksText(params: {
       return b.rate - a.rate;
     });
 
+  const callToActionText = includeCallToAction
+    ? `\n━━━━━━━━━━━━━━\n👉 Đề nghị các Siêu thị / Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! ${includeEmoji ? '💪🏼🔥' : ''}`
+    : '';
+
   if (entityScope === 'sieuthi' && !isSpecificProvince) {
     // VÙNG Tab: Province ranking
+    if (templateType === 'template_2') {
+      // Mẫu 2 Vùng: Tỉnh cần tăng tốc
+      const botTinhs = provinceRanking.filter((p) => p.rate < 80 || p.achievedCategories < Math.round(totalCatCount * 0.8));
+      const botLines = (botTinhs.length > 0 ? botTinhs : provinceRanking.slice(-5).reverse())
+        .map((p) => {
+          const rank = provinceRanking.findIndex((item) => item.tinh === p.tinh) + 1;
+          const valuePart = selectedCategory !== 'ALL' ? `${formatInt(p.achieved)} / ${formatInt(p.target)}` : `${p.achievedCategories} / ${totalCatCount}`;
+          return `${includeEmoji ? '🔻' : '•'} #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+        })
+        .join('\n');
+
+      return `${modeIcon} ${modeTitle} - DANH SÁCH TỈNH CẦN TĂNG TỐC VÙNG TNB - ${fullTime}
+━━━━━━━━━━━━━━
+${includeEmoji ? '📊' : '•'} KẾT QUẢ TOÀN VÙNG: ${vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${vungRate}%)
+${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+
+${includeEmoji ? '⚠️' : '•'} CÁC TỈNH CẦN ĐẨY MẠNH DOANH THU:
+${botLines || 'Tất cả các tỉnh đều đang đạt kết quả tốt'}
+${callToActionText}`;
+    }
+
+    if (templateType === 'template_3') {
+      // Mẫu 3 Vùng: Tóm tắt Top 3 & Bot 3
+      const top3 = provinceRanking.slice(0, 3);
+      const bot3 = provinceRanking.slice(-3).reverse();
+
+      const topLines = top3
+        .map((p, idx) => {
+          const medal = includeEmoji ? (idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉') : `#${idx + 1}`;
+          const valuePart = selectedCategory !== 'ALL' ? `${formatInt(p.achieved)} / ${formatInt(p.target)}` : `${p.achievedCategories} / ${totalCatCount}`;
+          return `${medal} #${idx + 1} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+        })
+        .join('\n');
+
+      const botLines = bot3
+        .map((p) => {
+          const rank = provinceRanking.findIndex((item) => item.tinh === p.tinh) + 1;
+          const valuePart = selectedCategory !== 'ALL' ? `${formatInt(p.achieved)} / ${formatInt(p.target)}` : `${p.achievedCategories} / ${totalCatCount}`;
+          return `${includeEmoji ? '🔻' : '•'} #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+        })
+        .join('\n');
+
+      return `${modeIcon} TÓM TẮT THI ĐUA TỈNH TNB (TOP/BOT) - ${fullTime}
+━━━━━━━━━━━━━━
+${includeEmoji ? '📊' : '•'} KẾT QUẢ TOÀN VÙNG: ${vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${vungRate}%)
+${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+
+${includeEmoji ? '🏆' : '•'} TOP 3 TỈNH DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+${includeEmoji ? '⚠️' : '•'} BOT 3 TỈNH CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+${callToActionText}`;
+    }
+
+    // Mẫu 1 Vùng: Đầy đủ Top & Bot
     const half = Math.ceil(provinceRanking.length / 2);
     const topTinhs = provinceRanking.slice(0, half);
     const botTinhs = provinceRanking.slice(half).reverse();
 
     const topLines = topTinhs
       .map((p, idx) => {
-        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+        const medal = includeEmoji ? (idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹') : `#${idx + 1}`;
         const valuePart =
           selectedCategory !== 'ALL'
             ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
@@ -303,31 +369,88 @@ export function generateReportRemarksText(params: {
           selectedCategory !== 'ALL'
             ? `${formatInt(p.achieved)} / ${formatInt(p.target)}`
             : `${p.achievedCategories} / ${totalCatCount}`;
-        return `🔻 #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
+        return `${includeEmoji ? '🔻' : '•'} #${rank} ${p.tinh}: ${valuePart} (${Math.round(p.rate)}%)`;
       })
       .join('\n');
 
     return `${modeIcon} ${modeTitle} - BẢNG XẾP HẠNG THI ĐUA CÁC TỈNH VÙNG TNB - ${fullTime}
 ━━━━━━━━━━━━━━
-📊 KẾT QUẢ TOÀN VÙNG: ${vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${vungRate}%)
-🎯 Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+${includeEmoji ? '📊' : '•'} KẾT QUẢ TOÀN VÙNG: ${vungAchievedCatCount} / ${totalCatCount} ngành hàng đạt (${vungRate}%)
+${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
 
-🏆 TOP TỈNH DẪN ĐẦU:
+${includeEmoji ? '🏆' : '•'} TOP TỈNH DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
 
-⚠️ CÁC TỈNH CẦN TĂNG TỐC:
+${includeEmoji ? '⚠️' : '•'} CÁC TỈNH CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━
-👉 Đề nghị các Tỉnh bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+${callToActionText}`;
   } else {
     // SIÊU THỊ Tab or Specific Province: Store ranking
+    const scopeTitle = isSpecificProvince ? `TỈNH ${provinceName}` : 'TOÀN VÙNG TNB';
+
+    if (templateType === 'template_2') {
+      // Mẫu 2 Siêu thị: Danh sách cần tăng tốc (< 80%)
+      const warningStores = storeRanking.filter((s) => (s.rate < 80 || s.achievedCategories < Math.round(totalCatCount * 0.8)) && s.target > 0);
+      const warningLines = (warningStores.length > 0 ? warningStores : storeRanking.slice(-10).reverse())
+        .map((s) => {
+          const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
+          const valuePart = selectedCategory !== 'ALL' ? `${formatInt(s.achieved)} / ${formatInt(s.target)}` : `${s.achievedCategories} / ${totalCatCount}`;
+          return formatStoreRemarkLine({
+            prefix: `${includeEmoji ? '⚠️' : '•'} #${rank}`,
+            storeName: s.storeName,
+            bossTag: s.bossTag,
+            valuePart,
+            rate: s.rate,
+            mode: remarkDisplayMode,
+          });
+        })
+        .join('\n');
+
+      return `${modeIcon} ${modeTitle} - CÁC SIÊU THỊ CẦN TĂNG TỐC ${scopeTitle} - ${fullTime}
+━━━━━━━━━━━━━━
+${includeEmoji ? '📊' : '•'} KẾT QUẢ ${scopeTitle}:
+${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+
+${includeEmoji ? '🚨' : '•'} DANH SÁCH SIÊU THỊ CẦN BỨT PHÁ GẤP:
+${warningLines || 'Tất cả siêu thị đều đang đạt trên 80%'}
+${callToActionText}`;
+    }
+
+    if (templateType === 'template_3') {
+      // Mẫu 3 Siêu thị: Toàn bộ danh sách siêu thị
+      const allLines = storeRanking
+        .map((s, idx) => {
+          const medal = includeEmoji ? (idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹') : `#${idx + 1}`;
+          const valuePart = selectedCategory !== 'ALL' ? `${formatInt(s.achieved)} / ${formatInt(s.target)}` : `${s.achievedCategories} / ${totalCatCount}`;
+          return formatStoreRemarkLine({
+            prefix: `${medal} #${idx + 1}`,
+            storeName: s.storeName,
+            bossTag: s.bossTag,
+            valuePart,
+            rate: s.rate,
+            mode: remarkDisplayMode,
+          });
+        })
+        .join('\n');
+
+      return `${modeIcon} ${modeTitle} - TOÀN BỘ XẾP HẠNG SIÊU THỊ ${scopeTitle} - ${fullTime}
+━━━━━━━━━━━━━━
+${includeEmoji ? '📊' : '•'} KẾT QUẢ ${scopeTitle}: ${storeRanking.length} Siêu thị
+${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+
+${includeEmoji ? '📋' : '•'} BẢNG XẾP HẠNG ĐẦY ĐỦ:
+${allLines || 'Đang cập nhật'}
+${callToActionText}`;
+    }
+
+    // Mẫu 1 Siêu thị: Top 10 + Bot 10
     const top10 = storeRanking.slice(0, 10);
     const storesWithTarget = storeRanking.filter((s) => s.target > 0);
     const bot10 = storesWithTarget.slice(-10).reverse();
 
     const topLines = top10
       .map((s, idx) => {
-        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹';
+        const medal = includeEmoji ? (idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹') : `#${idx + 1}`;
         const valuePart =
           selectedCategory !== 'ALL'
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
@@ -351,7 +474,7 @@ ${botLines || 'Đang cập nhật'}
             ? `${formatInt(s.achieved)} / ${formatInt(s.target)}`
             : `${s.achievedCategories} / ${totalCatCount}`;
         return formatStoreRemarkLine({
-          prefix: `🔻 #${rank}`,
+          prefix: `${includeEmoji ? '🔻' : '•'} #${rank}`,
           storeName: s.storeName,
           bossTag: s.bossTag,
           valuePart,
@@ -361,20 +484,17 @@ ${botLines || 'Đang cập nhật'}
       })
       .join('\n');
 
-    const scopeTitle = isSpecificProvince ? `TỈNH ${provinceName}` : 'TOÀN VÙNG TNB';
-
     return `${modeIcon} ${modeTitle} - TOP/BOT SIÊU THỊ ${scopeTitle} - ${fullTime}
 ━━━━━━━━━━━━━━
-📊 KẾT QUẢ ${scopeTitle}:
-🎯 Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
+${includeEmoji ? '📊' : '•'} KẾT QUẢ ${scopeTitle}:
+${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIcon} Thực đạt: ${formatInt(totalAchievedVal)}
 
-🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
+${includeEmoji ? '🏆' : '•'} TOP 10 SIÊU THỊ DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
 
-⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
+${includeEmoji ? '⚠️' : '•'} BOT 10 SIÊU THỊ CẦN TĂNG TỐC (Chỉ xét ST có Target):
 ${botLines || 'Đang cập nhật'}
-━━━━━━━━━━━━━━
-👉 Đề nghị các Siêu thị bám sát, tập trung đẩy mạnh tư vấn để bứt phá mục tiêu! 💪🏼🔥`;
+${callToActionText}`;
   }
 }
 

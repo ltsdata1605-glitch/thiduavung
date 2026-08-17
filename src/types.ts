@@ -8,6 +8,22 @@ export type Channel = 'DML' | 'DMM' | 'DMS' | 'TGD' | 'TopZone';
 
 export type RemarkDisplayMode = 'user' | 'sieuthi' | 'sieuthi_user';
 
+export type RemarkTemplateType = 'template_1' | 'template_2' | 'template_3';
+
+export interface RemarkTemplateConfig {
+  displayMode: RemarkDisplayMode;
+  templateType: RemarkTemplateType;
+  includeEmoji: boolean;
+  includeCallToAction: boolean;
+}
+
+export const DEFAULT_REMARK_CONFIG: RemarkTemplateConfig = {
+  displayMode: 'user',
+  templateType: 'template_1',
+  includeEmoji: true,
+  includeCallToAction: true,
+};
+
 export interface CategoryData {
   id: string;
   name: string;

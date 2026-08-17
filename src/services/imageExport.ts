@@ -192,7 +192,13 @@ export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
  *   and emit global 'export-image-success' event to trigger notification popup with Copy Image & Copy Remark options.
  * - On mobile: open the native OS share sheet.
  */
-export function downloadBlob(blob: Blob, filename: string, forceDownload = false, remarkTextToCopy?: string) {
+export function downloadBlob(
+  blob: Blob,
+  filename: string,
+  forceDownload = false,
+  remarkTextToCopy?: string,
+  remarkContext?: Record<string, any>
+) {
   // 1. Mặc định tự động copy ẢNH vào clipboard trên laptop/desktop
   void copyImageToClipboard(blob);
 
@@ -204,6 +210,7 @@ export function downloadBlob(blob: Blob, filename: string, forceDownload = false
           blob,
           filename,
           remarkText: remarkTextToCopy || '',
+          remarkContext,
         },
       })
     );
@@ -231,6 +238,8 @@ export interface ExportElementOptions {
   scale?: number;
   /** Remark text to automatically copy to clipboard on export */
   remarkTextToCopy?: string;
+  /** Context parameters for generating dynamic remark templates */
+  remarkContext?: Record<string, any>;
 }
 
 /** Suppress all scrollbars in a DOM subtree so no scrollbar thumbs appear in PNG. */
@@ -507,7 +516,7 @@ export async function exportElementAsImage(
     });
 
     if (!blob) throw new Error('html-to-image trả về rỗng.');
-    downloadBlob(blob, filename, false, options.remarkTextToCopy);
+    downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
   } catch (error) {
     console.error(`Lỗi khi xuất ảnh "${filename}":`, error);
@@ -839,7 +848,7 @@ export async function exportGroupSpecificElement(
     });
 
     if (!blob) throw new Error('html-to-image trả về rỗng.');
-    downloadBlob(blob, filename, false, options.remarkTextToCopy);
+    downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
   } catch (error) {
     console.error(`Lỗi khi xuất ảnh "${filename}":`, error);

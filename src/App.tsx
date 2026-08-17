@@ -300,6 +300,7 @@ function AppInner() {
     blob?: Blob | null;
     filename: string;
     remarkText?: string;
+    remarkContext?: Record<string, any>;
   }>({
     isOpen: false,
     filename: '',
@@ -311,6 +312,7 @@ function AppInner() {
         blob?: Blob | null;
         filename: string;
         remarkText?: string;
+        remarkContext?: Record<string, any>;
       }>;
       if (customEvent.detail) {
         setExportSuccessState({
@@ -318,6 +320,7 @@ function AppInner() {
           blob: customEvent.detail.blob,
           filename: customEvent.detail.filename,
           remarkText: customEvent.detail.remarkText,
+          remarkContext: customEvent.detail.remarkContext,
         });
       }
     };
@@ -1046,7 +1049,7 @@ function AppInner() {
       // Let ReportView re-render with pagination bypassed before capturing.
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_RutGon_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const remarkText = generateReportRemarksText({
+      const remarkContext = {
         stores: activeStores,
         selectedProvince,
         selectedChannels,
@@ -1057,8 +1060,9 @@ function AppInner() {
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
-      });
-      const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText });
+      };
+      const remarkText = generateReportRemarksText(remarkContext);
+      const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText, remarkContext });
       if (!blob) {
         showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
         return;
@@ -1086,7 +1090,7 @@ function AppInner() {
     try {
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_TongHop_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const remarkText = generateReportRemarksText({
+      const remarkContext = {
         stores: activeStores,
         selectedProvince,
         selectedChannels,
@@ -1097,8 +1101,9 @@ function AppInner() {
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
-      });
-      const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText });
+      };
+      const remarkText = generateReportRemarksText(remarkContext);
+      const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText, remarkContext });
       if (!blob) {
         showErrorToast('Xuất ảnh thất bại — vui lòng thử lại.');
         return;
@@ -1434,6 +1439,8 @@ function AppInner() {
         blob={exportSuccessState.blob}
         filename={exportSuccessState.filename}
         remarkText={exportSuccessState.remarkText}
+        remarkContext={exportSuccessState.remarkContext}
+        currentUser={currentUser}
       />
 
       {/* Tag Boss / Quick Remarks Modal */}
