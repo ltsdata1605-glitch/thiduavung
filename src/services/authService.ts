@@ -20,6 +20,16 @@ const ACCOUNTS_CACHE_KEY = 'tnb_user_accounts';
  * localStorage quota/eviction) so the offline/demo-mode fallback stays
  * usable even if localStorage has been cleared.
  */
+function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
+  const clean: any = {};
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] !== undefined) {
+      clean[key] = obj[key];
+    }
+  });
+  return clean;
+}
+
 function writeAccountsCache(accounts: UserAccount[]) {
   try {
     localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(accounts));
@@ -339,21 +349,23 @@ export async function createUserAccount(
 
   const passHash = await hashPassword(newAccount.password);
   const accountToSave: UserAccount & { passwordHash?: string } = {
-    ...newAccount,
     accountId: normalizedId,
+    name: newAccount.name ? newAccount.name.trim() : normalizedId,
+    role: newAccount.role || 'viewer',
     passwordHash: passHash,
+    allowedChannels: newAccount.allowedChannels && newAccount.allowedChannels.length > 0 ? newAccount.allowedChannels : [],
     createdAt: new Date().toISOString(),
     createdBy: creatorAccountId,
     isActive: true,
   };
-  delete accountToSave.password;
 
   if (!db) {
     return { success: false, error: 'Không thể lưu tài khoản: chưa kết nối được Firebase.' };
   }
 
   try {
-    await setDoc(doc(db, USERS_COLLECTION, normalizedId), accountToSave);
+    const cleanData = sanitizeForFirestore(accountToSave);
+    await setDoc(doc(db, USERS_COLLECTION, normalizedId), cleanData);
   } catch (e) {
     console.error('Firestore profile write failed after Auth user created:', e);
     return {
@@ -388,7 +400,9 @@ export async function updateUserAccount(
   if (updated.name !== undefined) updateData.name = updated.name.trim();
   if (updated.role !== undefined) updateData.role = updated.role;
   if (updated.isActive !== undefined) updateData.isActive = updated.isActive;
-  if (updated.allowedChannels !== undefined) updateData.allowedChannels = updated.allowedChannels;
+  if (updated.allowedChannels !== undefined) {
+    updateData.allowedChannels = updated.allowedChannels.length > 0 ? updated.allowedChannels : [];
+  }
 
   if (updated.newPassword && updated.newPassword.trim().length >= 6) {
     const passHash = await hashPassword(updated.newPassword.trim());
@@ -398,7 +412,8 @@ export async function updateUserAccount(
   }
 
   try {
-    await updateDoc(doc(db, USERS_COLLECTION, normalizedId), updateData);
+    const cleanUpdate = sanitizeForFirestore(updateData);
+    await updateDoc(doc(db, USERS_COLLECTION, normalizedId), cleanUpdate);
   } catch (e) {
     console.error('Firestore update failed:', e);
     return { success: false, error: 'Cập nhật tài khoản lên Firebase thất bại!' };

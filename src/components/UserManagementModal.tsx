@@ -89,7 +89,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
         password: newPassword.trim(),
         name: newName.trim(),
         role: newRole,
-        allowedChannels: newAllowedChannels.length > 0 ? (newAllowedChannels as Channel[]) : undefined,
+        allowedChannels: newAllowedChannels.length > 0 ? (newAllowedChannels as Channel[]) : [],
         isActive: true,
       },
       currentUser.accountId
