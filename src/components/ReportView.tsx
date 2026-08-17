@@ -1702,7 +1702,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
                   title="Click để sắp xếp theo Đạt"
                 >
-                  ĐẠT {sortField === 'achieved' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                  DK ĐẠT {sortField === 'achieved' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
                 </th>
 
                 <th
