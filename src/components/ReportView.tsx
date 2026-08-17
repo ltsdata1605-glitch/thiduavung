@@ -847,13 +847,27 @@ export const ReportView: React.FC<ReportViewProps> = ({
         });
 
         return Array.from(byTinh.entries()).map(([tinh, agg], idx) => {
+          // Luỹ Kế projection helpers (same formula as TongReportView)
+          const dim = propDaysInMonth || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+          const de = propDaysElapsed || Math.max(1, new Date().getDate() - 1);
+
           const categoryMap: Record<string, { target: number; achieved: number; rate: number }> = {};
           Object.entries(agg.catTotals).forEach(([cat, c]) => {
-            // For Realtime: calculate % from daily target vs realtime achieved (or average per-store rate)
-            // For Luỹ Kế: average the per-store rates (sourced from % HT Dự Kiến)
-            const rate = timeMode === 'realtime'
-              ? (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0))
-              : (c.count > 0 ? Math.round(c.rateSum / c.count) : (c.target > 0 ? Math.round((c.achieved / c.target) * 100) : 0));
+            // Realtime: achieved / target * 100  (target = daily target, already transformed)
+            // Luỹ Kế: ((totalAchieved / daysElapsed) * daysInMonth) / totalTarget * 100
+            let rate: number;
+            if (timeMode === 'realtime') {
+              rate = c.target > 0 ? Math.round((c.achieved / c.target) * 100) : (c.count > 0 ? Math.round(c.rateSum / c.count) : 0);
+            } else {
+              if (c.target > 0 && de > 0) {
+                const projected = (c.achieved / de) * dim;
+                rate = Math.round((projected / c.target) * 100);
+              } else if (c.count > 0) {
+                rate = Math.round(c.rateSum / c.count);
+              } else {
+                rate = 0;
+              }
+            }
 
             categoryMap[cat] = {
               target: Number(c.target.toFixed(2)),
@@ -863,6 +877,21 @@ export const ReportView: React.FC<ReportViewProps> = ({
           });
 
           const dtQdTbVal = agg.dtQdTbVal > 0 ? agg.dtQdTbVal : getDtQdTbForProvince(tinh, bossAssignments);
+
+          // Overall province rate (same formula)
+          let overallRate: number;
+          if (timeMode === 'realtime') {
+            overallRate = agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : (agg.rateCount > 0 ? Math.round(agg.rateSum / agg.rateCount) : 0);
+          } else {
+            if (agg.target > 0 && de > 0) {
+              const projected = (agg.achieved / de) * dim;
+              overallRate = Math.round((projected / agg.target) * 100);
+            } else if (agg.rateCount > 0) {
+              overallRate = Math.round(agg.rateSum / agg.rateCount);
+            } else {
+              overallRate = 0;
+            }
+          }
 
           return {
             stt: idx + 1,
@@ -874,15 +903,13 @@ export const ReportView: React.FC<ReportViewProps> = ({
             target: Number(agg.target.toFixed(2)),
             achieved: Number(agg.achieved.toFixed(2)),
             dtQdTbVal,
-            rate: timeMode === 'realtime'
-              ? (agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : (agg.rateCount > 0 ? Math.round(agg.rateSum / agg.rateCount) : 0))
-              : (agg.rateCount > 0 ? Math.round(agg.rateSum / agg.rateCount) : (agg.target > 0 ? Math.round((agg.achieved / agg.target) * 100) : 0)),
+            rate: overallRate,
             rank: 0,
             categoryMap,
           };
         });
       })()
-    : filteredStores), [isProvinceView, filteredStores, timeMode, bossAssignments, resolveDtQd]);
+    : filteredStores), [isProvinceView, filteredStores, timeMode, bossAssignments, resolveDtQd, propDaysInMonth, propDaysElapsed]);
   // Ordered list of 38 categories grouped by categoryGroupMap (falling back to DEFAULT_CATEGORY_GROUP) and ordered by categoryOrderMap
   const orderedHardcodedCategoryNames = useMemo(() => (() => {
     const grouped = new Map<string, string[]>();
