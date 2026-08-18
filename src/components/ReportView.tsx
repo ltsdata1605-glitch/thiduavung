@@ -1403,6 +1403,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
           categoryOrderMap={categoryOrderMap}
           categoryDisplayNameMap={categoryDisplayNameMap}
           bossAssignments={bossAssignments}
+          daysInMonth={propDaysInMonth}
+          daysElapsed={propDaysElapsed}
         />
       </React.Suspense>
     );

@@ -4,6 +4,7 @@ import {
   getBossForStore,
   getChannelForStore,
   getCategoryData,
+  computeCompletionRate,
   formatStoreDisplayName,
   resolveCategoryDisplayName,
   isExcludedStore,
@@ -27,6 +28,8 @@ interface TopBotRemarksModalProps {
   selectedChannels: Channel[];
   bossAssignments: BossAssignmentRecord[];
   isExcludedChannel: (k?: string) => boolean;
+  daysInMonth?: number;
+  daysElapsed?: number;
 }
 
 export function generateTopBotRemarksText(params: {
@@ -41,6 +44,8 @@ export function generateTopBotRemarksText(params: {
   bossAssignments: BossAssignmentRecord[];
   isExcludedChannel: (k?: string) => boolean;
   remarkDisplayMode?: RemarkDisplayMode;
+  daysInMonth?: number;
+  daysElapsed?: number;
 }): string {
   const {
     provinceScope,
@@ -54,6 +59,8 @@ export function generateTopBotRemarksText(params: {
     bossAssignments = [],
     isExcludedChannel,
     remarkDisplayMode = 'user',
+    daysInMonth,
+    daysElapsed,
   } = params;
 
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
@@ -75,7 +82,7 @@ export function generateTopBotRemarksText(params: {
     const bossTag = formatBossTag(boss);
     const target = data.target || 0;
     const achieved = data.achieved || 0;
-    const rate = target > 0 ? (achieved / target) * 100 : 0;
+    const rate = computeCompletionRate(target, achieved, timeMode, daysInMonth, daysElapsed);
     return {
       tinh: s.tinh,
       storeName: formatStoreDisplayName(s.sieuthi),
@@ -152,6 +159,8 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
   selectedChannels = [],
   bossAssignments = [],
   isExcludedChannel,
+  daysInMonth,
+  daysElapsed,
 }) => {
   const [copied, setCopied] = useState(false);
   const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
@@ -172,6 +181,8 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
       bossAssignments,
       isExcludedChannel,
       remarkDisplayMode,
+      daysInMonth,
+      daysElapsed,
     });
     setCustomText(text);
     setCopied(false);
@@ -188,6 +199,8 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
     bossAssignments,
     isExcludedChannel,
     remarkDisplayMode,
+    daysInMonth,
+    daysElapsed,
   ]);
 
   if (!isOpen) return null;

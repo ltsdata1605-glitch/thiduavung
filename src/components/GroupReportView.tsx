@@ -6,6 +6,7 @@ import {
   getChannelForStore,
   getChannelLabel,
   getCategoryData,
+  computeCompletionRate,
   formatStoreDisplayName,
   resolveCategoryDisplayName,
   isExcludedStore,
@@ -31,6 +32,8 @@ interface GroupReportViewProps {
   categoryOrderMap?: Record<string, number>;
   categoryDisplayNameMap?: Record<string, string>;
   bossAssignments?: BossAssignmentRecord[];
+  daysInMonth?: number;
+  daysElapsed?: number;
 }
 
 /** Distinct pastel colors per channel for headers & badges */
@@ -300,6 +303,8 @@ const ProvinceSummaryCard: React.FC<{
   isExcludedChannel: (k?: string) => boolean;
   exportingId: string | null;
   onExport: (elementId: string, filename: string, remarkTextToCopy?: string) => void;
+  daysInMonth?: number;
+  daysElapsed?: number;
 }> = ({
   config,
   onChangeChannels,
@@ -315,6 +320,8 @@ const ProvinceSummaryCard: React.FC<{
   isExcludedChannel,
   exportingId,
   onExport,
+  daysInMonth,
+  daysElapsed,
 }) => {
   const [isRemarksOpen, setIsRemarksOpen] = useState(false);
   const bannerBgClass = 'bg-gradient-to-r from-sky-600 via-indigo-600 to-sky-600 border-sky-500';
@@ -351,7 +358,7 @@ const ProvinceSummaryCard: React.FC<{
       const current = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
       const newTarget = current.target + data.target;
       const newAchieved = current.achieved + data.achieved;
-      const newRate = newTarget > 0 ? (newAchieved / newTarget) * 100 : 0;
+      const newRate = computeCompletionRate(newTarget, newAchieved, timeMode, daysInMonth, daysElapsed);
       map.set(s.tinh, { target: newTarget, achieved: newAchieved, rate: newRate });
     });
 
@@ -374,14 +381,14 @@ const ProvinceSummaryCard: React.FC<{
       }
       return { ...row, tag };
     });
-  }, [stores, config.category, config.channels, bossAssignments, isExcludedChannel]);
+  }, [stores, config.category, config.channels, bossAssignments, isExcludedChannel, timeMode, daysInMonth, daysElapsed]);
 
   const totalSummary = useMemo(() => {
     const t = provinceSummaryRows.reduce((a, b) => a + b.target, 0);
     const r = provinceSummaryRows.reduce((a, b) => a + b.achieved, 0);
-    const rate = t > 0 ? (r / t) * 100 : 0;
+    const rate = computeCompletionRate(t, r, timeMode, daysInMonth, daysElapsed);
     return { target: t, achieved: r, rate: Math.round(rate) };
-  }, [provinceSummaryRows]);
+  }, [provinceSummaryRows, timeMode, daysInMonth, daysElapsed]);
 
   return (
     <div className="w-full min-w-0 bg-white rounded-none border border-slate-200 shadow-2xs overflow-hidden pb-1" id={elementId}>
@@ -483,7 +490,7 @@ const ProvinceSummaryCard: React.FC<{
                 <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
                   {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
                 </th>
-                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>%HT</th>
+                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
                 <th className="py-2 px-2 text-center whitespace-nowrap">XH</th>
               </tr>
             </thead>
@@ -535,6 +542,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   categoryOrderMap = {},
   categoryDisplayNameMap = {},
   bossAssignments = [],
+  daysInMonth,
+  daysElapsed,
 }) => {
   // Extract all category names dynamically from real uploaded/pasted store dataset
   const allCategoryNames = useMemo(() => {
@@ -738,15 +747,17 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
       if (list.length > 0) {
         // Sắp xếp các siêu thị trong từng kênh giảm dần theo tỷ lệ %HT
         list.sort((a, b) => {
-          const rateA = getCategoryData(a, activeCategory).rate;
-          const rateB = getCategoryData(b, activeCategory).rate;
+          const dataA = getCategoryData(a, activeCategory);
+          const dataB = getCategoryData(b, activeCategory);
+          const rateA = computeCompletionRate(dataA.target, dataA.achieved, timeMode, daysInMonth, daysElapsed);
+          const rateB = computeCompletionRate(dataB.target, dataB.achieved, timeMode, daysInMonth, daysElapsed);
           return rateB - rateA;
         });
         groups.push({ kenh: k, stores: list });
       }
     });
     return groups;
-  }, [provinceDetailedStores, activeCategory, bossAssignments]);
+  }, [provinceDetailedStores, activeCategory, bossAssignments, timeMode, daysInMonth, daysElapsed]);
 
   // 3. Dynamic Top / Bot Leaderboard for Card 3 based on User Percent / Count & Province criteria
   const topBotLeaderboard = useMemo(() => {
@@ -759,8 +770,10 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     });
 
     const sorted = [...valid].sort((a, b) => {
-      const rateA = getCategoryData(a, activeCategory).rate;
-      const rateB = getCategoryData(b, activeCategory).rate;
+      const dataA = getCategoryData(a, activeCategory);
+      const dataB = getCategoryData(b, activeCategory);
+      const rateA = computeCompletionRate(dataA.target, dataA.achieved, timeMode, daysInMonth, daysElapsed);
+      const rateB = computeCompletionRate(dataB.target, dataB.achieved, timeMode, daysInMonth, daysElapsed);
       return rateB - rateA;
     });
 
@@ -776,7 +789,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     const bot20 = sorted.slice(-count).reverse();
 
     return { top20, bot20 };
-  }, [stores, activeCategory, channelsCard3, selectedProvinceCard3, bossAssignments, topBotMode, topBotValue]);
+  }, [stores, activeCategory, channelsCard3, selectedProvinceCard3, bossAssignments, topBotMode, topBotValue, timeMode, daysInMonth, daysElapsed]);
 
   const topBotLabelText = useMemo(() => {
     const val = topBotValue > 0 ? topBotValue : 1;
@@ -870,6 +883,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
             isExcludedChannel={isExcludedChannel}
             exportingId={exportingId}
             onExport={handleExportCard}
+            daysInMonth={daysInMonth}
+            daysElapsed={daysElapsed}
           />
         ))}
       </div>
@@ -927,6 +942,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                     selectedChannels: channelsCard2,
                     bossAssignments,
                     isExcludedChannel,
+                    daysInMonth,
+                    daysElapsed,
                   });
                   handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`, remarkText);
                 }}
@@ -975,10 +992,11 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                           <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">
                             {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
                           </th>
-                          <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
+                          <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
                         </tr>
                         {group.stores.map((s, idx) => {
-                          const data = getCategoryData(s, activeCategory);
+                          const rawData = getCategoryData(s, activeCategory);
+                          const data = { ...rawData, rate: computeCompletionRate(rawData.target, rawData.achieved, timeMode, daysInMonth, daysElapsed) };
                           const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
                           return (
                             <tr key={s.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
@@ -1112,6 +1130,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                     selectedChannels: channelsCard3,
                     bossAssignments,
                     isExcludedChannel,
+                    daysInMonth,
+                    daysElapsed,
                   });
                   handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`, remarkText);
                 }}
@@ -1129,7 +1149,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
             {/* Header Banner - Dynamic Title theo Tỉnh, % hoặc Số lượng */}
             <div className={`w-full mb-3 ${bannerBgClass} text-white py-3 px-3 text-center shadow-2xs border rounded-none`}>
               <h3 className="text-lg sm:text-xl font-black uppercase tracking-wider text-white text-center drop-shadow-xs inline-flex flex-wrap items-center justify-center gap-1.5 overflow-visible">
-                <span>BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} %HT {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} •</span>
+                <span>BẢNG XẾP HẠNG TOP/BOT {topBotLabelText} {timeMode === 'luyke' ? '%DKHT' : '%HT'} {selectedProvinceCard3 !== 'ALL' ? `• ${selectedProvinceCard3.toUpperCase()}` : ''} •</span>
                 <CategorySelectDropdown
                   value={activeCategory}
                   onChange={setActiveCategory}
@@ -1157,12 +1177,13 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
                         {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
                       </th>
-                      <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
+                      <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {topBotLeaderboard.top20.map((s, idx) => {
                       const data = getCategoryData(s, activeCategory);
+                      const rate = computeCompletionRate(data.target, data.achieved, timeMode, daysInMonth, daysElapsed);
                       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
                       return (
                         <tr key={s.id || idx} className="bg-white">
@@ -1181,7 +1202,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                           </td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-sky-700 border-b border-slate-200 whitespace-nowrap">{Math.round(data.rate)}%</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-sky-700 border-b border-slate-200 whitespace-nowrap">{Math.round(rate)}%</td>
                         </tr>
                       );
                     })}
@@ -1214,12 +1235,13 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">
                         {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
                       </th>
-                      <th className="py-2 px-1.5 text-center whitespace-nowrap">%HT</th>
+                      <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {topBotLeaderboard.bot20.map((s, idx) => {
                       const data = getCategoryData(s, activeCategory);
+                      const rate = computeCompletionRate(data.target, data.achieved, timeMode, daysInMonth, daysElapsed);
                       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
                       return (
                         <tr key={s.id || idx} className="bg-slate-50">
@@ -1238,7 +1260,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                           </td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-rose-600 border-b border-slate-200 whitespace-nowrap">{Math.round(data.rate)}%</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-rose-600 border-b border-slate-200 whitespace-nowrap">{Math.round(rate)}%</td>
                         </tr>
                       );
                     })}
@@ -1268,6 +1290,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
         selectedChannels={channelsCard2}
         bossAssignments={bossAssignments}
         isExcludedChannel={isExcludedChannel}
+        daysInMonth={daysInMonth}
+        daysElapsed={daysElapsed}
       />
 
       {/* Modal Nhận xét TOP/BOT (Card 3) */}
@@ -1284,6 +1308,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
         selectedChannels={channelsCard3}
         bossAssignments={bossAssignments}
         isExcludedChannel={isExcludedChannel}
+        daysInMonth={daysInMonth}
+        daysElapsed={daysElapsed}
       />
 
       {/* Export Loading Overlay Modal */}

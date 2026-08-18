@@ -1,4 +1,4 @@
-import { StoreRecord, Channel, RemarkDisplayMode } from '../types';
+import { StoreRecord, Channel, RemarkDisplayMode, TimeMode } from '../types';
 
 export interface BossAssignmentRecord {
   stt?: number;
@@ -1384,6 +1384,29 @@ export function getDtQdTbForProvince(
   });
 
   return matchingBossRecords.reduce((sum, b) => sum + parseDtQdTbNum(b.dtQdTb), 0);
+}
+
+/**
+ * %HT (Realtime) vs %DKHT (Luỹ Kế) completion rate for a target/achieved pair.
+ * Realtime uses the plain achieved/target ratio ("% HT Target Tháng").
+ * Luỹ Kế projects the full month from accumulated data instead
+ * ("% HT Dự Kiến"): ((achieved / daysElapsed) * daysInMonth) / target * 100.
+ */
+export function computeCompletionRate(
+  target: number,
+  achieved: number,
+  timeMode: TimeMode,
+  daysInMonth?: number,
+  daysElapsed?: number
+): number {
+  if (target <= 0) return 0;
+  if (timeMode !== 'luyke') {
+    return (achieved / target) * 100;
+  }
+  const dim = daysInMonth || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const de = daysElapsed || new Date().getDate();
+  if (de <= 0) return 0;
+  return ((achieved / de) * dim / target) * 100;
 }
 
 /**

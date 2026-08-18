@@ -4,6 +4,7 @@ import {
   getBossForStore,
   getChannelForStore,
   getCategoryData,
+  computeCompletionRate,
   formatStoreDisplayName,
   resolveCategoryDisplayName,
   isExcludedStore,
@@ -27,6 +28,8 @@ interface ProvinceDetailRemarksModalProps {
   selectedChannels: Channel[];
   bossAssignments: BossAssignmentRecord[];
   isExcludedChannel: (k?: string) => boolean;
+  daysInMonth?: number;
+  daysElapsed?: number;
 }
 
 export function generateProvinceDetailRemarksText(params: {
@@ -41,6 +44,8 @@ export function generateProvinceDetailRemarksText(params: {
   bossAssignments: BossAssignmentRecord[];
   isExcludedChannel: (k?: string) => boolean;
   remarkDisplayMode?: RemarkDisplayMode;
+  daysInMonth?: number;
+  daysElapsed?: number;
 }): string {
   const {
     province,
@@ -54,6 +59,8 @@ export function generateProvinceDetailRemarksText(params: {
     bossAssignments = [],
     isExcludedChannel,
     remarkDisplayMode = 'user',
+    daysInMonth,
+    daysElapsed,
   } = params;
 
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
@@ -76,7 +83,7 @@ export function generateProvinceDetailRemarksText(params: {
     const bossTag = formatBossTag(boss);
     const target = data.target || 0;
     const achieved = data.achieved || 0;
-    const rate = target > 0 ? (achieved / target) * 100 : 0;
+    const rate = computeCompletionRate(target, achieved, timeMode, daysInMonth, daysElapsed);
     return {
       storeName: formatStoreDisplayName(s.sieuthi),
       boss,
@@ -90,7 +97,7 @@ export function generateProvinceDetailRemarksText(params: {
   // Total province metrics
   const totalTarget = storeMetrics.reduce((a, b) => a + b.target, 0);
   const totalAchieved = storeMetrics.reduce((a, b) => a + b.achieved, 0);
-  const totalRate = totalTarget > 0 ? Math.round((totalAchieved / totalTarget) * 100) : 0;
+  const totalRate = Math.round(computeCompletionRate(totalTarget, totalAchieved, timeMode, daysInMonth, daysElapsed));
   const remaining = totalTarget - totalAchieved;
   const isSurpassed = remaining <= 0 && totalTarget > 0;
   const totalSummaryLine = isSurpassed
@@ -170,6 +177,8 @@ export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProp
   selectedChannels = [],
   bossAssignments = [],
   isExcludedChannel,
+  daysInMonth,
+  daysElapsed,
 }) => {
   const [copied, setCopied] = useState(false);
   const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
@@ -190,6 +199,8 @@ export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProp
       bossAssignments,
       isExcludedChannel,
       remarkDisplayMode,
+      daysInMonth,
+      daysElapsed,
     });
     setCustomText(text);
     setCopied(false);
@@ -206,6 +217,8 @@ export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProp
     bossAssignments,
     isExcludedChannel,
     remarkDisplayMode,
+    daysInMonth,
+    daysElapsed,
   ]);
 
   if (!isOpen) return null;
