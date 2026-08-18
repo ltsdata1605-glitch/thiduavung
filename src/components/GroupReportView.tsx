@@ -500,7 +500,7 @@ const ProvinceSummaryCard: React.FC<{
                   <td className="py-1.5 px-1.5 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
                   <td className="py-1.5 px-2 font-bold text-sky-900 border-r border-b border-slate-200 whitespace-nowrap">{row.tinh}</td>
                   <td className="py-1.5 px-2 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{row.target.toLocaleString('vi-VN')}</td>
-                  <td className="py-1.5 px-2 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{row.achieved.toLocaleString('vi-VN')}</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{(timeMode === 'luyke' ? Math.round(row.achieved) : row.achieved).toLocaleString('vi-VN')}</td>
                   <td
                     className={`py-1.5 px-2 text-center border-r border-b border-slate-200 whitespace-nowrap ${
                       row.tag === 'Top' ? 'text-sky-800 font-bold bg-sky-50/60' : row.tag === 'Bot' ? 'text-rose-600 bg-rose-50/50 font-bold' : 'text-slate-700 font-bold'
@@ -520,7 +520,7 @@ const ProvinceSummaryCard: React.FC<{
                 <td className={`py-1.5 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}></td>
                 <td className={`py-1.5 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>Tổng</td>
                 <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.target.toLocaleString('vi-VN')}</td>
-                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{totalSummary.achieved.toLocaleString('vi-VN')}</td>
+                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{(timeMode === 'luyke' ? Math.round(totalSummary.achieved) : totalSummary.achieved).toLocaleString('vi-VN')}</td>
                 <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.rate)}%</td>
                 <td className="py-1.5 px-2 text-center font-extrabold whitespace-nowrap"></td>
               </tr>
@@ -1016,7 +1016,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                                 </span>
                               </td>
                               <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
-                              <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
+                              <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.achieved) : data.achieved}</td>
                               <td
                                 className={`py-1.5 px-1.5 text-center font-bold border-b border-slate-200 whitespace-nowrap ${
                                   data.rate >= 100 ? 'text-sky-700' : data.rate >= 80 ? 'text-slate-700' : 'text-rose-600'
@@ -1201,7 +1201,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                             </span>
                           </td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.achieved) : data.achieved}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-sky-700 border-b border-slate-200 whitespace-nowrap">{Math.round(rate)}%</td>
                         </tr>
                       );
@@ -1259,7 +1259,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                             </span>
                           </td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{data.target}</td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{data.achieved}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.achieved) : data.achieved}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-rose-600 border-b border-slate-200 whitespace-nowrap">{Math.round(rate)}%</td>
                         </tr>
                       );
