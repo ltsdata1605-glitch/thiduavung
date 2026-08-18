@@ -1014,28 +1014,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
     : { stt: 0, tinh: 56, boss: 136, kenh: 236, sieuthi: 290, dat: 570, tyLe: 630, dtQdTb: 684, total: showDtQdTbColumn ? 764 : 684 };
 
   // Map store metrics if a specific category or category group is selected.
-  // A Nhóm selection takes precedence over a single Ngành hàng selection —
-  // they're two different granularities of the same filter, not meant to combine.
+  // A Ngành hàng selection takes precedence over the Nhóm selection — Nhóm
+  // just narrows which categories are pickable, matching subHeaderTitle's
+  // "CHỈ TÍNH THI ĐUA <Ngành hàng>" wording below, which reflects the same priority.
   const storesToDisplay = useMemo(() => baseRows.map((s) => {
-    if (!isAllCategoryGroups) {
-      let target = 0;
-      let achieved = 0;
-      let rateSum = 0;
-      let count = 0;
-      categoriesInSelectedGroup.forEach((cat) => {
-        const catData = getCategoryData(s, cat);
-        if (catData.target > 0 || catData.achieved > 0 || catData.rate > 0) {
-          target += catData.target;
-          achieved += catData.achieved;
-          rateSum += (catData.rate || 0);
-          count += 1;
-        }
-      });
-      const rate = (target > 0 && achieved > 0)
-        ? (isProvinceView ? Math.round((achieved / target) * 100) : Number(((achieved / target) * 100).toFixed(1)))
-        : (count > 0 ? Math.round(rateSum / count) : 0);
-      return { ...s, target, achieved, rate };
-    }
     if (selectedCategoriesList.length === 1) {
       const catData = getCategoryData(s, selectedCategoriesList[0]);
       return {
@@ -1051,6 +1033,25 @@ export const ReportView: React.FC<ReportViewProps> = ({
       let rateSum = 0;
       let count = 0;
       selectedCategoriesList.forEach((cat) => {
+        const catData = getCategoryData(s, cat);
+        if (catData.target > 0 || catData.achieved > 0 || catData.rate > 0) {
+          target += catData.target;
+          achieved += catData.achieved;
+          rateSum += (catData.rate || 0);
+          count += 1;
+        }
+      });
+      const rate = (target > 0 && achieved > 0)
+        ? (isProvinceView ? Math.round((achieved / target) * 100) : Number(((achieved / target) * 100).toFixed(1)))
+        : (count > 0 ? Math.round(rateSum / count) : 0);
+      return { ...s, target, achieved, rate };
+    }
+    if (!isAllCategoryGroups) {
+      let target = 0;
+      let achieved = 0;
+      let rateSum = 0;
+      let count = 0;
+      categoriesInSelectedGroup.forEach((cat) => {
         const catData = getCategoryData(s, cat);
         if (catData.target > 0 || catData.achieved > 0 || catData.rate > 0) {
           target += catData.target;
