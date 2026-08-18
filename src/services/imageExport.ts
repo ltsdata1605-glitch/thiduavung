@@ -319,16 +319,14 @@ export async function exportElementAsImage(
   // is often the (export-hidden) search/action toolbar above the table, not the
   // table's own scroll wrapper. That mismeasured a narrow table's width against
   // the wider toolbar and left blank padding on the right of the exported image.
-  const scrollContainer = tableEl?.closest<HTMLElement>('.overflow-x-auto') || element.querySelector<HTMLElement>('.overflow-x-auto');
+  // Only used as a fallback for totalRequiredWidth below, when the clone's own
+  // post-layout table measurement is unavailable. NOT used as a width floor —
+  // on screen the table has `w-full`, so a narrow table (few category columns
+  // selected, e.g. a single Ngành hàng filter) still reports a wide
+  // scrollWidth/offsetWidth simply because it was stretched to fill its
+  // container. Trusting that as a floor forced the exported canvas wider than
+  // the table's real content, leaving blank space on the right.
   const liveTableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
-  const liveScrollWidth = scrollContainer ? Math.ceil(Math.max(scrollContainer.scrollWidth, scrollContainer.offsetWidth)) : 0;
-  // Only trust liveTableWidth/liveScrollWidth as a width FLOOR when the table
-  // genuinely overflowed its on-screen container (needed horizontal scroll).
-  // On screen the table has `w-full`, so a narrow (e.g. 2-store comparison)
-  // table still reports a wide liveTableWidth simply because it was stretched
-  // to fill its container — using that as a floor forced the exported canvas
-  // wider than the table's real content, leaving blank space on the right.
-  const isMultiColumnTable = !!(scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth + 20);
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -471,10 +469,7 @@ export async function exportElementAsImage(
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
     const totalRequiredWidth = (actualTableWidth > 0 ? actualTableWidth : liveTableWidth) + padLeft + padRight + 4;
 
-    let finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
-    if (isMultiColumnTable) {
-      finalWidth = Math.max(finalWidth, liveTableWidth + 24, liveScrollWidth + 24);
-    }
+    const finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
 
     // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
     clone.style.setProperty('width', `${finalWidth}px`, 'important');

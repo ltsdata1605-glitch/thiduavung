@@ -1069,10 +1069,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
   }).map((s) => {
     const achievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(s, cat).rate ?? 0) >= 100).length;
     // TỶ LỆ % is (Số ngành hàng đạt >= 100%) / (Tổng số ngành hàng hiển thị) * 100
-    // e.g. 18/38 đạt => Tỷ lệ = 18/38 * 100 = 47%
-    const rate = selectedCategoriesList.length === 1
-      ? Math.round(s.rate || 0)
-      : (displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0);
+    // e.g. 18/38 đạt => Tỷ lệ = 18/38 * 100 = 47%. Always count-based — never
+    // substitutes in the raw %HT rate, even when only 1 ngành hàng is shown.
+    const rate = displayedCategoryNames.length > 0 ? Math.round((achievedCount / displayedCategoryNames.length) * 100) : 0;
     return { ...s, rate, achievedCategories: achievedCount };
   }), [
     baseRows,
@@ -1231,19 +1230,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
       ? 'TẤT CẢ KÊNH'
       : selectedChannels.join(', ');
 
-  // Dynamic Header Titles
+  // Dynamic Header Titles — a specific Ngành hàng selection takes precedence
+  // over the Nhóm listing, same priority as subHeaderTitle below.
   const mainHeaderTitle = (() => {
     const modeStr = isLuyke ? 'LUỸ KẾ' : 'REALTIME';
-    if (!isAllCategoryGroups) {
-      const groupsStr = selectedCategoryGroupsList.map((g) => g.toUpperCase()).join(' + ');
-      return `${modeStr} THI ĐUA NHÓM ${groupsStr}`;
-    }
     if (selectedCategoriesList.length === 1) {
       const catName = resolveCategoryDisplayName(selectedCategoriesList[0], categoryDisplayNameMap).toUpperCase();
       return `${modeStr} THI ĐUA NGÀNH HÀNG ${catName}`;
     }
     if (selectedCategoriesList.length > 1) {
       return `${modeStr} THI ĐUA ${selectedCategoriesList.length} NGÀNH HÀNG ĐÃ CHỌN`;
+    }
+    if (!isAllCategoryGroups) {
+      const groupsStr = selectedCategoryGroupsList.map((g) => g.toUpperCase()).join(' + ');
+      return `${modeStr} THI ĐUA NHÓM ${groupsStr}`;
     }
     return `${modeStr} THI ĐUA NGÀNH HÀNG THÁNG 08/2026`;
   })();
@@ -1738,7 +1738,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       colSpan={run.count}
                       className={`py-1.5 ${run.style.band} ${i < groupBandRuns.length - 1 ? `border-r ${run.style.bandBorder}` : ''}`}
                     >
-                      {run.style.label} ({run.count} NGÀNH HÀNG)
+                      {run.count > 1 ? `${run.style.label} (${run.count} NGÀNH HÀNG)` : run.style.label}
                     </th>
                   ))
                 ) : (
