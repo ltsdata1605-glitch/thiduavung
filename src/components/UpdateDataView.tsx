@@ -264,7 +264,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     progress: number;
   } | null>(null);
 
-  // AutoCopy: opens bi.thegioididong.com in a popup, a matching Tampermonkey
+  // AutoCopy: opens bi.thegioididong.com in a new tab, a matching Tampermonkey
   // script there auto-navigates Tỉnh/Siêu Thị and postMessage()s the raw
   // table text back — see runAutoCopy below for the message contract.
   const [autoCopyState, setAutoCopyState] = useState<{
@@ -602,13 +602,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     const rt = mode === 'realtime' ? '1' : '2';
     const origin = encodeURIComponent(window.location.origin);
     const url = `${BI_AUTOCOPY_ORIGIN}/thi-dua?id=-1&tab=1&rt=${rt}&dm=2&mt=2&__tnb_autocopy=1&__tnb_origin=${origin}`;
-    const popup = window.open(url, 'tnb_bi_autocopy', 'width=1440,height=900');
+    // No window-features string (width/height/...) — that's what makes
+    // browsers pop a separate chrome-less window. Omitting it opens a
+    // normal tab right next to this one instead, per the user's ask.
+    const popup = window.open(url, 'tnb_bi_autocopy');
     if (!popup) {
-      setAutoCopyState({ mode, running: false, message: '❌ Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng cho phép popup cho trang này rồi bấm AutoCopy lại.' });
+      setAutoCopyState({ mode, running: false, message: '❌ Trình duyệt đã chặn tab mới. Vui lòng cho phép popup/tab cho trang này rồi bấm AutoCopy lại.' });
       return;
     }
     autoCopyPopupRef.current = popup;
-    setAutoCopyState({ mode, running: true, message: 'Đang mở BI và tự động chuyển chế độ / lấy dữ liệu...' });
+    setAutoCopyState({ mode, running: true, message: 'Đang mở tab BI và tự động chuyển chế độ / lấy dữ liệu...' });
 
     // Safety net: the matching Tampermonkey script may not be installed, the
     // BI site's layout may have changed, or the user may have closed the tab —
@@ -621,7 +624,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     autoCopyPollRef.current = window.setInterval(() => {
       if (autoCopyPopupRef.current?.closed) {
         stopAutoCopyWatchers();
-        setAutoCopyState((prev) => (prev && prev.running ? { ...prev, running: false, message: 'Cửa sổ BI đã bị đóng trước khi lấy xong dữ liệu.' } : prev));
+        setAutoCopyState((prev) => (prev && prev.running ? { ...prev, running: false, message: 'Tab BI đã bị đóng trước khi lấy xong dữ liệu.' } : prev));
       }
     }, 1000);
   };
