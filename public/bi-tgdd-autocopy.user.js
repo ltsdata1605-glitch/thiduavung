@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.5
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập khi chạy tự động, và loại bỏ log/toast của chính script khỏi dữ liệu copy.
+// @version      1.6
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, và loại bỏ log/toast của chính script khỏi dữ liệu copy.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.5';
+  const SCRIPT_VERSION = '1.6';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -52,19 +52,25 @@
   // cleanly via runAutoCopySequence's error path instead of the whole tab
   // freezing on a dialog nobody is there to dismiss. Manual panel use
   // (no __tnb_autocopy flag) leaves the real alert() untouched.
+  //
+  // MUST patch `unsafeWindow`, not the sandboxed `window` Tampermonkey
+  // gives this script (any @grant other than none runs in that sandbox) —
+  // assigning window.alert only replaces THIS SCRIPT's own private view of
+  // it, never the page's real global `alert` that BI's own AngularJS code
+  // actually calls. Confirmed in testing: the native dialog still appeared
+  // with only `window.alert` patched. unsafeWindow is Tampermonkey's
+  // reference to the real, unsandboxed page window — same fix category as
+  // the earlier ping/pong-over-postMessage bug (also a sandbox/real-window
+  // identity mismatch), resolved there by using the DOM instead.
   // ---------------------------------------------------------------------
   const IS_AUTOCOPY_DRIVEN = new URLSearchParams(location.search).get('__tnb_autocopy') === '1';
   let lastAlertMessage = null;
   if (IS_AUTOCOPY_DRIVEN) {
-    const nativeAlert = window.alert.bind(window);
-    window.alert = function (msg) {
+    const realWindow = typeof unsafeWindow !== 'undefined' && unsafeWindow ? unsafeWindow : window;
+    realWindow.alert = function (msg) {
       lastAlertMessage = String(msg || '(không có nội dung)');
       console.warn('[TNB AutoCopy] Trang BI gọi alert(), đã chặn không cho hiện: ' + lastAlertMessage);
     };
-    // Best-effort: restore the native alert if anything downstream still
-    // needs it directly (nativeAlert kept in closure in case future code
-    // wants to surface something to the user explicitly).
-    void nativeAlert;
   }
 
   // ---------------------------------------------------------------------
@@ -441,6 +447,11 @@
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'tinh', text: tinhText });
       log('✅ Đã gửi dữ liệu Tỉnh (' + tinhText.length.toLocaleString('vi-VN') + ' ký tự).');
 
+      // Brief pacing gap before the next dropdown switch — acting back-to-back
+      // without any rest is what overloads BI's AngularJS session/backend in
+      // the first place (same lesson as the sibling MWG script's click-pacing
+      // fix for this exact site).
+      await sleep(500);
       log('Đang chuyển sang Siêu Thị...');
       await ensureScope(SCOPE_SIEUTHI);
       checkForBiError();
