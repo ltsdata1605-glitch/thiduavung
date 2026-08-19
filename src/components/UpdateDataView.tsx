@@ -599,9 +599,12 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   // regardless of trigger (anchor click, window.open, location.href all get
   // silently ignored). Copy-to-clipboard is the only reliable way to hand
   // the user that URL; they still have to paste it into the address bar.
+  // Links straight to Tampermonkey's own details page (?id=<its extension
+  // ID>, matching the Chrome Web Store listing) — "Allow User Scripts" sits
+  // right there, no need to hunt for the separate Developer mode toggle.
   const copyExtensionsUrl = async () => {
     try {
-      await navigator.clipboard.writeText('chrome://extensions/');
+      await navigator.clipboard.writeText('chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo');
       setCopiedExtensionsUrl(true);
       window.setTimeout(() => setCopiedExtensionsUrl(false), 2500);
     } catch (e) {}
@@ -1842,7 +1845,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
                 <div className="pl-9 flex items-center gap-2 mb-2">
                   <code className="flex-1 min-w-0 truncate px-2.5 py-1.5 bg-rose-900/5 border border-rose-200 rounded-lg text-[11px] font-mono text-rose-950">
-                    chrome://extensions/
+                    chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo
                   </code>
                   <button
                     type="button"
@@ -1857,7 +1860,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   </button>
                 </div>
                 <p className="text-[11px] text-rose-900/90 leading-relaxed pl-9">
-                  Trình duyệt không cho web tự mở trang này — bấm <strong>Copy</strong> ở trên rồi mở tab mới, dán vào thanh địa chỉ (Ctrl/Cmd+L → Ctrl/Cmd+V) và Enter. Trên trang đó, <strong>Chế độ dành cho nhà phát triển (Developer mode)</strong> là công tắc nằm ở <strong>góc trên bên phải</strong>, bật lên. Hoặc bấm vào icon Tampermonkey → <strong>Chi tiết (Details)</strong> → bật <strong>Allow User Scripts</strong>. Sau đó tải lại trang này rồi bấm "Thử lại".
+                  Trình duyệt không cho web tự mở trang này — bấm <strong>Copy</strong> ở trên rồi mở tab mới, dán vào thanh địa chỉ (Ctrl/Cmd+L → Ctrl/Cmd+V) và Enter. Đường dẫn này mở thẳng trang chi tiết Tampermonkey — cuộn xuống tìm mục <strong>"Allow User Scripts"</strong> và bật công tắc lên (màu xanh). Sau đó tải lại trang này rồi bấm "Thử lại".
                 </p>
               </div>
             </div>
