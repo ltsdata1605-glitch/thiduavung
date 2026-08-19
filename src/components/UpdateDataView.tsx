@@ -1776,7 +1776,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   </div>
                 </div>
                 <a
-                  href="https://www.tampermonkey.net/"
+                  href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?pli=1"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold rounded-lg transition-colors"
