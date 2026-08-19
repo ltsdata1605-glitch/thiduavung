@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.3
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt.
+// @version      1.4
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật và chặn alert lỗi phiên đăng nhập khi chạy tự động.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.3';
+  const SCRIPT_VERSION = '1.4';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -38,6 +38,34 @@
   // Everything below is specific to the BI site — the marker above is the
   // only thing that needs to run on the TNB app's own pages.
   if (location.hostname !== 'bi.thegioididong.com') return;
+
+  // ---------------------------------------------------------------------
+  // window.alert() interception — ONLY when driven unattended via
+  // __tnb_autocopy=1. A native alert() BLOCKS all page JS (including our
+  // own pending setTimeout/await chains) until a human clicks OK — fatal
+  // for a background tab nobody is watching. BI's AngularJS session/auth
+  // check fires exactly this native alert ("Đã xảy ra lỗi! Vui lòng đăng
+  // xuất, và đăng nhập lại!") when hit too early/too fast — a known failure
+  // mode documented in a sibling MWG automation script. Overriding alert()
+  // with our own function (instead of the native one) makes the call
+  // synchronous and non-blocking, so we can capture the message and abort
+  // cleanly via runAutoCopySequence's error path instead of the whole tab
+  // freezing on a dialog nobody is there to dismiss. Manual panel use
+  // (no __tnb_autocopy flag) leaves the real alert() untouched.
+  // ---------------------------------------------------------------------
+  const IS_AUTOCOPY_DRIVEN = new URLSearchParams(location.search).get('__tnb_autocopy') === '1';
+  let lastAlertMessage = null;
+  if (IS_AUTOCOPY_DRIVEN) {
+    const nativeAlert = window.alert.bind(window);
+    window.alert = function (msg) {
+      lastAlertMessage = String(msg || '(không có nội dung)');
+      console.warn('[TNB AutoCopy] Trang BI gọi alert(), đã chặn không cho hiện: ' + lastAlertMessage);
+    };
+    // Best-effort: restore the native alert if anything downstream still
+    // needs it directly (nativeAlert kept in closure in case future code
+    // wants to surface something to the user explicitly).
+    void nativeAlert;
+  }
 
   // ---------------------------------------------------------------------
   // Storage helpers — GM_* persists across the full-page reload that
@@ -174,6 +202,51 @@
     return out;
   }
 
+  // ---------------------------------------------------------------------
+  // Real loading spinner — `#Loading`/`.overload-wait`, a fixed full-screen
+  // overlay this AngularJS app (ng-app="BIreportApp") toggles via its
+  // $http interceptor whenever a request is in flight. Ported from a
+  // sibling automation script that hit this site's actual failure mode:
+  // acting too fast while `#Loading` is still up overloads the backend/
+  // session and triggers BI's own "Đã xảy ra lỗi! Vui lòng đăng xuất, và
+  // đăng nhập lại!" alert. Row-count stability alone (waitForTableSettled's
+  // old check) can look "stable" while this spinner is still up, so we
+  // wait for the spinner FIRST, everywhere.
+  // ---------------------------------------------------------------------
+  const SPINNER_SELECTOR = [
+    '#Loading', '.overload-wait',
+    '.dx-loadpanel-content', '.dx-loadpanel:not(.dx-state-invisible)', '.dx-loadindicator',
+    '[class*="spinner" i]', '[class*="loading" i]',
+  ].join(', ');
+
+  // NOT the same as isVisible() above — per spec, `offsetParent` is ALWAYS
+  // null for `position:fixed` elements regardless of whether they're
+  // actually shown, and `#Loading` itself is fixed-positioned. A plain
+  // offsetParent check would silently never detect it as visible.
+  function isSpinnerVisible(el) {
+    if (!el) return false;
+    const style = getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') return false;
+    if (parseFloat(style.opacity || '1') === 0) return false;
+    if (style.position === 'fixed') {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }
+    return el.offsetParent !== null;
+  }
+
+  /** Waits for every matching spinner to disappear, or gives up after maxMs. */
+  async function waitForSpinnersToClear(maxMs = 8000, pollMs = 150, settleMs = 120) {
+    if (settleMs) await sleep(settleMs);
+    const start = Date.now();
+    while (Date.now() - start < maxMs) {
+      const visible = Array.from(document.querySelectorAll(SPINNER_SELECTOR)).some(isSpinnerVisible);
+      if (!visible) return;
+      await sleep(pollMs);
+    }
+    log('⚠️ Vòng xoay tải dữ liệu chưa biến mất sau ' + maxMs + 'ms, vẫn tiếp tục.');
+  }
+
   const SCOPE_TINH = 'Thống kê theo khu vực';
   const SCOPE_SIEUTHI = 'Thống kê theo Siêu thị';
 
@@ -213,8 +286,14 @@
     return true;
   }
 
-  /** Polls the visible row count until it stops changing, or times out. */
+  /**
+   * Waits for the real #Loading spinner first (the request-in-flight
+   * signal), then polls the visible row count until it stops changing.
+   * Row count alone was never a reliable "done" signal — it can look
+   * stable while the spinner is still up mid-fetch.
+   */
   async function waitForTableSettled(maxMs = 6000) {
+    await waitForSpinnersToClear();
     const countRows = () => document.querySelectorAll('table tr, [role="row"]').length;
     let last = -1;
     let stableTicks = 0;
@@ -316,22 +395,47 @@
       }
     };
 
+    // Aborts the sequence if BI's own AngularJS session/auth check fired its
+    // "Đã xảy ra lỗi! Vui lòng đăng xuất, và đăng nhập lại!" alert (see the
+    // window.alert override above) — proceeding past that point only ever
+    // captures the broken/empty session state, not real table data.
+    const checkForBiError = () => {
+      if (lastAlertMessage) {
+        const msg = lastAlertMessage;
+        lastAlertMessage = null;
+        throw new Error('Trang BI báo lỗi phiên đăng nhập: "' + msg + '" — mở tab BI, đăng nhập lại, rồi bấm AutoCopy lại.');
+      }
+    };
+
+    // "Nồi cơm" is the leftmost column header in BOTH Tỉnh and Siêu Thị
+    // views — a cheap, reliable signal the table actually finished
+    // rendering real rows rather than an empty/error/skeleton state that
+    // happened to look "settled" to waitForTableSettled's row-count check.
+    const assertRealTableText = (text, label) => {
+      if (!text || !text.includes('Nồi cơm')) {
+        throw new Error('Dữ liệu ' + label + ' chưa tải xong hoặc trang lỗi (không thấy cột "Nồi cơm") — thử lại.');
+      }
+    };
+
     try {
       log('🤖 Chế độ AutoCopy — rt=' + rt + '. Đang đợi bảng tải lần đầu...');
       await sleep(1000);
       await waitForTableSettled();
+      checkForBiError();
 
       log('Đang lấy dữ liệu Tỉnh...');
       await ensureScope(SCOPE_TINH);
+      checkForBiError();
       const tinhText = getPageText();
-      if (!tinhText) throw new Error('Không lấy được dữ liệu Tỉnh (bảng rỗng?).');
+      assertRealTableText(tinhText, 'Tỉnh');
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'tinh', text: tinhText });
       log('✅ Đã gửi dữ liệu Tỉnh (' + tinhText.length.toLocaleString('vi-VN') + ' ký tự).');
 
       log('Đang chuyển sang Siêu Thị...');
       await ensureScope(SCOPE_SIEUTHI);
+      checkForBiError();
       const sieuthiText = getPageText();
-      if (!sieuthiText) throw new Error('Không lấy được dữ liệu Siêu Thị (bảng rỗng?).');
+      assertRealTableText(sieuthiText, 'Siêu Thị');
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'sieuthi', text: sieuthiText });
       log('✅ Đã gửi dữ liệu Siêu Thị (' + sieuthiText.length.toLocaleString('vi-VN') + ' ký tự).');
 
