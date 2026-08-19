@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.6
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, và loại bỏ log/toast của chính script khỏi dữ liệu copy.
+// @version      1.7
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, và xoá vùng chọn còn sót lại sau khi copy.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.6';
+  const SCRIPT_VERSION = '1.7';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -166,6 +166,11 @@
       sel.removeAllRanges();
       sel.addRange(range);
       text = sel.toString();
+      // Drop the selection right away — otherwise it lingers highlighted
+      // on screen (including over our own panel once restored below) even
+      // though the text was already safely extracted with the panel
+      // hidden. Purely cosmetic, but confusing to look at mid-run.
+      sel.removeAllRanges();
 
       ownUi.forEach((el, i) => { el.style.display = prevDisplay[i] || ''; });
     }
