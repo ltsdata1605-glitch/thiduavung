@@ -40,7 +40,8 @@ import {
   Clock,
   Eye,
   EyeOff,
-  BookmarkPlus
+  BookmarkPlus,
+  ExternalLink
 } from 'lucide-react';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -296,6 +297,15 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   useEffect(() => {
     if (currentLuyKeStoresVung.length > 0) setParsedLuyKeStoresVung(currentLuyKeStoresVung);
   }, [currentLuyKeStoresVung]);
+
+  // Onboarding tooltip pointing at the CopyAll bookmarklet button — shown
+  // every time this screen mounts (not just once-ever), auto-hides after a
+  // while so it doesn't linger if ignored, dismissible early via its X.
+  const [showBookmarkletTip, setShowBookmarkletTip] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowBookmarkletTip(false), 12000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Show/Hide toggle for BOSS table (default false = always hidden initially)
   const [isBossTableVisible, setIsBossTableVisible] = useState(false);
@@ -790,17 +800,46 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             accept=".json"
             className="hidden"
           />
+          <div className="relative">
+            <a
+              href={COPY_ALL_BOOKMARKLET}
+              onClick={(e) => {
+                e.preventDefault();
+                window.alert('Đây là bookmarklet — hãy KÉO (giữ chuột) nút "CopyAll" này lên thanh Bookmarks Bar của trình duyệt để lưu lại, không bấm trực tiếp. Sau khi lưu, sang trang BI, bấm bookmark đó để copy toàn bộ dữ liệu đang hiển thị.');
+              }}
+              title="Kéo (không bấm) nút này vào thanh Bookmarks Bar để cài đặt — dùng trên trang BI để copy toàn bộ dữ liệu"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-300 transition-colors cursor-grab active:cursor-grabbing"
+            >
+              <BookmarkPlus className="w-4 h-4 text-amber-700" />
+              CopyAll
+            </a>
+
+            {showBookmarkletTip && (
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="relative bg-slate-900 text-white text-[11px] font-semibold leading-relaxed rounded-xl shadow-xl p-3 pr-7">
+                  <button
+                    type="button"
+                    onClick={() => setShowBookmarkletTip(false)}
+                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full hover:bg-white/15 flex items-center justify-center cursor-pointer"
+                    title="Đóng"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  👆 Kéo (giữ chuột) nút <strong>CopyAll</strong> này lên thanh Bookmarks Bar của trình duyệt để lưu lại — dùng trên trang BI để copy nhanh toàn bộ dữ liệu.
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 rotate-45" />
+                </div>
+              </div>
+            )}
+          </div>
           <a
-            href={COPY_ALL_BOOKMARKLET}
-            onClick={(e) => {
-              e.preventDefault();
-              window.alert('Đây là bookmarklet — hãy KÉO (giữ chuột) nút "CopyAll" này lên thanh Bookmarks Bar của trình duyệt để lưu lại, không bấm trực tiếp. Sau khi lưu, sang trang BI, bấm bookmark đó để copy toàn bộ dữ liệu đang hiển thị.');
-            }}
-            title="Kéo (không bấm) nút này vào thanh Bookmarks Bar để cài đặt — dùng trên trang BI để copy toàn bộ dữ liệu"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-300 transition-colors cursor-grab active:cursor-grabbing"
+            href="https://bi.thegioididong.com/thi-dua?id=-1&tab=1&rt=1&dm=2&mt=2"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Mở trang thi đua trên BI ở tab mới"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer"
           >
-            <BookmarkPlus className="w-4 h-4 text-amber-700" />
-            CopyAll
+            <ExternalLink className="w-4 h-4 text-slate-600" />
+            Link BI
           </a>
           <button
             type="button"
@@ -809,7 +848,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4 text-slate-600" />
-            Xuất Backup (.json)
+            Sao lưu
           </button>
           <button
             type="button"
@@ -818,7 +857,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
           >
             <Upload className="w-4 h-4 text-white" />
-            Nhập Backup (.json)
+            Phục hồi
           </button>
         </div>
       </div>
