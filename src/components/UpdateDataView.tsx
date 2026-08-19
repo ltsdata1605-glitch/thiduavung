@@ -40,7 +40,9 @@ import {
   Clock,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  ExternalLink,
+  Puzzle
 } from 'lucide-react';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -272,6 +274,11 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const autoCopyPopupRef = useRef<Window | null>(null);
   const autoCopyTimeoutRef = useRef<number | null>(null);
   const autoCopyPollRef = useRef<number | null>(null);
+
+  // Setup guide shown when AutoCopy is clicked but the companion
+  // Tampermonkey script doesn't answer the install-check ping — remembers
+  // which mode was requested so "Thử lại" can resume it once installed.
+  const [tampermonkeyGuide, setTampermonkeyGuide] = useState<{ mode: 'realtime' | 'luyke'; checking: boolean } | null>(null);
 
   // Seeded from the persisted/synced dataset owned by App.
   const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(currentBossAssignments);
@@ -535,7 +542,57 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
   const BI_AUTOCOPY_ORIGIN = 'https://bi.thegioididong.com';
 
-  const startAutoCopy = (mode: 'realtime' | 'luyke') => {
+  // Pings the page itself (same-window postMessage) and waits briefly for
+  // the companion Tampermonkey script's TNB_AUTOCOPY_PONG reply — the
+  // script's `@match *://*/*` responder runs on every page including this
+  // one specifically so this check works without needing to touch BI first.
+  const checkTampermonkeyInstalled = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let settled = false;
+      const handler = (event: MessageEvent) => {
+        if (event.source !== window || event.data?.type !== 'TNB_AUTOCOPY_PONG') return;
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('message', handler);
+        resolve(true);
+      };
+      window.addEventListener('message', handler);
+      window.postMessage({ type: 'TNB_AUTOCOPY_PING' }, window.location.origin);
+      window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener('message', handler);
+        resolve(false);
+      }, 600);
+    });
+  };
+
+  const startAutoCopy = async (mode: 'realtime' | 'luyke') => {
+    if (autoCopyState?.running) return;
+    const installed = await checkTampermonkeyInstalled();
+    if (!installed) {
+      setTampermonkeyGuide({ mode, checking: false });
+      return;
+    }
+    launchAutoCopyPopup(mode);
+  };
+
+  // Re-checks after the user says they've finished installing, from the
+  // guide modal's "Tôi đã cài xong, thử lại" button.
+  const retryAutoCopyAfterInstall = async () => {
+    if (!tampermonkeyGuide) return;
+    const { mode } = tampermonkeyGuide;
+    setTampermonkeyGuide({ mode, checking: true });
+    const installed = await checkTampermonkeyInstalled();
+    if (installed) {
+      setTampermonkeyGuide(null);
+      launchAutoCopyPopup(mode);
+    } else {
+      setTampermonkeyGuide({ mode, checking: false });
+    }
+  };
+
+  const launchAutoCopyPopup = (mode: 'realtime' | 'luyke') => {
     if (autoCopyState?.running) return;
     const rt = mode === 'realtime' ? '1' : '2';
     const origin = encodeURIComponent(window.location.origin);
@@ -1678,6 +1735,105 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
               >
                 Đã Hiểu - Kiểm Tra Lại Dữ Liệu Đã Dán
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAMPERMONKEY SETUP GUIDE — shown when AutoCopy is clicked but the companion script doesn't answer the install-check ping */}
+      {tampermonkeyGuide && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="max-w-lg w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-5 border border-slate-200 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setTampermonkeyGuide(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
+                <Puzzle className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">
+                  Cần cài đặt Tampermonkey để dùng AutoCopy
+                </h3>
+                <p className="text-xs font-bold text-slate-500">
+                  Chưa tìm thấy script hỗ trợ trên trình duyệt này. Làm theo 3 bước dưới đây rồi bấm "Thử lại".
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-black flex items-center justify-center shrink-0">1</span>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-800">Cài tiện ích Tampermonkey</div>
+                    <div className="text-[11px] text-slate-500">Cho trình duyệt bạn đang dùng (Chrome, Edge, Cốc Cốc...)</div>
+                  </div>
+                </div>
+                <a
+                  href="https://www.tampermonkey.net/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold rounded-lg transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Cài đặt
+                </a>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-black flex items-center justify-center shrink-0">2</span>
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-800">Tải file script tự động</div>
+                    <div className="text-[11px] text-slate-500">bi-tgdd-autocopy.user.js</div>
+                  </div>
+                </div>
+                <a
+                  href="/bi-tgdd-autocopy.user.js"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Tải file
+                </a>
+              </div>
+
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <span className="w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shrink-0">3</span>
+                  <div className="text-xs font-extrabold text-amber-900">Hướng dẫn nhập</div>
+                </div>
+                <p className="text-[11px] text-amber-900/90 leading-relaxed pl-9">
+                  Mở file vừa tải — nếu Tampermonkey tự hiện bảng "Install this script?", bấm <strong>Install</strong>.
+                  Nếu không tự hiện: bấm vào icon Tampermonkey (hình khỉ) trên thanh công cụ trình duyệt → <strong>Dashboard</strong> → tab <strong>Utilities</strong> → mục "Import from file" → chọn file <strong>bi-tgdd-autocopy.user.js</strong> vừa tải → <strong>Import</strong>.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={retryAutoCopyAfterInstall}
+                disabled={tampermonkeyGuide.checking}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                {tampermonkeyGuide.checking ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Đang kiểm tra...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    Tôi đã cài xong, thử lại
+                  </>
+                )}
               </button>
             </div>
           </div>
