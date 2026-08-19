@@ -961,9 +961,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
           const unknown = Array.from(selected).filter(
             (cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat) && !isHiddenCat(cat)
           );
-          return [...list, ...unknown].sort(
-            (a, b) => (categoryOrderMap?.[a] ?? 999) - (categoryOrderMap?.[b] ?? 999)
-          );
+          // Cluster by Nhóm (in the order the user picked them) before the
+          // within-group STT sort — sorting by categoryOrderMap alone (a
+          // cross-group global order) interleaves categories from different
+          // Nhóm whenever 2+ groups are selected, which fragments the
+          // group-band header into dozens of 1-column runs instead of a
+          // few wide contiguous ones.
+          const groupRank = new Map(selectedCategoryGroupsList.map((g, i) => [g, i]));
+          return [...list, ...unknown].sort((a, b) => {
+            const groupA = groupRank.get(categoryGroupMap[a]) ?? 999;
+            const groupB = groupRank.get(categoryGroupMap[b]) ?? 999;
+            if (groupA !== groupB) return groupA - groupB;
+            return (categoryOrderMap?.[a] ?? 999) - (categoryOrderMap?.[b] ?? 999);
+          });
         })()
       : []
   ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap, categoryHiddenMap]);
