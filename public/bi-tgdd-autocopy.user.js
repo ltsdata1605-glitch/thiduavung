@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.9
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, xoá vùng chọn còn sót lại sau khi copy, và cuộn (window scroll + scrollIntoView) để gom đủ dữ liệu cho bảng lớn/ảo hoá (vd Siêu Thị hàng chục nghìn dòng) thay vì đoán 1 khối cuộn duy nhất.
+// @version      2.0
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, xoá vùng chọn còn sót lại sau khi copy, và chờ kiên nhẫn (không cuộn) cho bảng lớn (vd Siêu Thị hàng chục nghìn dòng) render xong hẳn trước khi lấy dữ liệu.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.9';
+  const SCRIPT_VERSION = '2.0';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -178,10 +178,10 @@
   }
 
   /** Manual-panel copy: grabs the page text and puts it on the OS clipboard. */
-  async function copyPageData(label) {
-    toast('⏳ Đang cuộn & thu thập toàn bộ dữ liệu (có thể mất một lúc với bảng lớn)...', false, true);
+  async function copyPageData() {
+    toast('⏳ Đang chọn và sao chép dữ liệu, vui lòng đợi...', false, true);
     try {
-      const text = label ? await captureAllRowsWithScroll(label) : getPageText();
+      const text = getPageText();
       if (!text || text.length === 0) {
         toast('⚠️ Không có dữ liệu nào để copy.', true);
         return false;
@@ -307,44 +307,10 @@
     return true;
   }
 
-  /**
-   * Waits for the real #Loading spinner first (the request-in-flight
-   * signal), then polls the visible row count until it stops changing.
-   * Row count alone was never a reliable "done" signal — it can look
-   * stable while the spinner is still up mid-fetch.
-   */
-  async function waitForTableSettled(maxMs = 6000) {
-    await waitForSpinnersToClear();
-    const countRows = () => document.querySelectorAll('table tr, [role="row"]').length;
-    let last = -1;
-    let stableTicks = 0;
-    const start = Date.now();
-    while (Date.now() - start < maxMs) {
-      const current = countRows();
-      if (current === last && current > 0) {
-        stableTicks += 1;
-        if (stableTicks >= 2) return;
-      } else {
-        stableTicks = 0;
-      }
-      last = current;
-      await sleep(300);
-    }
-  }
-
-  // ---------------------------------------------------------------------
-  // Large-table capture — Siêu Thị can be tens of thousands of rows. A grid
-  // that size virtualizes/lazy-renders: only the rows currently scrolled
-  // into view exist in the DOM at any one moment (otherwise the page would
-  // choke rendering everything at once), so a single "read what's on
-  // screen right now" snapshot (getPageText's body-select, or a plain
-  // clipboard copy — same limitation either way, this was never a
-  // clipboard-timing issue) only ever captures whatever small slice
-  // happens to be rendered. Scrolls the table's container from top to
-  // bottom, accumulating every distinct row seen along the way, so the
-  // final text has the complete dataset regardless of how the grid
-  // virtualizes it.
-  // ---------------------------------------------------------------------
+  // Scopes the "is it done" row-count check to the actual data table
+  // (falls back to a global tr count if no table found yet) instead of
+  // every <table> on the page, so a small decorative table elsewhere can't
+  // mask the real one still growing.
   function pickMainTable() {
     const tables = Array.from(document.querySelectorAll('table'));
     if (tables.length === 0) return null;
@@ -353,69 +319,45 @@
     return tables.reduce((best, t) => (t.querySelectorAll('tr').length > best.querySelectorAll('tr').length ? t : best), tables[0]);
   }
 
-  async function captureAllRowsWithScroll(label, maxMs = 240000) {
-    const table = pickMainTable();
-    if (!table) {
-      log('⚠️ ' + label + ': không tìm thấy <table> nào, lấy toàn bộ text trang thay thế.');
-      return getPageText();
-    }
-
-    const rowMap = new Map();
-    const captureCurrentRows = () => {
-      table.querySelectorAll('tr').forEach((tr) => {
-        const cells = Array.from(tr.querySelectorAll('th,td')).map((c) => c.textContent.trim().replace(/[\t\n\r]+/g, ' '));
-        if (cells.length === 0) return;
-        const line = cells.join('\t');
-        if (!rowMap.has(line)) rowMap.set(line, true);
-      });
+  /**
+   * Waits for the real #Loading spinner first (the request-in-flight
+   * signal), then patiently polls the main table's row count until it
+   * holds steady for a real stretch of time — NOT scroll-based. A working
+   * manual bookmarklet (plain "select the whole body", no scrolling at
+   * all) proved this table isn't virtualized/windowed; the actual problem
+   * was giving up too fast. AngularJS `ng-repeat` rendering tens of
+   * thousands of rows into the DOM after data has already arrived (spinner
+   * gone) can genuinely take a long stretch — a human naturally gives it
+   * that time before manually copying; this now does the same instead of
+   * declaring "done" after a couple of quick polls.
+   */
+  async function waitForTableSettled(maxMs = 90000) {
+    await waitForSpinnersToClear();
+    const countRows = () => {
+      const table = pickMainTable();
+      return table ? table.querySelectorAll('tr').length : document.querySelectorAll('table tr, [role="row"]').length;
     };
-
-    captureCurrentRows();
-
-    // Two complementary nudges per iteration instead of guessing a single
-    // "the" scrollable container (that guess only reached 554/~25,000 rows
-    // in testing — almost certainly the wrong element, or not the one the
-    // grid's virtualization actually keys off): a big window-level scroll
-    // (covers whole-page infinite scroll) plus scrollIntoView() on whatever
-    // is currently the LAST rendered row (lets the browser resolve the
-    // correct container itself, however deeply nested, instead of us
-    // walking ancestors trying to identify it). Stops only once several
-    // consecutive nudges in a row produce zero new rows — not by trying to
-    // detect "reached max scrollTop", which depends on correctly knowing
-    // which element's scrollHeight actually matters.
-    const bigStep = Math.max(window.innerHeight * 4, 1200);
-    const start = Date.now();
+    const REQUIRED_STABLE_TICKS = 6; // ~3s of no change at 500ms poll interval
+    let last = -1;
     let stableTicks = 0;
-    let lastCount = rowMap.size;
-    let lastLoggedCount = rowMap.size;
+    let lastLoggedCount = -1;
+    const start = Date.now();
     while (Date.now() - start < maxMs) {
-      window.scrollBy(0, bigStep);
-      const rows = table.querySelectorAll('tr');
-      const lastRow = rows[rows.length - 1];
-      if (lastRow) lastRow.scrollIntoView({ block: 'end', behavior: 'auto' });
-
-      await sleep(220);
-      await waitForSpinnersToClear(2500, 100, 0);
-      captureCurrentRows();
-
-      if (rowMap.size === lastCount) {
+      const current = countRows();
+      if (current === last && current > 0) {
         stableTicks += 1;
-        if (stableTicks >= 8) break;
+        if (stableTicks >= REQUIRED_STABLE_TICKS) return;
       } else {
         stableTicks = 0;
       }
-      lastCount = rowMap.size;
-
-      if (rowMap.size !== lastLoggedCount && rowMap.size % 200 < 20) {
-        log('📜 ' + label + ': đã quét ' + rowMap.size.toLocaleString('vi-VN') + ' dòng, đang cuộn tiếp...');
-        lastLoggedCount = rowMap.size;
+      if (current !== lastLoggedCount && current % 500 < 30) {
+        log('⏳ Đang chờ bảng render xong, hiện có ' + current.toLocaleString('vi-VN') + ' dòng...');
+        lastLoggedCount = current;
       }
+      last = current;
+      await sleep(500);
     }
-
-    window.scrollTo(0, 0);
-    await sleep(150);
-    log('📜 ' + label + ': hoàn tất cuộn, tổng ' + rowMap.size.toLocaleString('vi-VN') + ' dòng.');
-    return Array.from(rowMap.keys()).join('\n');
+    log('⚠️ Bảng chưa thực sự ổn định sau ' + Math.round(maxMs / 1000) + 's, vẫn tiếp tục với ' + last + ' dòng hiện có.');
   }
 
   // ---------------------------------------------------------------------
@@ -452,7 +394,7 @@
       return;
     }
     await ensureScope(job.scope);
-    await copyPageData(job.label);
+    await copyPageData();
     storeClear(PENDING_KEY);
   }
 
@@ -464,7 +406,7 @@
     log('Tiếp tục job đang chờ sau khi tải lại trang: ' + job.label);
     await sleep(800); // let the page's own data finish its first render
     await ensureScope(job.scope);
-    await copyPageData(job.label);
+    await copyPageData();
     storeClear(PENDING_KEY);
   }
 
@@ -549,7 +491,7 @@
       await ensureScope(SCOPE_TINH);
       await verifyScope(SCOPE_TINH);
       checkForBiError();
-      const tinhText = await captureAllRowsWithScroll('Tỉnh');
+      const tinhText = getPageText();
       assertRealTableText(tinhText, 'Tỉnh');
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'tinh', text: tinhText });
       log('✅ Đã gửi dữ liệu Tỉnh (' + tinhText.length.toLocaleString('vi-VN') + ' ký tự).');
@@ -563,7 +505,7 @@
       await ensureScope(SCOPE_SIEUTHI);
       await verifyScope(SCOPE_SIEUTHI);
       checkForBiError();
-      const sieuthiText = await captureAllRowsWithScroll('Siêu Thị');
+      const sieuthiText = getPageText();
       assertRealTableText(sieuthiText, 'Siêu Thị');
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'sieuthi', text: sieuthiText });
       log('✅ Đã gửi dữ liệu Siêu Thị (' + sieuthiText.length.toLocaleString('vi-VN') + ' ký tự).');
