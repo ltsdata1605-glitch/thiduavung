@@ -39,11 +39,7 @@ import {
   Store,
   Clock,
   Eye,
-  EyeOff,
-  Sparkles,
-  ExternalLink,
-  Puzzle,
-  Copy
+  EyeOff
 } from 'lucide-react';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -263,24 +259,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     stepText: string;
     progress: number;
   } | null>(null);
-
-  // AutoCopy: opens bi.thegioididong.com in a new tab, a matching Tampermonkey
-  // script there auto-navigates Tỉnh/Siêu Thị and postMessage()s the raw
-  // table text back — see runAutoCopy below for the message contract.
-  const [autoCopyState, setAutoCopyState] = useState<{
-    mode: 'realtime' | 'luyke';
-    running: boolean;
-    message: string;
-  } | null>(null);
-  const autoCopyPopupRef = useRef<Window | null>(null);
-  const autoCopyTimeoutRef = useRef<number | null>(null);
-  const autoCopyPollRef = useRef<number | null>(null);
-
-  // Setup guide shown when AutoCopy is clicked but the companion
-  // Tampermonkey script doesn't answer the install-check ping — remembers
-  // which mode was requested so "Thử lại" can resume it once installed.
-  const [tampermonkeyGuide, setTampermonkeyGuide] = useState<{ mode: 'realtime' | 'luyke'; checking: boolean } | null>(null);
-  const [copiedExtensionsUrl, setCopiedExtensionsUrl] = useState(false);
 
   // Seeded from the persisted/synced dataset owned by App.
   const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(currentBossAssignments);
@@ -529,149 +507,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     runProcessWithFeedback('Luỹ Kế Thi Đua Vùng', 'Vùng', text, false, 'vung', setIsLuyKeLockedVung, setLuyKeTextVung, setParsedLuyKeStoresVung, onUpdateLuyKeData);
   };
 
-  // Clears the safety timeout + "did the user close the popup?" poll —
-  // called whenever an AutoCopy run ends, however it ends.
-  const stopAutoCopyWatchers = () => {
-    if (autoCopyTimeoutRef.current) {
-      window.clearTimeout(autoCopyTimeoutRef.current);
-      autoCopyTimeoutRef.current = null;
-    }
-    if (autoCopyPollRef.current) {
-      window.clearInterval(autoCopyPollRef.current);
-      autoCopyPollRef.current = null;
-    }
-  };
-
-  const BI_AUTOCOPY_ORIGIN = 'https://bi.thegioididong.com';
-
-  // The companion script (@match *://*/*) sets this attribute on <html> as
-  // soon as it runs on ANY page, including this app's own — a synchronous
-  // DOM read instead of a postMessage round-trip. postMessage's
-  // event.source identity isn't reliable across Tampermonkey's sandboxed
-  // script context (it never resolved to the page's own `window` in
-  // testing), while the DOM tree is shared as-is between the sandbox and
-  // the page with no such ambiguity.
-  const checkTampermonkeyInstalled = (): boolean => {
-    return document.documentElement.hasAttribute('data-tnb-autocopy');
-  };
-
-  const startAutoCopy = (mode: 'realtime' | 'luyke') => {
-    if (autoCopyState?.running) return;
-    if (!checkTampermonkeyInstalled()) {
-      setTampermonkeyGuide({ mode, checking: false });
-      return;
-    }
-    launchAutoCopyPopup(mode);
-  };
-
-  // Re-checks after the user says they've finished installing, from the
-  // guide modal's "Tôi đã cài xong, thử lại" button. Small delay so a
-  // freshly (re)loaded script has a beat to run before we read the DOM.
-  const retryAutoCopyAfterInstall = async () => {
-    if (!tampermonkeyGuide) return;
-    const { mode } = tampermonkeyGuide;
-    setTampermonkeyGuide({ mode, checking: true });
-    await new Promise((r) => window.setTimeout(r, 300));
-    const installed = checkTampermonkeyInstalled();
-    if (installed) {
-      setTampermonkeyGuide(null);
-      launchAutoCopyPopup(mode);
-    } else {
-      setTampermonkeyGuide({ mode, checking: false });
-    }
-  };
-
-  // chrome://extensions can't be opened via a link/script from a normal web
-  // page — Chrome blocks navigation to privileged schemes from web content
-  // regardless of trigger (anchor click, window.open, location.href all get
-  // silently ignored). Copy-to-clipboard is the only reliable way to hand
-  // the user that URL; they still have to paste it into the address bar.
-  // Links straight to Tampermonkey's own details page (?id=<its extension
-  // ID>, matching the Chrome Web Store listing) — "Allow User Scripts" sits
-  // right there, no need to hunt for the separate Developer mode toggle.
-  const copyExtensionsUrl = async () => {
-    try {
-      await navigator.clipboard.writeText('chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo');
-      setCopiedExtensionsUrl(true);
-      window.setTimeout(() => setCopiedExtensionsUrl(false), 2500);
-    } catch (e) {}
-  };
-
-  const launchAutoCopyPopup = (mode: 'realtime' | 'luyke') => {
-    if (autoCopyState?.running) return;
-    const rt = mode === 'realtime' ? '1' : '2';
-    const origin = encodeURIComponent(window.location.origin);
-    const url = `${BI_AUTOCOPY_ORIGIN}/thi-dua?id=-1&tab=1&rt=${rt}&dm=2&mt=2&__tnb_autocopy=1&__tnb_origin=${origin}`;
-    // No window-features string (width/height/...) — that's what makes
-    // browsers pop a separate chrome-less window. Omitting it opens a
-    // normal tab right next to this one instead, per the user's ask.
-    const popup = window.open(url, 'tnb_bi_autocopy');
-    if (!popup) {
-      setAutoCopyState({ mode, running: false, message: '❌ Trình duyệt đã chặn tab mới. Vui lòng cho phép popup/tab cho trang này rồi bấm AutoCopy lại.' });
-      return;
-    }
-    autoCopyPopupRef.current = popup;
-    setAutoCopyState({ mode, running: true, message: 'Đang mở tab BI và tự động chuyển chế độ / lấy dữ liệu...' });
-
-    // Safety net: the matching Tampermonkey script may not be installed, the
-    // BI site's layout may have changed, or the user may have closed the tab —
-    // never leave the button stuck disabled forever waiting for a message.
-    // Generous window (6 min) — Siêu Thị can be tens of thousands of rows,
-    // and the script now waits patiently (up to 90s per scope) for that
-    // AngularJS ng-repeat table to fully finish rendering before capturing.
-    autoCopyTimeoutRef.current = window.setTimeout(() => {
-      stopAutoCopyWatchers();
-      setAutoCopyState({ mode, running: false, message: '⏱️ Hết thời gian chờ dữ liệu từ BI. Kiểm tra đã cài script Tampermonkey chưa, hoặc BI đang yêu cầu đăng nhập lại.' });
-    }, 360000);
-
-    autoCopyPollRef.current = window.setInterval(() => {
-      if (autoCopyPopupRef.current?.closed) {
-        stopAutoCopyWatchers();
-        setAutoCopyState((prev) => (prev && prev.running ? { ...prev, running: false, message: 'Tab BI đã bị đóng trước khi lấy xong dữ liệu.' } : prev));
-      }
-    }, 1000);
-  };
-
-  // Receives the raw table text the Tampermonkey script scrapes from BI and
-  // feeds it straight through the same processXxx functions the manual
-  // Ctrl+V paste boxes use — no simulated paste event needed since those
-  // functions already take plain text.
-  useEffect(() => {
-    const handleAutoCopyMessage = (event: MessageEvent) => {
-      if (event.origin !== BI_AUTOCOPY_ORIGIN) return;
-      const data = event.data;
-      if (!data || typeof data !== 'object' || typeof data.type !== 'string' || !data.type.startsWith('TNB_BI_AUTOCOPY')) return;
-
-      const mode: 'realtime' | 'luyke' = data.rt === '2' ? 'luyke' : 'realtime';
-
-      if (data.type === 'TNB_BI_AUTOCOPY_DATA') {
-        const text: string = typeof data.text === 'string' ? data.text : '';
-        if (!text.trim() || (data.scope !== 'tinh' && data.scope !== 'sieuthi')) return;
-        if (data.scope === 'tinh') {
-          if (mode === 'realtime') processRealtimeDataTinh(text);
-          else processLuyKeDataTinh(text);
-          setAutoCopyState((prev) => (prev ? { ...prev, message: '✅ Đã nhận dữ liệu Tỉnh. Đang lấy dữ liệu Siêu Thị...' } : prev));
-        } else {
-          if (mode === 'realtime') processRealtimeDataVung(text);
-          else processLuyKeDataVung(text);
-          setAutoCopyState((prev) => (prev ? { ...prev, message: '✅ Đã nhận dữ liệu Siêu Thị. Đang hoàn tất...' } : prev));
-        }
-      } else if (data.type === 'TNB_BI_AUTOCOPY_DONE') {
-        stopAutoCopyWatchers();
-        setAutoCopyState({ mode, running: false, message: '✨ Đã tự động cập nhật xong dữ liệu ' + (mode === 'realtime' ? 'Realtime' : 'Luỹ Kế') + ' (Tỉnh + Siêu Thị)!' });
-        window.setTimeout(() => setAutoCopyState((prev) => (prev && !prev.running ? null : prev)), 6000);
-      } else if (data.type === 'TNB_BI_AUTOCOPY_ERROR') {
-        stopAutoCopyWatchers();
-        setAutoCopyState({ mode, running: false, message: '❌ Lỗi từ BI: ' + (typeof data.message === 'string' ? data.message : 'Không rõ nguyên nhân.') });
-      }
-    };
-    window.addEventListener('message', handleAutoCopyMessage);
-    return () => {
-      window.removeEventListener('message', handleAutoCopyMessage);
-      stopAutoCopyWatchers();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Handle Excel File Upload for BOSS List & auto apply
   const handleBossFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -982,27 +817,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 <p className="text-[11px] text-slate-500">
                   Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
                 </p>
-                {autoCopyState?.mode === 'realtime' && (
-                  <p className={`text-[11px] font-bold mt-0.5 ${autoCopyState.message.startsWith('❌') || autoCopyState.message.startsWith('⏱️') ? 'text-rose-600' : 'text-emerald-700'}`}>
-                    {autoCopyState.message}
-                  </p>
-                )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => startAutoCopy('realtime')}
-              disabled={!!autoCopyState?.running}
-              title="Tự động mở BI, lấy dữ liệu Realtime Tỉnh + Siêu Thị và dán vào 2 ô bên dưới"
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              {autoCopyState?.running && autoCopyState.mode === 'realtime' ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
-              )}
-              AutoCopy
-            </button>
           </div>
 
           {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
@@ -1160,27 +976,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 <p className="text-[11px] text-slate-500">
                   Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
                 </p>
-                {autoCopyState?.mode === 'luyke' && (
-                  <p className={`text-[11px] font-bold mt-0.5 ${autoCopyState.message.startsWith('❌') || autoCopyState.message.startsWith('⏱️') ? 'text-rose-600' : 'text-purple-700'}`}>
-                    {autoCopyState.message}
-                  </p>
-                )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => startAutoCopy('luyke')}
-              disabled={!!autoCopyState?.running}
-              title="Tự động mở BI, lấy dữ liệu Luỹ Kế Tỉnh + Siêu Thị và dán vào 2 ô bên dưới"
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              {autoCopyState?.running && autoCopyState.mode === 'luyke' ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5" />
-              )}
-              AutoCopy
-            </button>
           </div>
 
           {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
@@ -1746,135 +1543,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 className="w-full sm:w-auto px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
               >
                 Đã Hiểu - Kiểm Tra Lại Dữ Liệu Đã Dán
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAMPERMONKEY SETUP GUIDE — shown when AutoCopy is clicked but the companion script doesn't answer the install-check ping */}
-      {tampermonkeyGuide && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="max-w-lg w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-5 border border-slate-200 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setTampermonkeyGuide(null)}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 shadow-sm">
-                <Puzzle className="w-6 h-6 stroke-[2.5]" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-black text-slate-800 tracking-tight">
-                  Cần cài đặt Tampermonkey để dùng AutoCopy
-                </h3>
-                <p className="text-xs font-bold text-slate-500">
-                  Chưa tìm thấy script hỗ trợ trên trình duyệt này. Làm theo 3 bước dưới đây rồi bấm "Thử lại".
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-black flex items-center justify-center shrink-0">1</span>
-                  <div>
-                    <div className="text-xs font-extrabold text-slate-800">Cài tiện ích Tampermonkey</div>
-                    <div className="text-[11px] text-slate-500">Cho trình duyệt bạn đang dùng (Chrome, Edge, Cốc Cốc...)</div>
-                  </div>
-                </div>
-                <a
-                  href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?pli=1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold rounded-lg transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Cài đặt
-                </a>
-              </div>
-
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-black flex items-center justify-center shrink-0">2</span>
-                  <div>
-                    <div className="text-xs font-extrabold text-slate-800">Tải file script tự động</div>
-                    <div className="text-[11px] text-slate-500">bi-tgdd-autocopy.user.js</div>
-                  </div>
-                </div>
-                <a
-                  href={`${((import.meta as any).env?.BASE_URL as string | undefined) || '/'}bi-tgdd-autocopy.user.js`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Tải file
-                </a>
-              </div>
-
-              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <span className="w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shrink-0">3</span>
-                  <div className="text-xs font-extrabold text-amber-900">Hướng dẫn nhập</div>
-                </div>
-                <p className="text-[11px] text-amber-900/90 leading-relaxed pl-9">
-                  Mở file vừa tải — nếu Tampermonkey tự hiện bảng "Install this script?", bấm <strong>Install</strong>.
-                  Nếu không tự hiện: bấm vào icon Tampermonkey (hình khỉ) trên thanh công cụ trình duyệt → <strong>Dashboard</strong> → tab <strong>Utilities</strong> → mục "Import from file" → chọn file <strong>bi-tgdd-autocopy.user.js</strong> vừa tải → <strong>Import</strong>.
-                </p>
-              </div>
-
-              <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-2xl">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <span className="w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center shrink-0">4</span>
-                  <div className="text-xs font-extrabold text-rose-900">Bắt buộc trên Chrome/Edge: bật "Allow User Scripts"</div>
-                </div>
-                <p className="text-[11px] text-rose-900/90 leading-relaxed pl-9 mb-2">
-                  Nếu icon Tampermonkey hiện dòng chữ <strong>"Please enable the Allow User Scripts extension"</strong>, script sẽ KHÔNG chạy được dù đã cài — dù Tampermonkey vẫn hiện "Enabled".
-                </p>
-
-                <div className="pl-9 flex items-center gap-2 mb-2">
-                  <code className="flex-1 min-w-0 truncate px-2.5 py-1.5 bg-rose-900/5 border border-rose-200 rounded-lg text-[11px] font-mono text-rose-950">
-                    chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo
-                  </code>
-                  <button
-                    type="button"
-                    onClick={copyExtensionsUrl}
-                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${
-                      copiedExtensionsUrl ? 'bg-emerald-600 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white'
-                    }`}
-                    title="Trình duyệt chặn web tự mở trang chrome://, copy rồi dán vào tab mới"
-                  >
-                    {copiedExtensionsUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedExtensionsUrl ? 'Đã copy!' : 'Copy'}
-                  </button>
-                </div>
-                <p className="text-[11px] text-rose-900/90 leading-relaxed pl-9">
-                  Trình duyệt không cho web tự mở trang này — bấm <strong>Copy</strong> ở trên rồi mở tab mới, dán vào thanh địa chỉ (Ctrl/Cmd+L → Ctrl/Cmd+V) và Enter. Đường dẫn này mở thẳng trang chi tiết Tampermonkey — cuộn xuống tìm mục <strong>"Allow User Scripts"</strong> và bật công tắc lên (màu xanh). Sau đó tải lại trang này rồi bấm "Thử lại".
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-1">
-              <button
-                onClick={retryAutoCopyAfterInstall}
-                disabled={tampermonkeyGuide.checking}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer"
-              >
-                {tampermonkeyGuide.checking ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Đang kiểm tra...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Tôi đã cài xong, thử lại
-                  </>
-                )}
               </button>
             </div>
           </div>
