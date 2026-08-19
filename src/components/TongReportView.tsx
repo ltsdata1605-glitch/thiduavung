@@ -20,6 +20,7 @@ interface TongReportViewProps {
   stores: StoreRecord[];
   categoryGroupMap?: Record<string, string>;
   categoryDisplayNameMap?: Record<string, string>;
+  categoryHiddenMap?: Record<string, boolean>;
   bossAssignments?: BossAssignmentRecord[];
   /** Number of days in the current data month (e.g. 31 for August) */
   daysInMonth?: number;
@@ -51,6 +52,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
   stores,
   categoryGroupMap = {},
   categoryDisplayNameMap = {},
+  categoryHiddenMap = {},
   bossAssignments = [],
   daysInMonth: propDaysInMonth,
   daysElapsed: propDaysElapsed,
@@ -110,17 +112,30 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
     });
   }, [stores, bossAssignments]);
 
-  // 3. Extract all unique category names
+  const isHiddenCat = (catName: string): boolean => {
+    if (!categoryHiddenMap || Object.keys(categoryHiddenMap).length === 0) return false;
+    if (categoryHiddenMap[catName]) return true;
+    const lower = catName.toLowerCase().trim();
+    return Object.keys(categoryHiddenMap).some(
+      (k) => k.toLowerCase().trim() === lower && categoryHiddenMap[k]
+    );
+  };
+
+  // 3. Extract all unique category names (excluding hidden ones)
   const allCategoryNames = useMemo(() => {
     const set = new Set<string>();
-    Object.keys(categoryGroupMap).forEach((c) => set.add(c));
+    Object.keys(categoryGroupMap).forEach((c) => {
+      if (!isHiddenCat(c)) set.add(c);
+    });
     stores.forEach((s) => {
       if (s.categoryMap) {
-        Object.keys(s.categoryMap).forEach((c) => set.add(c));
+        Object.keys(s.categoryMap).forEach((c) => {
+          if (!isHiddenCat(c)) set.add(c);
+        });
       }
     });
     return Array.from(set);
-  }, [categoryGroupMap, stores]);
+  }, [categoryGroupMap, stores, categoryHiddenMap]);
 
   // 4. Compute metrics for a specific channel dataset
   const buildGroupSections = (

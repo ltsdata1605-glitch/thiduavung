@@ -505,6 +505,7 @@ interface HeaderBannerProps {
   categoryGroupList: string[];
   categoryGroupMap?: Record<string, string>;
   categoryDisplayNameMap?: Record<string, string>;
+  categoryHiddenMap?: Record<string, boolean>;
   onOpenCategoryGroupModal: () => void;
   lastUpdated: string;
   onRefreshClick: () => void;
@@ -548,6 +549,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   categoryGroupList,
   categoryGroupMap = {},
   categoryDisplayNameMap = {},
+  categoryHiddenMap = {},
   onOpenCategoryGroupModal,
   lastUpdated,
   onRefreshClick,
@@ -639,11 +641,12 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
 
     return categoryList.filter((c) => {
       if (c.id === 'ALL') return true;
+      if (categoryHiddenMap?.[c.id] || (c.label && categoryHiddenMap?.[c.label])) return false;
       if (selectedGroups.length === 0) return true;
       const catGroup = getCategoryGroup(c.label || c.id, categoryGroupMap);
       return selectedGroups.includes(catGroup);
     });
-  }, [selectedCategoryGroup, categoryList, categoryGroupMap]);
+  }, [selectedCategoryGroup, categoryList, categoryGroupMap, categoryHiddenMap]);
 
   // Reset selectedCategory to ALL if current selection is not in the filtered options.
   // selectedCategory can be a SINGLE id ('BH') or a MULTI-SELECT comma-joined

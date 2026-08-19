@@ -31,6 +31,7 @@ interface GroupReportViewProps {
   selectedCategory: string;
   categoryOrderMap?: Record<string, number>;
   categoryDisplayNameMap?: Record<string, string>;
+  categoryHiddenMap?: Record<string, boolean>;
   bossAssignments?: BossAssignmentRecord[];
   daysInMonth?: number;
   daysElapsed?: number;
@@ -541,27 +542,38 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   selectedCategory,
   categoryOrderMap = {},
   categoryDisplayNameMap = {},
+  categoryHiddenMap = {},
   bossAssignments = [],
   daysInMonth,
   daysElapsed,
 }) => {
-  // Extract all category names dynamically from real uploaded/pasted store dataset
+  const isHiddenCat = (catName: string): boolean => {
+    if (!categoryHiddenMap || Object.keys(categoryHiddenMap).length === 0) return false;
+    if (categoryHiddenMap[catName]) return true;
+    const lower = catName.toLowerCase().trim();
+    return Object.keys(categoryHiddenMap).some(
+      (k) => k.toLowerCase().trim() === lower && categoryHiddenMap[k]
+    );
+  };
+
+  // Extract all category names dynamically from real uploaded/pasted store dataset (excluding hidden ones)
   const allCategoryNames = useMemo(() => {
     const set = new Set<string>();
     stores.forEach((s) => {
       if (s.categoryMap) {
-        Object.keys(s.categoryMap).forEach((c) => set.add(c));
+        Object.keys(s.categoryMap).forEach((c) => {
+          if (!isHiddenCat(c)) set.add(c);
+        });
       }
     });
     const list = Array.from(set);
     if (list.length === 0) {
-      list.push('TRẢ CHẬM HOMECREDIT');
-      list.push('Điện thoại Flagship Samsung Galaxy S/Z Series');
-      list.push('Laptop');
-      list.push('Bảo hiểm');
+      ['TRẢ CHẬM HOMECREDIT', 'Điện thoại Flagship Samsung Galaxy S/Z Series', 'Laptop', 'Bảo hiểm']
+        .filter((c) => !isHiddenCat(c))
+        .forEach((c) => list.push(c));
     }
     return list;
-  }, [stores]);
+  }, [stores, categoryHiddenMap]);
 
   // Sort category names from top to bottom based on custom STT / order map
   const sortedCategoryNames = useMemo(() => {

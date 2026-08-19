@@ -19,6 +19,7 @@ export interface FirebaseDataPayload {
   categoryGroups?: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
   categoryDisplayNames?: Record<string, string>;
+  categoryHiddenMap?: Record<string, boolean>;
   groupSummaryCards?: any[];
   lastUpdated?: string;
   updatedBy?: string;
@@ -41,6 +42,7 @@ export type DocKey =
   | 'category_groups'
   | 'category_orders'
   | 'category_display_names'
+  | 'category_hidden'
   | 'group_summary_cards';
 
 const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
@@ -55,6 +57,7 @@ const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
   category_groups: 'categoryGroups',
   category_orders: 'categoryOrderMap',
   category_display_names: 'categoryDisplayNames',
+  category_hidden: 'categoryHiddenMap',
   group_summary_cards: 'groupSummaryCards',
 };
 
@@ -401,6 +404,10 @@ export async function saveCategoryOrdersToFirebase(categoryOrders: Record<string
 
 export async function saveCategoryDisplayNamesToFirebase(categoryDisplayNames: Record<string, string>, updatedBy: string = 'Super Admin') {
   return saveDataset('category_display_names', categoryDisplayNames, updatedBy);
+}
+
+export async function saveCategoryHiddenToFirebase(categoryHiddenMap: Record<string, boolean>, updatedBy: string = 'Super Admin') {
+  return saveDataset('category_hidden', categoryHiddenMap, updatedBy);
 }
 
 export async function saveGroupSummaryCardsToFirebase(cards: any[], updatedBy: string = 'Super Admin') {

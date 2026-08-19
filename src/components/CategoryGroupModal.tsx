@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, FolderTree, Plus, Trash2, Save, GripVertical, ChevronUp, ChevronDown, Move, Pencil, RotateCcw } from 'lucide-react';
+import { X, FolderTree, Plus, Trash2, Save, GripVertical, ChevronUp, ChevronDown, Move, Pencil, RotateCcw, Eye, EyeOff } from 'lucide-react';
 import { getCategoryGroup } from './ReportView';
 import { getShortCategoryName } from '../utils/parser';
 
@@ -10,10 +10,12 @@ interface CategoryGroupModalProps {
   categoryGroupMap: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
   categoryDisplayNameMap?: Record<string, string>;
+  categoryHiddenMap?: Record<string, boolean>;
   onSave: (
     newMap: Record<string, string>,
     newOrderMap: Record<string, number>,
-    newDisplayNameMap: Record<string, string>
+    newDisplayNameMap: Record<string, string>,
+    newHiddenMap: Record<string, boolean>
   ) => void;
 }
 
@@ -37,6 +39,15 @@ const buildInitialDraftMap = (categoryList: { id: string; label: string }[], map
   return draft;
 };
 
+const isCatHidden = (catId: string, catLabel: string, hiddenMap: Record<string, boolean>): boolean => {
+  return !!(
+    hiddenMap[catId] ||
+    hiddenMap[catLabel] ||
+    (catId && hiddenMap[catId.toLowerCase()]) ||
+    (catLabel && hiddenMap[catLabel.toLowerCase()])
+  );
+};
+
 export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
   isOpen,
   onClose,
@@ -44,6 +55,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
   categoryGroupMap,
   categoryOrderMap = {},
   categoryDisplayNameMap = {},
+  categoryHiddenMap = {},
   onSave,
 }) => {
   // Local draft state — only committed to the app (and Firebase) on Save.
@@ -54,6 +66,8 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
   // Custom, user-shortened Ngành hàng names — overrides the built-in
   // auto-abbreviation dictionary wherever the category is displayed.
   const [draftDisplayNameMap, setDraftDisplayNameMap] = useState<Record<string, string>>(categoryDisplayNameMap);
+  // Hidden categories map (catId -> true)
+  const [draftHiddenMap, setDraftHiddenMap] = useState<Record<string, boolean>>(() => ({ ...categoryHiddenMap }));
   const [groups, setGroups] = useState<string[]>(() =>
     Array.from(new Set([...Object.values(draftMap), 'CE & GD', 'DỊCH VỤ', 'ICT'])).filter(
       (g) => g !== UNGROUPED && g !== 'Chưa phân nhóm'
@@ -73,6 +87,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     setDraftMap(initialDraft);
     setDraftOrderMap(categoryOrderMap);
     setDraftDisplayNameMap(categoryDisplayNameMap);
+    setDraftHiddenMap({ ...(categoryHiddenMap || {}) });
     setGroups(
       Array.from(new Set([...Object.values(initialDraft), 'CE & GD', 'DỊCH VỤ', 'ICT'])).filter(
         (g) => g !== UNGROUPED && g !== 'Chưa phân nhóm'
@@ -280,6 +295,45 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
     });
   };
 
+  const handleToggleCategoryVisibility = (catId: string, catLabel: string) => {
+    setDraftHiddenMap((prev) => {
+      const next = { ...prev };
+      const currentlyHidden = isCatHidden(catId, catLabel, next);
+      if (currentlyHidden) {
+        delete next[catId];
+        delete next[catLabel];
+        if (catId) delete next[catId.toLowerCase()];
+        if (catLabel) delete next[catLabel.toLowerCase()];
+      } else {
+        next[catId] = true;
+      }
+      return next;
+    });
+  };
+
+  const handleToggleGroupVisibility = (groupName: string) => {
+    const groupCats = categoryList.filter(
+      (c) => getEffectiveGroup(c.id, c.label, draftMap) === groupName
+    );
+    if (groupCats.length === 0) return;
+    const allHidden = groupCats.every((c) => isCatHidden(c.id, c.label, draftHiddenMap));
+
+    setDraftHiddenMap((prev) => {
+      const next = { ...prev };
+      groupCats.forEach((c) => {
+        if (allHidden) {
+          delete next[c.id];
+          delete next[c.label];
+          if (c.id) delete next[c.id.toLowerCase()];
+          if (c.label) delete next[c.label.toLowerCase()];
+        } else {
+          next[c.id] = true;
+        }
+      });
+      return next;
+    });
+  };
+
   const handleSave = () => {
     // Clean up trailing spaces only upon saving
     const cleanedDisplayNames: Record<string, string> = {};
@@ -289,7 +343,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
         cleanedDisplayNames[k] = trimmed;
       }
     });
-    onSave(draftMap, draftOrderMap, cleanedDisplayNames);
+    onSave(draftMap, draftOrderMap, cleanedDisplayNames, draftHiddenMap);
     onClose();
   };
 
@@ -323,9 +377,12 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
           <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-2xl text-xs text-indigo-900 flex items-start gap-2.5">
             <Move className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-extrabold text-indigo-950">Sắp xếp Vị trí & Đổi tên rút gọn Ngành Hàng</p>
+              <p className="font-extrabold text-indigo-950">Sắp xếp Vị trí, Ẩn/Hiện & Đổi tên rút gọn Ngành Hàng</p>
               <p className="text-[11px] text-indigo-700 leading-relaxed">
                 • Cột <span className="font-bold">STT (#1, #2...)</span> tự động nhảy số. Giữ biểu tượng <GripVertical className="w-3 h-3 inline text-slate-500" /> để kéo thả hoặc bấm <span className="font-bold">▲ / ▼</span> để di chuyển.
+              </p>
+              <p className="text-[11px] text-indigo-700 leading-relaxed">
+                • Bấm biểu tượng <Eye className="w-3.5 h-3.5 inline text-indigo-600" /> / <EyeOff className="w-3.5 h-3.5 inline text-rose-500" /> trên từng dòng hoặc từng nhóm để <span className="font-bold">Ẩn / Hiện</span> trên bảng thi đua.
               </p>
               <p className="text-[11px] text-indigo-900 bg-amber-50/80 border border-amber-200 rounded-lg p-1.5 font-medium">
                 💡 <span className="font-bold text-amber-900">Độ dài tên ngành hàng:</span> Tiêu đề hỗ trợ độ dài lên đến <span className="font-bold text-amber-900">30 ký tự</span> hiển thị trên 1 dòng (vd: <span className="font-bold">MÁY GIẶT - SẤY - RỬA CHÉN, FLAGSHIP SAMSUNG S/Z...</span>).
@@ -356,32 +413,70 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
           {/* Existing groups */}
           {groups.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {groups.map((g) => (
-                <div
-                  key={g}
-                  className="flex items-center gap-1.5 pl-3 pr-1.5 py-1 bg-indigo-50 border border-indigo-200 rounded-full text-xs font-bold text-indigo-800"
-                >
-                  {g}
-                  <span className="text-indigo-400 font-semibold">
-                    ({Object.values(draftMap).filter((v) => v === g).length})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteGroup(g)}
-                    title={`Xóa nhóm "${g}"`}
-                    className="p-0.5 rounded-full hover:bg-indigo-200 text-indigo-600 cursor-pointer"
+              {groups.map((g) => {
+                const groupCats = categoryList.filter(
+                  (c) => getEffectiveGroup(c.id, c.label, draftMap) === g
+                );
+                const hiddenInGroupCount = groupCats.filter((c) =>
+                  isCatHidden(c.id, c.label, draftHiddenMap)
+                ).length;
+                const isAllGroupHidden = groupCats.length > 0 && hiddenInGroupCount === groupCats.length;
+
+                return (
+                  <div
+                    key={g}
+                    className={`flex items-center gap-1.5 pl-3 pr-1.5 py-1 border rounded-full text-xs font-bold transition-all ${
+                      isAllGroupHidden
+                        ? 'bg-slate-100 border-slate-300 text-slate-400 opacity-70'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                    }`}
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+                    <span className={isAllGroupHidden ? 'line-through' : ''}>{g}</span>
+                    <span className={`text-[11px] font-semibold ${isAllGroupHidden ? 'text-slate-400' : 'text-indigo-400'}`}>
+                      ({groupCats.length - hiddenInGroupCount}/{groupCats.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleGroupVisibility(g)}
+                      title={
+                        isAllGroupHidden
+                          ? `Đang ẩn toàn bộ nhóm "${g}". Bấm để hiện`
+                          : `Đang hiện nhóm "${g}". Bấm để ẩn toàn bộ nhóm`
+                      }
+                      className={`p-1 rounded-full cursor-pointer transition-colors ${
+                        isAllGroupHidden
+                          ? 'text-rose-500 hover:bg-rose-200/60'
+                          : 'text-indigo-500 hover:bg-indigo-200'
+                      }`}
+                    >
+                      {isAllGroupHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteGroup(g)}
+                      title={`Xóa nhóm "${g}"`}
+                      className="p-0.5 rounded-full hover:bg-indigo-200 text-indigo-600 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
 
           {/* Per-category assignment & order list */}
           <div className="border border-slate-200 rounded-2xl divide-y divide-slate-100 overflow-hidden bg-white shadow-2xs">
             <div className="px-3.5 py-2.5 bg-slate-50/90 text-[11px] font-bold text-slate-500 uppercase flex items-center justify-between">
-              <span>Ngành hàng ({categoryList.length}) • Kéo thả để thay đổi STT</span>
+              <span className="flex items-center gap-1.5">
+                <span>Ngành hàng ({categoryList.length})</span>
+                {categoryList.filter((c) => isCatHidden(c.id, c.label, draftHiddenMap)).length > 0 && (
+                  <span className="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-full font-extrabold text-[10px] normal-case">
+                    {categoryList.filter((c) => isCatHidden(c.id, c.label, draftHiddenMap)).length} đã ẩn
+                  </span>
+                )}
+                <span>• Kéo thả để thay đổi STT</span>
+              </span>
               <span>
                 {categoryList.filter((c) => getEffectiveGroup(c.id, c.label, draftMap) === UNGROUPED).length} chưa phân nhóm
               </span>
@@ -392,6 +487,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
               const currentOrder = draftOrderMap[cat.id] ?? '';
               const isDragging = draggedCatId === cat.id;
               const isDragOver = dragOverCatId === cat.id;
+              const isHidden = isCatHidden(cat.id, cat.label, draftHiddenMap);
 
               const groupCats = sortedCategoryList.filter((c) => getEffectiveGroup(c.id, c.label, draftMap) === currentGroup);
               const catIdx = groupCats.findIndex((c) => c.id === cat.id);
@@ -414,7 +510,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                   onDragEnd={handleDragEnd}
                   className={`flex items-center justify-between gap-3 px-3.5 py-2 transition-all ${
                     isDragging ? 'opacity-30 bg-indigo-100 scale-[0.99] border-dashed border-indigo-400' : ''
-                  } ${isDragOver ? 'bg-indigo-50 border-t-2 border-t-indigo-600' : 'hover:bg-slate-50/80'}`}
+                  } ${isDragOver ? 'bg-indigo-50 border-t-2 border-t-indigo-600' : isHidden ? 'opacity-60 bg-slate-50/70 hover:opacity-100' : 'hover:bg-slate-50/80'}`}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Drag Handle Icon & STT Column */}
@@ -468,7 +564,9 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                         onChange={(e) => handleRenameCategory(cat.id, e.target.value)}
                         title={`Tên gốc đầy đủ: ${cat.label}\nĐộ dài: ${charCount} ký tự (Khuyến nghị ≤ 30 ký tự để luôn trên 1 dòng)`}
                         placeholder={getShortCategoryName(cat.label || cat.id)}
-                        className={`min-w-0 flex-1 bg-transparent border rounded-lg px-2 py-0.5 text-xs font-semibold text-slate-800 focus:outline-hidden focus:ring-2 truncate transition-all ${
+                        className={`min-w-0 flex-1 bg-transparent border rounded-lg px-2 py-0.5 text-xs font-semibold ${
+                          isHidden ? 'line-through text-slate-400' : 'text-slate-800'
+                        } focus:outline-hidden focus:ring-2 truncate transition-all ${
                           isDanger
                             ? 'border-rose-400 bg-rose-50/50 text-rose-900 focus:ring-rose-400 focus:bg-white'
                             : isWarning
@@ -476,6 +574,20 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
                             : 'border-transparent hover:border-slate-200 focus:border-indigo-400 focus:bg-white focus:ring-indigo-500'
                         }`}
                       />
+
+                      {/* Hide/Show Toggle Button using Lucide Eye / EyeOff */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCategoryVisibility(cat.id, cat.label)}
+                        title={isHidden ? 'Đang ẨN trên bảng thi đua — Bấm để Hiện' : 'Đang HIỆN trên bảng thi đua — Bấm để Ẩn'}
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer shrink-0 flex items-center justify-center ${
+                          isHidden
+                            ? 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200 shadow-2xs'
+                            : 'bg-slate-100/80 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border-slate-200 hover:border-indigo-300'
+                        }`}
+                      >
+                        {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
 
                       {/* Character Length Counter & Warning */}
                       <span

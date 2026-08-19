@@ -35,6 +35,7 @@ import {
   saveCategoryGroupsToFirebase,
   saveCategoryOrdersToFirebase,
   saveCategoryDisplayNamesToFirebase,
+  saveCategoryHiddenToFirebase,
   getLocalCache,
   getIndexedDbCache,
   clearAllLocalCache,
@@ -142,6 +143,7 @@ function AppInner() {
   // built-in auto-abbreviation dictionary in getShortCategoryName). Same
   // sync doc pattern as categoryGroups/categoryOrderMap.
   const [categoryDisplayNameMap, setCategoryDisplayNameMap] = useState<Record<string, string>>(cachedData.categoryDisplayNames || {});
+  const [categoryHiddenMap, setCategoryHiddenMap] = useState<Record<string, boolean>>(cachedData.categoryHiddenMap || {});
   const [isCategoryGroupModalOpen, setIsCategoryGroupModalOpen] = useState(false);
 
   // Per-account synced filter snapshots (Firestore `user_filters` doc, keyed
@@ -448,6 +450,9 @@ function AppInner() {
       if (payload.categoryDisplayNames) {
         setCategoryDisplayNameMap(payload.categoryDisplayNames);
       }
+      if (payload.categoryHiddenMap) {
+        setCategoryHiddenMap(payload.categoryHiddenMap);
+      }
       if (payload.groupSummaryCards && Array.isArray(payload.groupSummaryCards) && payload.groupSummaryCards.length > 0) {
         try {
           localStorage.setItem('tnb_summary_cards', JSON.stringify(payload.groupSummaryCards));
@@ -592,6 +597,9 @@ function AppInner() {
       }
       if (!cachedData.categoryGroups && idbCache.categoryGroups) {
         setCategoryGroupMap(idbCache.categoryGroups);
+      }
+      if (!cachedData.categoryHiddenMap && idbCache.categoryHiddenMap) {
+        setCategoryHiddenMap(idbCache.categoryHiddenMap);
       }
     })();
   }, []);
@@ -1034,21 +1042,24 @@ function AppInner() {
   const handleSaveCategoryGroups = async (
     newMap: Record<string, string>,
     newOrderMap: Record<string, number>,
-    newDisplayNameMap: Record<string, string>
+    newDisplayNameMap: Record<string, string>,
+    newHiddenMap: Record<string, boolean>
   ) => {
     setCategoryGroupMap(newMap);
     setCategoryOrderMap(newOrderMap);
     setCategoryDisplayNameMap(newDisplayNameMap);
-    const [res1, res2, res3] = await Promise.all([
+    setCategoryHiddenMap(newHiddenMap);
+    const [res1, res2, res3, res4] = await Promise.all([
       saveCategoryGroupsToFirebase(newMap, currentUser.name),
       saveCategoryOrdersToFirebase(newOrderMap, currentUser.name),
       saveCategoryDisplayNamesToFirebase(newDisplayNameMap, currentUser.name),
+      saveCategoryHiddenToFirebase(newHiddenMap, currentUser.name),
     ]);
-    if (!res1.success || !res2.success || !res3.success) {
-      showErrorToast(res1.error || res2.error || res3.error || 'Đồng bộ Nhóm & Vị trí Ngành Hàng lên Firebase thất bại!');
+    if (!res1.success || !res2.success || !res3.success || !res4.success) {
+      showErrorToast(res1.error || res2.error || res3.error || res4.error || 'Đồng bộ cấu hình Ngành Hàng lên Firebase thất bại!');
       return;
     }
-    showToast('Đã lưu & đồng bộ Nhóm & Vị trí Ngành Hàng lên Firebase!');
+    showToast('Đã lưu & đồng bộ Nhóm, Vị trí & Trạng thái Ẩn/Hiện lên Firebase!');
   };
 
   // "Xuất Rút Gọn" — just the leaderboard table (no KPI cards/charts).
@@ -1358,6 +1369,7 @@ function AppInner() {
               categoryGroupList={categoryGroupList}
               categoryGroupMap={categoryGroupMap}
               categoryDisplayNameMap={categoryDisplayNameMap}
+              categoryHiddenMap={categoryHiddenMap}
               onOpenCategoryGroupModal={() => setIsCategoryGroupModalOpen(true)}
               lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
               onRefreshClick={() => setActiveTab('update')}
@@ -1396,6 +1408,7 @@ function AppInner() {
                 categoryGroupMap={categoryGroupMap}
                 categoryOrderMap={categoryOrderMap}
                 categoryDisplayNameMap={categoryDisplayNameMap}
+                categoryHiddenMap={categoryHiddenMap}
                 bossAssignments={bossAssignments}
                 valueDisplayMode={valueDisplayMode}
                 canViewDtQdTb={canViewDtQdTb}
@@ -1508,6 +1521,7 @@ function AppInner() {
         categoryGroupMap={categoryGroupMap}
         categoryOrderMap={categoryOrderMap}
         categoryDisplayNameMap={categoryDisplayNameMap}
+        categoryHiddenMap={categoryHiddenMap}
         onSave={handleSaveCategoryGroups}
       />
     </div>

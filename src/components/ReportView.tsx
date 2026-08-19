@@ -163,6 +163,7 @@ interface ReportViewProps {
   categoryGroupMap: Record<string, string>;
   categoryOrderMap?: Record<string, number>;
   categoryDisplayNameMap?: Record<string, string>;
+  categoryHiddenMap?: Record<string, boolean>;
   bossAssignments?: BossAssignmentRecord[];
   showSummarySection?: boolean;
   onOpenTagBossModal?: () => void;
@@ -569,6 +570,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   categoryGroupMap,
   categoryOrderMap = {},
   categoryDisplayNameMap = {},
+  categoryHiddenMap = {},
   bossAssignments = [],
   showSummarySection = true,
   onOpenTagBossModal,
@@ -910,6 +912,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
         });
       })()
     : filteredStores), [isProvinceView, filteredStores, timeMode, bossAssignments, resolveDtQd, propDaysInMonth, propDaysElapsed]);
+  const isHiddenCat = (catName: string): boolean => {
+    if (!categoryHiddenMap || Object.keys(categoryHiddenMap).length === 0) return false;
+    if (categoryHiddenMap[catName]) return true;
+    const lower = catName.toLowerCase().trim();
+    return Object.keys(categoryHiddenMap).some(
+      (k) => k.toLowerCase().trim() === lower && categoryHiddenMap[k]
+    );
+  };
+
   // Ordered list of 38 categories grouped by categoryGroupMap (falling back to DEFAULT_CATEGORY_GROUP) and ordered by categoryOrderMap
   const orderedHardcodedCategoryNames = useMemo(() => (() => {
     const grouped = new Map<string, string[]>();
@@ -922,12 +933,12 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     const result: string[] = [];
     Array.from(grouped.keys()).forEach((groupName) => {
-      const catsInGroup = grouped.get(groupName) || [];
+      const catsInGroup = (grouped.get(groupName) || []).filter((cat) => !isHiddenCat(cat));
       catsInGroup.sort((a, b) => (categoryOrderMap[a] ?? 999) - (categoryOrderMap[b] ?? 999));
       result.push(...catsInGroup);
     });
     return result;
-  })(), [categoryGroupMap, categoryOrderMap]);
+  })(), [categoryGroupMap, categoryOrderMap, categoryHiddenMap]);
 
   // Selected Category Groups list (supports multi-selection e.g. "ICT,CE & GD")
   const selectedCategoryGroupsList = useMemo(() => {
@@ -946,14 +957,16 @@ export const ReportView: React.FC<ReportViewProps> = ({
               selectedCategoryGroupsList.includes(categoryGroupMap[cat])
             )
           );
-          const list = ALL_HARDCODED_CATEGORY_NAMES.filter((cat) => selected.has(cat));
-          const unknown = Array.from(selected).filter((cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat));
+          const list = ALL_HARDCODED_CATEGORY_NAMES.filter((cat) => selected.has(cat) && !isHiddenCat(cat));
+          const unknown = Array.from(selected).filter(
+            (cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat) && !isHiddenCat(cat)
+          );
           return [...list, ...unknown].sort(
             (a, b) => (categoryOrderMap?.[a] ?? 999) - (categoryOrderMap?.[b] ?? 999)
           );
         })()
       : []
-  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap]);
+  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap, categoryHiddenMap]);
 
   // Whichever category columns are actually shown in the table right now
   const baseDisplayedCategoryNames = !isAllCategoryGroups ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;
@@ -1377,6 +1390,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           stores={stores}
           categoryGroupMap={categoryGroupMap}
           categoryDisplayNameMap={categoryDisplayNameMap}
+          categoryHiddenMap={categoryHiddenMap}
           bossAssignments={bossAssignments}
           daysInMonth={propDaysInMonth}
           daysElapsed={propDaysElapsed}
@@ -1403,6 +1417,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           selectedCategory={selectedCategory}
           categoryOrderMap={categoryOrderMap}
           categoryDisplayNameMap={categoryDisplayNameMap}
+          categoryHiddenMap={categoryHiddenMap}
           bossAssignments={bossAssignments}
           daysInMonth={propDaysInMonth}
           daysElapsed={propDaysElapsed}
