@@ -544,35 +544,20 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
   const BI_AUTOCOPY_ORIGIN = 'https://bi.thegioididong.com';
 
-  // Pings the page itself (same-window postMessage) and waits briefly for
-  // the companion Tampermonkey script's TNB_AUTOCOPY_PONG reply — the
-  // script's `@match *://*/*` responder runs on every page including this
-  // one specifically so this check works without needing to touch BI first.
-  const checkTampermonkeyInstalled = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      let settled = false;
-      const handler = (event: MessageEvent) => {
-        if (event.source !== window || event.data?.type !== 'TNB_AUTOCOPY_PONG') return;
-        if (settled) return;
-        settled = true;
-        window.removeEventListener('message', handler);
-        resolve(true);
-      };
-      window.addEventListener('message', handler);
-      window.postMessage({ type: 'TNB_AUTOCOPY_PING' }, window.location.origin);
-      window.setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        window.removeEventListener('message', handler);
-        resolve(false);
-      }, 600);
-    });
+  // The companion script (@match *://*/*) sets this attribute on <html> as
+  // soon as it runs on ANY page, including this app's own — a synchronous
+  // DOM read instead of a postMessage round-trip. postMessage's
+  // event.source identity isn't reliable across Tampermonkey's sandboxed
+  // script context (it never resolved to the page's own `window` in
+  // testing), while the DOM tree is shared as-is between the sandbox and
+  // the page with no such ambiguity.
+  const checkTampermonkeyInstalled = (): boolean => {
+    return document.documentElement.hasAttribute('data-tnb-autocopy');
   };
 
-  const startAutoCopy = async (mode: 'realtime' | 'luyke') => {
+  const startAutoCopy = (mode: 'realtime' | 'luyke') => {
     if (autoCopyState?.running) return;
-    const installed = await checkTampermonkeyInstalled();
-    if (!installed) {
+    if (!checkTampermonkeyInstalled()) {
       setTampermonkeyGuide({ mode, checking: false });
       return;
     }
@@ -580,12 +565,14 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   };
 
   // Re-checks after the user says they've finished installing, from the
-  // guide modal's "Tôi đã cài xong, thử lại" button.
+  // guide modal's "Tôi đã cài xong, thử lại" button. Small delay so a
+  // freshly (re)loaded script has a beat to run before we read the DOM.
   const retryAutoCopyAfterInstall = async () => {
     if (!tampermonkeyGuide) return;
     const { mode } = tampermonkeyGuide;
     setTampermonkeyGuide({ mode, checking: true });
-    const installed = await checkTampermonkeyInstalled();
+    await new Promise((r) => window.setTimeout(r, 300));
+    const installed = checkTampermonkeyInstalled();
     if (installed) {
       setTampermonkeyGuide(null);
       launchAutoCopyPopup(mode);

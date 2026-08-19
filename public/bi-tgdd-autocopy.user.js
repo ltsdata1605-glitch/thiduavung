@@ -1,37 +1,42 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.2
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Cũng phản hồi ping từ dự án TNB để báo đã cài đặt.
+// @version      1.3
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.2';
+  const SCRIPT_VERSION = '1.3';
 
   // ---------------------------------------------------------------------
-  // Presence-detection responder — runs on EVERY page (that's why @match
-  // includes *://*/*), not just bi.thegioididong.com. The TNB app pings
-  // window with a same-window postMessage before offering the AutoCopy
-  // flow; this answers back so the app can tell "Tampermonkey + this
-  // script are installed" apart from "not installed yet, show setup".
+  // Presence-detection marker — runs on EVERY page (that's why @match
+  // includes *://*/*), not just bi.thegioididong.com. The TNB app checks
+  // for this attribute directly via the DOM instead of a postMessage
+  // round-trip: Tampermonkey runs userscripts in its own sandboxed JS
+  // context, and window.postMessage's `event.source` identity can fail to
+  // compare equal to the page's own `window` across that sandbox boundary
+  // depending on Tampermonkey's internals — the DOM tree itself has no such
+  // ambiguity, isolated-world scripts and the page always share one document.
   // ---------------------------------------------------------------------
-  window.addEventListener('message', (event) => {
-    if (event.source !== window) return; // ignore messages from other frames/windows
-    const data = event.data;
-    if (!data || data.type !== 'TNB_AUTOCOPY_PING') return;
-    window.postMessage({ type: 'TNB_AUTOCOPY_PONG', version: SCRIPT_VERSION }, location.origin);
-  });
+  const markInstalled = () => {
+    if (document.documentElement) {
+      document.documentElement.setAttribute('data-tnb-autocopy', SCRIPT_VERSION);
+    } else {
+      document.addEventListener('DOMContentLoaded', markInstalled, { once: true });
+    }
+  };
+  markInstalled();
 
-  // Everything below is specific to the BI site — the ping responder above
-  // is the only thing that needs to run on the TNB app's own pages.
+  // Everything below is specific to the BI site — the marker above is the
+  // only thing that needs to run on the TNB app's own pages.
   if (location.hostname !== 'bi.thegioididong.com') return;
 
   // ---------------------------------------------------------------------
