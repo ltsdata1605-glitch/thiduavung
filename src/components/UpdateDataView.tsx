@@ -1795,7 +1795,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   </div>
                 </div>
                 <a
-                  href="/bi-tgdd-autocopy.user.js"
+                  href={`${((import.meta as any).env?.BASE_URL as string | undefined) || '/'}bi-tgdd-autocopy.user.js`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition-colors"
@@ -1813,6 +1813,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 <p className="text-[11px] text-amber-900/90 leading-relaxed pl-9">
                   Mở file vừa tải — nếu Tampermonkey tự hiện bảng "Install this script?", bấm <strong>Install</strong>.
                   Nếu không tự hiện: bấm vào icon Tampermonkey (hình khỉ) trên thanh công cụ trình duyệt → <strong>Dashboard</strong> → tab <strong>Utilities</strong> → mục "Import from file" → chọn file <strong>bi-tgdd-autocopy.user.js</strong> vừa tải → <strong>Import</strong>.
+                </p>
+              </div>
+
+              <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-2xl">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <span className="w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center shrink-0">4</span>
+                  <div className="text-xs font-extrabold text-rose-900">Bắt buộc trên Chrome/Edge: bật "Allow User Scripts"</div>
+                </div>
+                <p className="text-[11px] text-rose-900/90 leading-relaxed pl-9">
+                  Nếu icon Tampermonkey hiện dòng chữ <strong>"Please enable the Allow User Scripts extension"</strong>, script sẽ KHÔNG chạy được dù đã cài — dù Tampermonkey vẫn hiện "Enabled". Vào <strong>chrome://extensions</strong> (gõ thẳng vào thanh địa chỉ) → bật <strong>Chế độ dành cho nhà phát triển (Developer mode)</strong> ở góc trên bên phải, hoặc bấm vào Tampermonkey → <strong>Chi tiết (Details)</strong> → bật <strong>Allow User Scripts</strong>. Sau đó tải lại trang này rồi bấm "Thử lại".
                 </p>
               </div>
             </div>
