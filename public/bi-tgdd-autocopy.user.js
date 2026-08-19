@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.8
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, xoá vùng chọn còn sót lại sau khi copy, và tự cuộn gom đủ dữ liệu cho bảng lớn/ảo hoá (vd Siêu Thị hàng chục nghìn dòng).
+// @version      1.9
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, xoá vùng chọn còn sót lại sau khi copy, và cuộn (window scroll + scrollIntoView) để gom đủ dữ liệu cho bảng lớn/ảo hoá (vd Siêu Thị hàng chục nghìn dòng) thay vì đoán 1 khối cuộn duy nhất.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.8';
+  const SCRIPT_VERSION = '1.9';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -353,25 +353,13 @@
     return tables.reduce((best, t) => (t.querySelectorAll('tr').length > best.querySelectorAll('tr').length ? t : best), tables[0]);
   }
 
-  function findScrollableAncestor(el) {
-    let node = el ? el.parentElement : null;
-    while (node && node !== document.body && node !== document.documentElement) {
-      const style = getComputedStyle(node);
-      const canScrollY = (style.overflowY === 'auto' || style.overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 20;
-      if (canScrollY) return node;
-      node = node.parentElement;
-    }
-    return document.scrollingElement || document.documentElement;
-  }
-
-  async function captureAllRowsWithScroll(label, maxMs = 180000) {
+  async function captureAllRowsWithScroll(label, maxMs = 240000) {
     const table = pickMainTable();
     if (!table) {
       log('⚠️ ' + label + ': không tìm thấy <table> nào, lấy toàn bộ text trang thay thế.');
       return getPageText();
     }
 
-    const scroller = findScrollableAncestor(table);
     const rowMap = new Map();
     const captureCurrentRows = () => {
       table.querySelectorAll('tr').forEach((tr) => {
@@ -384,22 +372,39 @@
 
     captureCurrentRows();
 
+    // Two complementary nudges per iteration instead of guessing a single
+    // "the" scrollable container (that guess only reached 554/~25,000 rows
+    // in testing — almost certainly the wrong element, or not the one the
+    // grid's virtualization actually keys off): a big window-level scroll
+    // (covers whole-page infinite scroll) plus scrollIntoView() on whatever
+    // is currently the LAST rendered row (lets the browser resolve the
+    // correct container itself, however deeply nested, instead of us
+    // walking ancestors trying to identify it). Stops only once several
+    // consecutive nudges in a row produce zero new rows — not by trying to
+    // detect "reached max scrollTop", which depends on correctly knowing
+    // which element's scrollHeight actually matters.
+    const bigStep = Math.max(window.innerHeight * 4, 1200);
     const start = Date.now();
     let stableTicks = 0;
+    let lastCount = rowMap.size;
     let lastLoggedCount = rowMap.size;
     while (Date.now() - start < maxMs) {
-      const before = scroller.scrollTop;
-      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      if (before >= maxScroll - 2) {
-        stableTicks += 1;
-        if (stableTicks >= 2) break;
-      } else {
-        stableTicks = 0;
-        scroller.scrollTop = Math.min(before + Math.max(scroller.clientHeight * 0.9, 250), maxScroll);
-      }
-      await sleep(180);
+      window.scrollBy(0, bigStep);
+      const rows = table.querySelectorAll('tr');
+      const lastRow = rows[rows.length - 1];
+      if (lastRow) lastRow.scrollIntoView({ block: 'end', behavior: 'auto' });
+
+      await sleep(220);
       await waitForSpinnersToClear(2500, 100, 0);
       captureCurrentRows();
+
+      if (rowMap.size === lastCount) {
+        stableTicks += 1;
+        if (stableTicks >= 8) break;
+      } else {
+        stableTicks = 0;
+      }
+      lastCount = rowMap.size;
 
       if (rowMap.size !== lastLoggedCount && rowMap.size % 200 < 20) {
         log('📜 ' + label + ': đã quét ' + rowMap.size.toLocaleString('vi-VN') + ' dòng, đang cuộn tiếp...');
@@ -407,7 +412,7 @@
       }
     }
 
-    scroller.scrollTop = 0;
+    window.scrollTo(0, 0);
     await sleep(150);
     log('📜 ' + label + ': hoàn tất cuộn, tổng ' + rowMap.size.toLocaleString('vi-VN') + ' dòng.');
     return Array.from(rowMap.keys()).join('\n');

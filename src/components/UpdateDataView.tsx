@@ -623,7 +623,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     autoCopyTimeoutRef.current = window.setTimeout(() => {
       stopAutoCopyWatchers();
       setAutoCopyState({ mode, running: false, message: '⏱️ Hết thời gian chờ dữ liệu từ BI. Kiểm tra đã cài script Tampermonkey chưa, hoặc BI đang yêu cầu đăng nhập lại.' });
-    }, 480000);
+    }, 600000);
 
     autoCopyPollRef.current = window.setInterval(() => {
       if (autoCopyPopupRef.current?.closed) {
