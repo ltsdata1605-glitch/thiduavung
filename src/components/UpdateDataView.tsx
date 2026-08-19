@@ -39,7 +39,8 @@ import {
   Store,
   Clock,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles
 } from 'lucide-react';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -259,6 +260,18 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     stepText: string;
     progress: number;
   } | null>(null);
+
+  // AutoCopy: opens bi.thegioididong.com in a popup, a matching Tampermonkey
+  // script there auto-navigates Tỉnh/Siêu Thị and postMessage()s the raw
+  // table text back — see runAutoCopy below for the message contract.
+  const [autoCopyState, setAutoCopyState] = useState<{
+    mode: 'realtime' | 'luyke';
+    running: boolean;
+    message: string;
+  } | null>(null);
+  const autoCopyPopupRef = useRef<Window | null>(null);
+  const autoCopyTimeoutRef = useRef<number | null>(null);
+  const autoCopyPollRef = useRef<number | null>(null);
 
   // Seeded from the persisted/synced dataset owned by App.
   const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(currentBossAssignments);
@@ -506,6 +519,91 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const processLuyKeDataVung = (text: string) => {
     runProcessWithFeedback('Luỹ Kế Thi Đua Vùng', 'Vùng', text, false, 'vung', setIsLuyKeLockedVung, setLuyKeTextVung, setParsedLuyKeStoresVung, onUpdateLuyKeData);
   };
+
+  // Clears the safety timeout + "did the user close the popup?" poll —
+  // called whenever an AutoCopy run ends, however it ends.
+  const stopAutoCopyWatchers = () => {
+    if (autoCopyTimeoutRef.current) {
+      window.clearTimeout(autoCopyTimeoutRef.current);
+      autoCopyTimeoutRef.current = null;
+    }
+    if (autoCopyPollRef.current) {
+      window.clearInterval(autoCopyPollRef.current);
+      autoCopyPollRef.current = null;
+    }
+  };
+
+  const BI_AUTOCOPY_ORIGIN = 'https://bi.thegioididong.com';
+
+  const startAutoCopy = (mode: 'realtime' | 'luyke') => {
+    if (autoCopyState?.running) return;
+    const rt = mode === 'realtime' ? '1' : '2';
+    const origin = encodeURIComponent(window.location.origin);
+    const url = `${BI_AUTOCOPY_ORIGIN}/thi-dua?id=-1&tab=1&rt=${rt}&dm=2&mt=2&__tnb_autocopy=1&__tnb_origin=${origin}`;
+    const popup = window.open(url, 'tnb_bi_autocopy', 'width=1440,height=900');
+    if (!popup) {
+      setAutoCopyState({ mode, running: false, message: '❌ Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng cho phép popup cho trang này rồi bấm AutoCopy lại.' });
+      return;
+    }
+    autoCopyPopupRef.current = popup;
+    setAutoCopyState({ mode, running: true, message: 'Đang mở BI và tự động chuyển chế độ / lấy dữ liệu...' });
+
+    // Safety net: the matching Tampermonkey script may not be installed, the
+    // BI site's layout may have changed, or the user may have closed the tab —
+    // never leave the button stuck disabled forever waiting for a message.
+    autoCopyTimeoutRef.current = window.setTimeout(() => {
+      stopAutoCopyWatchers();
+      setAutoCopyState({ mode, running: false, message: '⏱️ Hết thời gian chờ dữ liệu từ BI. Kiểm tra đã cài script Tampermonkey chưa, hoặc BI đang yêu cầu đăng nhập lại.' });
+    }, 45000);
+
+    autoCopyPollRef.current = window.setInterval(() => {
+      if (autoCopyPopupRef.current?.closed) {
+        stopAutoCopyWatchers();
+        setAutoCopyState((prev) => (prev && prev.running ? { ...prev, running: false, message: 'Cửa sổ BI đã bị đóng trước khi lấy xong dữ liệu.' } : prev));
+      }
+    }, 1000);
+  };
+
+  // Receives the raw table text the Tampermonkey script scrapes from BI and
+  // feeds it straight through the same processXxx functions the manual
+  // Ctrl+V paste boxes use — no simulated paste event needed since those
+  // functions already take plain text.
+  useEffect(() => {
+    const handleAutoCopyMessage = (event: MessageEvent) => {
+      if (event.origin !== BI_AUTOCOPY_ORIGIN) return;
+      const data = event.data;
+      if (!data || typeof data !== 'object' || typeof data.type !== 'string' || !data.type.startsWith('TNB_BI_AUTOCOPY')) return;
+
+      const mode: 'realtime' | 'luyke' = data.rt === '2' ? 'luyke' : 'realtime';
+
+      if (data.type === 'TNB_BI_AUTOCOPY_DATA') {
+        const text: string = typeof data.text === 'string' ? data.text : '';
+        if (!text.trim() || (data.scope !== 'tinh' && data.scope !== 'sieuthi')) return;
+        if (data.scope === 'tinh') {
+          if (mode === 'realtime') processRealtimeDataTinh(text);
+          else processLuyKeDataTinh(text);
+          setAutoCopyState((prev) => (prev ? { ...prev, message: '✅ Đã nhận dữ liệu Tỉnh. Đang lấy dữ liệu Siêu Thị...' } : prev));
+        } else {
+          if (mode === 'realtime') processRealtimeDataVung(text);
+          else processLuyKeDataVung(text);
+          setAutoCopyState((prev) => (prev ? { ...prev, message: '✅ Đã nhận dữ liệu Siêu Thị. Đang hoàn tất...' } : prev));
+        }
+      } else if (data.type === 'TNB_BI_AUTOCOPY_DONE') {
+        stopAutoCopyWatchers();
+        setAutoCopyState({ mode, running: false, message: '✨ Đã tự động cập nhật xong dữ liệu ' + (mode === 'realtime' ? 'Realtime' : 'Luỹ Kế') + ' (Tỉnh + Siêu Thị)!' });
+        window.setTimeout(() => setAutoCopyState((prev) => (prev && !prev.running ? null : prev)), 6000);
+      } else if (data.type === 'TNB_BI_AUTOCOPY_ERROR') {
+        stopAutoCopyWatchers();
+        setAutoCopyState({ mode, running: false, message: '❌ Lỗi từ BI: ' + (typeof data.message === 'string' ? data.message : 'Không rõ nguyên nhân.') });
+      }
+    };
+    window.addEventListener('message', handleAutoCopyMessage);
+    return () => {
+      window.removeEventListener('message', handleAutoCopyMessage);
+      stopAutoCopyWatchers();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle Excel File Upload for BOSS List & auto apply
   const handleBossFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -816,8 +914,27 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 <p className="text-[11px] text-slate-500">
                   Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
                 </p>
+                {autoCopyState?.mode === 'realtime' && (
+                  <p className={`text-[11px] font-bold mt-0.5 ${autoCopyState.message.startsWith('❌') || autoCopyState.message.startsWith('⏱️') ? 'text-rose-600' : 'text-emerald-700'}`}>
+                    {autoCopyState.message}
+                  </p>
+                )}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => startAutoCopy('realtime')}
+              disabled={!!autoCopyState?.running}
+              title="Tự động mở BI, lấy dữ liệu Realtime Tỉnh + Siêu Thị và dán vào 2 ô bên dưới"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              {autoCopyState?.running && autoCopyState.mode === 'realtime' ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              AutoCopy
+            </button>
           </div>
 
           {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
@@ -975,8 +1092,27 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 <p className="text-[11px] text-slate-500">
                   Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
                 </p>
+                {autoCopyState?.mode === 'luyke' && (
+                  <p className={`text-[11px] font-bold mt-0.5 ${autoCopyState.message.startsWith('❌') || autoCopyState.message.startsWith('⏱️') ? 'text-rose-600' : 'text-purple-700'}`}>
+                    {autoCopyState.message}
+                  </p>
+                )}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => startAutoCopy('luyke')}
+              disabled={!!autoCopyState?.running}
+              title="Tự động mở BI, lấy dữ liệu Luỹ Kế Tỉnh + Siêu Thị và dán vào 2 ô bên dưới"
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+            >
+              {autoCopyState?.running && autoCopyState.mode === 'luyke' ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              AutoCopy
+            </button>
           </div>
 
           {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
