@@ -42,7 +42,8 @@ import {
   EyeOff,
   Sparkles,
   ExternalLink,
-  Puzzle
+  Puzzle,
+  Copy
 } from 'lucide-react';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -279,6 +280,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   // Tampermonkey script doesn't answer the install-check ping — remembers
   // which mode was requested so "Thử lại" can resume it once installed.
   const [tampermonkeyGuide, setTampermonkeyGuide] = useState<{ mode: 'realtime' | 'luyke'; checking: boolean } | null>(null);
+  const [copiedExtensionsUrl, setCopiedExtensionsUrl] = useState(false);
 
   // Seeded from the persisted/synced dataset owned by App.
   const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(currentBossAssignments);
@@ -590,6 +592,19 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     } else {
       setTampermonkeyGuide({ mode, checking: false });
     }
+  };
+
+  // chrome://extensions can't be opened via a link/script from a normal web
+  // page — Chrome blocks navigation to privileged schemes from web content
+  // regardless of trigger (anchor click, window.open, location.href all get
+  // silently ignored). Copy-to-clipboard is the only reliable way to hand
+  // the user that URL; they still have to paste it into the address bar.
+  const copyExtensionsUrl = async () => {
+    try {
+      await navigator.clipboard.writeText('chrome://extensions/');
+      setCopiedExtensionsUrl(true);
+      window.setTimeout(() => setCopiedExtensionsUrl(false), 2500);
+    } catch (e) {}
   };
 
   const launchAutoCopyPopup = (mode: 'realtime' | 'luyke') => {
@@ -1821,8 +1836,28 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   <span className="w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center shrink-0">4</span>
                   <div className="text-xs font-extrabold text-rose-900">Bắt buộc trên Chrome/Edge: bật "Allow User Scripts"</div>
                 </div>
+                <p className="text-[11px] text-rose-900/90 leading-relaxed pl-9 mb-2">
+                  Nếu icon Tampermonkey hiện dòng chữ <strong>"Please enable the Allow User Scripts extension"</strong>, script sẽ KHÔNG chạy được dù đã cài — dù Tampermonkey vẫn hiện "Enabled".
+                </p>
+
+                <div className="pl-9 flex items-center gap-2 mb-2">
+                  <code className="flex-1 min-w-0 truncate px-2.5 py-1.5 bg-rose-900/5 border border-rose-200 rounded-lg text-[11px] font-mono text-rose-950">
+                    chrome://extensions/
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyExtensionsUrl}
+                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${
+                      copiedExtensionsUrl ? 'bg-emerald-600 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white'
+                    }`}
+                    title="Trình duyệt chặn web tự mở trang chrome://, copy rồi dán vào tab mới"
+                  >
+                    {copiedExtensionsUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedExtensionsUrl ? 'Đã copy!' : 'Copy'}
+                  </button>
+                </div>
                 <p className="text-[11px] text-rose-900/90 leading-relaxed pl-9">
-                  Nếu icon Tampermonkey hiện dòng chữ <strong>"Please enable the Allow User Scripts extension"</strong>, script sẽ KHÔNG chạy được dù đã cài — dù Tampermonkey vẫn hiện "Enabled". Vào <strong>chrome://extensions</strong> (gõ thẳng vào thanh địa chỉ) → bật <strong>Chế độ dành cho nhà phát triển (Developer mode)</strong> ở góc trên bên phải, hoặc bấm vào Tampermonkey → <strong>Chi tiết (Details)</strong> → bật <strong>Allow User Scripts</strong>. Sau đó tải lại trang này rồi bấm "Thử lại".
+                  Trình duyệt không cho web tự mở trang này — bấm <strong>Copy</strong> ở trên rồi mở tab mới, dán vào thanh địa chỉ (Ctrl/Cmd+L → Ctrl/Cmd+V) và Enter. Trên trang đó, <strong>Chế độ dành cho nhà phát triển (Developer mode)</strong> là công tắc nằm ở <strong>góc trên bên phải</strong>, bật lên. Hoặc bấm vào icon Tampermonkey → <strong>Chi tiết (Details)</strong> → bật <strong>Allow User Scripts</strong>. Sau đó tải lại trang này rồi bấm "Thử lại".
                 </p>
               </div>
             </div>
