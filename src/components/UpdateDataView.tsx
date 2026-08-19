@@ -616,10 +616,14 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     // Safety net: the matching Tampermonkey script may not be installed, the
     // BI site's layout may have changed, or the user may have closed the tab —
     // never leave the button stuck disabled forever waiting for a message.
+    // Generous window (8 min) because Siêu Thị can be tens of thousands of
+    // rows — the script now scrolls the whole virtualized table to collect
+    // every row instead of only whatever's rendered on screen, which for a
+    // dataset that size genuinely takes a while.
     autoCopyTimeoutRef.current = window.setTimeout(() => {
       stopAutoCopyWatchers();
       setAutoCopyState({ mode, running: false, message: '⏱️ Hết thời gian chờ dữ liệu từ BI. Kiểm tra đã cài script Tampermonkey chưa, hoặc BI đang yêu cầu đăng nhập lại.' });
-    }, 45000);
+    }, 480000);
 
     autoCopyPollRef.current = window.setInterval(() => {
       if (autoCopyPopupRef.current?.closed) {

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.7
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, và xoá vùng chọn còn sót lại sau khi copy.
+// @version      1.8
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập qua unsafeWindow khi chạy tự động, nghỉ giữa các bước để đỡ tải BI, loại bỏ log/toast của chính script khỏi dữ liệu copy, xoá vùng chọn còn sót lại sau khi copy, và tự cuộn gom đủ dữ liệu cho bảng lớn/ảo hoá (vd Siêu Thị hàng chục nghìn dòng).
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.7';
+  const SCRIPT_VERSION = '1.8';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -178,10 +178,10 @@
   }
 
   /** Manual-panel copy: grabs the page text and puts it on the OS clipboard. */
-  async function copyPageData() {
-    toast('⏳ Đang chọn và sao chép dữ liệu, vui lòng đợi...', false, true);
+  async function copyPageData(label) {
+    toast('⏳ Đang cuộn & thu thập toàn bộ dữ liệu (có thể mất một lúc với bảng lớn)...', false, true);
     try {
-      const text = getPageText();
+      const text = label ? await captureAllRowsWithScroll(label) : getPageText();
       if (!text || text.length === 0) {
         toast('⚠️ Không có dữ liệu nào để copy.', true);
         return false;
@@ -333,6 +333,87 @@
   }
 
   // ---------------------------------------------------------------------
+  // Large-table capture — Siêu Thị can be tens of thousands of rows. A grid
+  // that size virtualizes/lazy-renders: only the rows currently scrolled
+  // into view exist in the DOM at any one moment (otherwise the page would
+  // choke rendering everything at once), so a single "read what's on
+  // screen right now" snapshot (getPageText's body-select, or a plain
+  // clipboard copy — same limitation either way, this was never a
+  // clipboard-timing issue) only ever captures whatever small slice
+  // happens to be rendered. Scrolls the table's container from top to
+  // bottom, accumulating every distinct row seen along the way, so the
+  // final text has the complete dataset regardless of how the grid
+  // virtualizes it.
+  // ---------------------------------------------------------------------
+  function pickMainTable() {
+    const tables = Array.from(document.querySelectorAll('table'));
+    if (tables.length === 0) return null;
+    const withHeader = tables.find((t) => t.textContent.includes('Nồi cơm'));
+    if (withHeader) return withHeader;
+    return tables.reduce((best, t) => (t.querySelectorAll('tr').length > best.querySelectorAll('tr').length ? t : best), tables[0]);
+  }
+
+  function findScrollableAncestor(el) {
+    let node = el ? el.parentElement : null;
+    while (node && node !== document.body && node !== document.documentElement) {
+      const style = getComputedStyle(node);
+      const canScrollY = (style.overflowY === 'auto' || style.overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 20;
+      if (canScrollY) return node;
+      node = node.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  async function captureAllRowsWithScroll(label, maxMs = 180000) {
+    const table = pickMainTable();
+    if (!table) {
+      log('⚠️ ' + label + ': không tìm thấy <table> nào, lấy toàn bộ text trang thay thế.');
+      return getPageText();
+    }
+
+    const scroller = findScrollableAncestor(table);
+    const rowMap = new Map();
+    const captureCurrentRows = () => {
+      table.querySelectorAll('tr').forEach((tr) => {
+        const cells = Array.from(tr.querySelectorAll('th,td')).map((c) => c.textContent.trim().replace(/[\t\n\r]+/g, ' '));
+        if (cells.length === 0) return;
+        const line = cells.join('\t');
+        if (!rowMap.has(line)) rowMap.set(line, true);
+      });
+    };
+
+    captureCurrentRows();
+
+    const start = Date.now();
+    let stableTicks = 0;
+    let lastLoggedCount = rowMap.size;
+    while (Date.now() - start < maxMs) {
+      const before = scroller.scrollTop;
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+      if (before >= maxScroll - 2) {
+        stableTicks += 1;
+        if (stableTicks >= 2) break;
+      } else {
+        stableTicks = 0;
+        scroller.scrollTop = Math.min(before + Math.max(scroller.clientHeight * 0.9, 250), maxScroll);
+      }
+      await sleep(180);
+      await waitForSpinnersToClear(2500, 100, 0);
+      captureCurrentRows();
+
+      if (rowMap.size !== lastLoggedCount && rowMap.size % 200 < 20) {
+        log('📜 ' + label + ': đã quét ' + rowMap.size.toLocaleString('vi-VN') + ' dòng, đang cuộn tiếp...');
+        lastLoggedCount = rowMap.size;
+      }
+    }
+
+    scroller.scrollTop = 0;
+    await sleep(150);
+    log('📜 ' + label + ': hoàn tất cuộn, tổng ' + rowMap.size.toLocaleString('vi-VN') + ' dòng.');
+    return Array.from(rowMap.keys()).join('\n');
+  }
+
+  // ---------------------------------------------------------------------
   // rt (Realtime=1 / Lũy Kế=2) URL param helpers.
   // ---------------------------------------------------------------------
   function getRt() {
@@ -366,7 +447,7 @@
       return;
     }
     await ensureScope(job.scope);
-    await copyPageData();
+    await copyPageData(job.label);
     storeClear(PENDING_KEY);
   }
 
@@ -378,7 +459,7 @@
     log('Tiếp tục job đang chờ sau khi tải lại trang: ' + job.label);
     await sleep(800); // let the page's own data finish its first render
     await ensureScope(job.scope);
-    await copyPageData();
+    await copyPageData(job.label);
     storeClear(PENDING_KEY);
   }
 
@@ -438,6 +519,21 @@
       }
     };
 
+    // Re-confirms the dropdown's closed-state label actually matches what we
+    // just asked for, retrying the click once if not — a click that silently
+    // failed to register would otherwise leave the PREVIOUS scope's table on
+    // screen, and since both Tỉnh and Siêu Thị share the same "Nồi cơm"
+    // header, assertRealTableText alone can't tell a stale re-capture apart
+    // from the real thing.
+    const verifyScope = async (desiredText) => {
+      const current = findLeavesWithText(SCOPE_TINH).concat(findLeavesWithText(SCOPE_SIEUTHI));
+      const matches = current.length === 1 && current[0].textContent.trim() === desiredText;
+      if (!matches) {
+        log('⚠️ Chế độ hiển thị chưa khớp "' + desiredText + '" — thử chọn lại.');
+        await ensureScope(desiredText);
+      }
+    };
+
     try {
       log('🤖 Chế độ AutoCopy — rt=' + rt + '. Đang đợi bảng tải lần đầu...');
       await sleep(1000);
@@ -446,8 +542,9 @@
 
       log('Đang lấy dữ liệu Tỉnh...');
       await ensureScope(SCOPE_TINH);
+      await verifyScope(SCOPE_TINH);
       checkForBiError();
-      const tinhText = getPageText();
+      const tinhText = await captureAllRowsWithScroll('Tỉnh');
       assertRealTableText(tinhText, 'Tỉnh');
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'tinh', text: tinhText });
       log('✅ Đã gửi dữ liệu Tỉnh (' + tinhText.length.toLocaleString('vi-VN') + ' ký tự).');
@@ -459,8 +556,9 @@
       await sleep(500);
       log('Đang chuyển sang Siêu Thị...');
       await ensureScope(SCOPE_SIEUTHI);
+      await verifyScope(SCOPE_SIEUTHI);
       checkForBiError();
-      const sieuthiText = getPageText();
+      const sieuthiText = await captureAllRowsWithScroll('Siêu Thị');
       assertRealTableText(sieuthiText, 'Siêu Thị');
       send({ type: 'TNB_BI_AUTOCOPY_DATA', scope: 'sieuthi', text: sieuthiText });
       log('✅ Đã gửi dữ liệu Siêu Thị (' + sieuthiText.length.toLocaleString('vi-VN') + ' ký tự).');
