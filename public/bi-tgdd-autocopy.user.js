@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         BI TGDD - Auto Copy Thi Đua (Tỉnh/Siêu Thị x Realtime/Lũy Kế)
 // @namespace    tnb-thidua-autocopy
-// @version      1.4
-// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật và chặn alert lỗi phiên đăng nhập khi chạy tự động.
+// @version      1.5
+// @description  Tự động chuyển Realtime/Lũy kế + Thống kê theo khu vực/Siêu thị và copy dữ liệu bảng thi đua trên bi.thegioididong.com. Có nút AutoCopy trong dự án TNB mở cửa sổ này và tự nhận dữ liệu qua postMessage. Đánh dấu lên DOM của mọi trang để app phát hiện đã cài đặt. Chờ đúng vòng xoay #Loading thật, chặn alert lỗi phiên đăng nhập khi chạy tự động, và loại bỏ log/toast của chính script khỏi dữ liệu copy.
 // @match        https://bi.thegioididong.com/thi-dua*
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const SCRIPT_VERSION = '1.4';
+  const SCRIPT_VERSION = '1.5';
 
   // ---------------------------------------------------------------------
   // Presence-detection marker — runs on EVERY page (that's why @match
@@ -146,12 +146,22 @@
       active.select();
       text = active.value;
     } else {
+      // Our own toast + log panel are appended to <body> too, so a naive
+      // "select all of body" pulls their text (progress log lines) into
+      // the captured table data, tacked onto the end — hide them for the
+      // duration of the selection, then restore.
+      const ownUi = [document.getElementById('__tnb_autocopy_toast__'), document.getElementById('__tnb_autocopy_panel__')].filter(Boolean);
+      const prevDisplay = ownUi.map((el) => el.style.display);
+      ownUi.forEach((el) => { el.style.display = 'none'; });
+
       const sel = window.getSelection();
       const range = document.createRange();
       range.selectNodeContents(document.body);
       sel.removeAllRanges();
       sel.addRange(range);
       text = sel.toString();
+
+      ownUi.forEach((el, i) => { el.style.display = prevDisplay[i] || ''; });
     }
     return text || '';
   }
