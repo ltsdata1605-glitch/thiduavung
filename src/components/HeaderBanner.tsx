@@ -98,11 +98,13 @@ const CategoryGroupMultiSelectFilter: React.FC<{
 
   // Parse current selection
   const selectedList = React.useMemo(() => {
-    if (!selectedCategoryGroup || selectedCategoryGroup === 'ALL') return [];
+    if (!selectedCategoryGroup || selectedCategoryGroup === 'ALL') return [...categoryGroupList];
+    if (selectedCategoryGroup === 'NONE') return [];
     return selectedCategoryGroup.split(',').map((s) => s.trim()).filter(Boolean);
-  }, [selectedCategoryGroup]);
+  }, [selectedCategoryGroup, categoryGroupList]);
 
-  const isAll = selectedList.length === 0 || selectedCategoryGroup === 'ALL';
+  const isAll = selectedCategoryGroup === 'ALL' || selectedList.length === categoryGroupList.length;
+  const isNone = selectedCategoryGroup === 'NONE' || selectedList.length === 0;
 
   // Close when clicking outside
   React.useEffect(() => {
@@ -120,16 +122,17 @@ const CategoryGroupMultiSelectFilter: React.FC<{
   }, [isOpen]);
 
   const toggleGroup = (groupName: string) => {
-    const currentActiveList = isAll ? [...categoryGroupList] : [...selectedList];
-    const exists = currentActiveList.includes(groupName);
+    const exists = selectedList.includes(groupName);
     let nextList: string[];
     if (exists) {
-      nextList = currentActiveList.filter((g) => g !== groupName);
+      nextList = selectedList.filter((g) => g !== groupName);
     } else {
-      nextList = [...currentActiveList, groupName];
+      nextList = [...selectedList, groupName];
     }
 
-    if (nextList.length === 0 || nextList.length === categoryGroupList.length) {
+    if (nextList.length === 0) {
+      setSelectedCategoryGroup('NONE');
+    } else if (nextList.length === categoryGroupList.length) {
       setSelectedCategoryGroup('ALL');
     } else {
       nextList.sort((a, b) => {
@@ -145,6 +148,10 @@ const CategoryGroupMultiSelectFilter: React.FC<{
     setSelectedCategoryGroup('ALL');
   };
 
+  const handleDeselectAll = () => {
+    setSelectedCategoryGroup('NONE');
+  };
+
   // Count categories in each group
   const groupCategoryCounts = React.useMemo(() => {
     const counts: Record<string, number> = {};
@@ -157,14 +164,12 @@ const CategoryGroupMultiSelectFilter: React.FC<{
   // Compute trigger button label
   const triggerLabel = React.useMemo(() => {
     if (isAll) return 'Tất cả';
+    if (isNone) return 'Chưa chọn';
     if (selectedList.length === 1) {
       return selectedList[0];
     }
-    if (selectedList.length === categoryGroupList.length) {
-      return 'Tất cả';
-    }
     return selectedList.join(', ');
-  }, [isAll, selectedList, categoryGroupList]);
+  }, [isAll, isNone, selectedList]);
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -192,21 +197,19 @@ const CategoryGroupMultiSelectFilter: React.FC<{
             >
               <Check className="w-3 h-3" /> Chọn tất cả
             </button>
-            {!isAll && (
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="hover:text-rose-600 cursor-pointer text-slate-400"
-              >
-                Khôi phục tất cả
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              className={`hover:text-rose-600 cursor-pointer ${isNone ? 'text-rose-600 font-extrabold' : 'text-slate-400'}`}
+            >
+              Bỏ chọn tất cả
+            </button>
           </div>
 
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
             {categoryGroupList.map((g) => {
-              const isChecked = isAll || selectedList.includes(g);
+              const isChecked = selectedList.includes(g);
               const count = groupCategoryCounts[g] || 0;
 
               return (

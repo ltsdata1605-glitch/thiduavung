@@ -945,10 +945,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // Selected Category Groups list (supports multi-selection e.g. "ICT,CE & GD")
   const selectedCategoryGroupsList = useMemo(() => {
     if (!selectedCategoryGroup || selectedCategoryGroup === 'ALL') return [];
+    if (selectedCategoryGroup === 'NONE') return [];
     return selectedCategoryGroup.split(',').map((g) => g.trim()).filter(Boolean);
   }, [selectedCategoryGroup]);
 
-  const isAllCategoryGroups = selectedCategoryGroupsList.length === 0 || selectedCategoryGroup === 'ALL';
+  const isAllCategoryGroups = selectedCategoryGroup === 'ALL' || (!selectedCategoryGroup && selectedCategoryGroup !== 'NONE');
 
   // Ngành hàng belonging to the selected Nhóm (Category Groups) — ordered by custom position ordering
   const categoriesInSelectedGroup = useMemo(() => (
