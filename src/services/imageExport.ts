@@ -501,15 +501,47 @@ export async function exportElementAsImage(
 
     // Re-measure after DOM attachment across all tables
     const tablesInClone = Array.from(clone.querySelectorAll<HTMLElement>('table'));
-    const actualTableWidth = tablesInClone.length > 0
-      ? Math.max(...tablesInClone.map((t) => Math.ceil(Math.max(t.scrollWidth, t.offsetWidth, t.getBoundingClientRect().width))))
-      : Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, clone.getBoundingClientRect().width));
+    let maxTableContentWidth = 0;
+
+    tablesInClone.forEach((t) => {
+      t.style.setProperty('width', 'max-content', 'important');
+      t.style.setProperty('min-width', 'auto', 'important');
+      t.style.setProperty('max-width', 'none', 'important');
+      t.style.setProperty('table-layout', 'auto', 'important');
+
+      const rect = t.getBoundingClientRect();
+      const scrollW = t.scrollWidth;
+      const offsetW = t.offsetWidth;
+      let w = Math.max(scrollW, offsetW, rect.width);
+
+      // Check rightmost cell boundary
+      t.querySelectorAll<HTMLElement>('tr').forEach((row) => {
+        const lastCell = row.lastElementChild as HTMLElement | null;
+        if (lastCell) {
+          const cellRect = lastCell.getBoundingClientRect();
+          const cellRightRelativeToTable = cellRect.right - rect.left;
+          if (cellRightRelativeToTable > w) {
+            w = cellRightRelativeToTable;
+          }
+        }
+      });
+
+      if (w > maxTableContentWidth) {
+        maxTableContentWidth = w;
+      }
+    });
+
+    if (maxTableContentWidth === 0) {
+      maxTableContentWidth = Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, clone.getBoundingClientRect().width));
+    }
     
-    // Account for card padding/borders so the rightmost table column is never clipped.
+    // Account for card padding/borders + 12px buffer for 25+ column borders and anti-aliasing
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const totalRequiredWidth = actualTableWidth + padLeft + padRight;
+    const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+    const borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
+    const totalRequiredWidth = Math.ceil(maxTableContentWidth + padLeft + padRight + borderLeft + borderRight + 12);
 
     const finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
 
@@ -532,6 +564,7 @@ export async function exportElementAsImage(
 
     tablesInClone.forEach((table) => {
       table.style.setProperty('width', '100%', 'important');
+      table.style.setProperty('min-width', '100%', 'important');
       table.style.setProperty('max-width', '100%', 'important');
       table.style.setProperty('box-sizing', 'border-box', 'important');
     });
@@ -736,16 +769,28 @@ export async function exportGroupSpecificElement(
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     const tableEl = clone.querySelector('table');
-    const tableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
+    let tableWidth = 0;
+    if (tableEl) {
+      const rect = tableEl.getBoundingClientRect();
+      tableWidth = Math.max(tableEl.scrollWidth, tableEl.offsetWidth, rect.width);
+      tableEl.querySelectorAll<HTMLElement>('tr').forEach((row) => {
+        const lastCell = row.lastElementChild as HTMLElement | null;
+        if (lastCell) {
+          const cellRect = lastCell.getBoundingClientRect();
+          const cellRight = cellRect.right - rect.left;
+          if (cellRight > tableWidth) {
+            tableWidth = cellRight;
+          }
+        }
+      });
+    }
     
-    // See exportElementAsImage's identical calculation above for why this is
-    // a small +4px margin rather than the flat +20px it used to be — a
-    // table-layout:auto table doesn't reliably stretch into extra width:100%
-    // headroom, so a bigger buffer here just becomes a visible blank strip.
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight, 360));
+    const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0;
+    const borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
+    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight + borderLeft + borderRight + 12, 360));
 
     // Explicitly constrain clone, captureContainer, and all child div containers to finalWidth
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
