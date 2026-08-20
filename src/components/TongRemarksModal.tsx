@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TimeMode } from '../types';
 import { X, Copy, Check, MessageSquare, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { copyTextToClipboard } from '../services/imageExport';
 
 export interface TongRemarksSection {
   groupName: string;
@@ -118,8 +119,8 @@ export const TongRemarksModal: React.FC<TongRemarksModalProps> = ({
   if (!isOpen) return null;
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(customText);
+    const ok = await copyTextToClipboard(customText);
+    if (ok) {
       setCopied(true);
       confetti({
         particleCount: 40,
@@ -127,8 +128,6 @@ export const TongRemarksModal: React.FC<TongRemarksModalProps> = ({
         origin: { y: 0.7 },
       });
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text:', err);
     }
   };
 

@@ -18,7 +18,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { copyImageToClipboard } from '../services/imageExport';
+import { copyImageToClipboard, copyTextToClipboard } from '../services/imageExport';
 import {
   RemarkTemplateConfig,
   RemarkDisplayMode,
@@ -166,8 +166,8 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
       alert('Báo cáo này không có nhận xét text kèm theo.');
       return;
     }
-    try {
-      await navigator.clipboard.writeText(textToCopy);
+    const ok = await copyTextToClipboard(textToCopy);
+    if (ok) {
       setCopiedRemark(true);
       setTimeout(() => setCopiedRemark(false), 2500);
       try {
@@ -177,8 +177,8 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
           origin: { y: 0.7 },
         });
       } catch (e) {}
-    } catch (err) {
-      console.error('Failed to copy remark text:', err);
+    } else {
+      alert('Không thể sao chép văn bản vào clipboard.');
     }
   };
 

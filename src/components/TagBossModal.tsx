@@ -15,6 +15,7 @@ import {
 import { getCategoryGroup } from './ReportView';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { copyTextToClipboard } from '../services/imageExport';
 
 function formatInt(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
@@ -1047,11 +1048,13 @@ ${botLines || 'Đang cập nhật'}
 
   const activeMessage = customText || currentTemplateText;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(activeMessage);
-    setCopied(true);
-    confetti({ particleCount: 50, spread: 70, origin: { y: 0.7 } });
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopy = async () => {
+    const ok = await copyTextToClipboard(activeMessage);
+    if (ok) {
+      setCopied(true);
+      confetti({ particleCount: 50, spread: 70, origin: { y: 0.7 } });
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
   return (

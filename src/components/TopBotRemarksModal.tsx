@@ -14,6 +14,7 @@ import {
 } from '../utils/parser';
 import { X, Copy, Check, MessageSquare } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { copyTextToClipboard } from '../services/imageExport';
 
 interface TopBotRemarksModalProps {
   isOpen: boolean;
@@ -205,15 +206,17 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(customText);
-    setCopied(true);
-    confetti({
-      particleCount: 40,
-      spread: 60,
-      origin: { y: 0.8 },
-    });
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopy = async () => {
+    const ok = await copyTextToClipboard(customText);
+    if (ok) {
+      setCopied(true);
+      confetti({
+        particleCount: 40,
+        spread: 60,
+        origin: { y: 0.8 },
+      });
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
   return (

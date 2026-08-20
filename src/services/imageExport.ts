@@ -187,6 +187,52 @@ export async function copyImageToClipboard(blob: Blob): Promise<boolean> {
 }
 
 /**
+ * Robust copy text to clipboard with fallback for non-secure contexts or permission restrictions.
+ */
+export async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (!text) return false;
+
+  // 1. Try modern navigator.clipboard API if available
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn('navigator.clipboard.writeText failed, falling back to execCommand:', err);
+    }
+  }
+
+  // 2. Fallback using temporary textarea + document.execCommand('copy')
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.contain = 'strict';
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '-9999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    
+    const range = document.createRange();
+    range.selectNodeContents(textArea);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    textArea.setSelectionRange(0, text.length);
+    
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+  } catch (err) {
+    console.error('Fallback execCommand copy failed:', err);
+    return false;
+  }
+}
+
+/**
  * Hand a Blob off to the user:
  * - On desktop/laptop: Auto copy PNG Image to clipboard by default, trigger file download,
  *   and emit global 'export-image-success' event to trigger notification popup with Copy Image & Copy Remark options.
