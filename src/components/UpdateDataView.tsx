@@ -43,6 +43,7 @@ import {
   BookmarkPlus,
   ExternalLink
 } from 'lucide-react';
+import { copyTextToClipboard } from '../services/imageExport';
 import { usePersistedState } from '../hooks/usePersistedState';
 
 interface UpdateDataViewProps {
@@ -206,14 +207,11 @@ const getChannelRank = (kenh?: string): number => {
   return 99;
 };
 
-// Bookmarklet: drag the "CopyAll" button below into the browser's bookmarks
-// bar (don't click it here — it needs to run on the BI page, not this app)
-// to install it. Selects the focused textarea/input if any, else the whole
-// page body, copies to clipboard with a toast confirming how many
-// characters were captured — the exact same logic proven reliable for the
-// manual "select + Ctrl+C" workflow this screen's 4 paste boxes expect.
-const COPY_ALL_BOOKMARKLET =
-  'javascript:!function(){function t(t,e){var n=document.getElementById("__copy_wait_toast__");n||((n=document.createElement("div")).id="__copy_wait_toast__",Object.assign(n.style,{position:"fixed",top:"20px",right:"20px",zIndex:"2147483647",padding:"14px 20px",borderRadius:"8px",fontFamily:"system-ui, -apple-system, sans-serif",fontSize:"14px",fontWeight:"600",color:"#fff",boxShadow:"0 4px 14px rgba(0,0,0,0.3)",transition:"opacity 0.3s ease",maxWidth:"340px",lineHeight:"1.4"}),document.body.appendChild(n)),n.style.background=e?"#dc2626":"#16a34a",n.textContent=t,n.style.opacity="1",clearTimeout(n.__timer),e||(n.__timer=setTimeout(function(){n.style.opacity="0"},5e3))}!async function(){t("⏳ Đang chọn và sao chép dữ liệu, vui lòng đợi...",!1);try{var e,n=document.activeElement;if(!n||"TEXTAREA"!==n.tagName&&("INPUT"!==n.tagName||"text"!==n.type&&"search"!==n.type)){var o=window.getSelection(),i=document.createRange();i.selectNodeContents(document.body),o.removeAllRanges(),o.addRange(i),e=o.toString()}else n.select(),e=n.value;if(!e||0===e.length)return void t("⚠️ Không có dữ liệu nào để copy.",!0);if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(e);else if(!document.execCommand("copy"))throw new Error("Trình duyệt không hỗ trợ copy tự động.");t("✅ Đã copy xong "+e.length.toLocaleString("vi-VN")+" ký tự! Giờ bạn có thể dán (Ctrl+V) an toàn.",!1)}catch(e){t("❌ Copy thất bại: "+e.message,!0)}}()}();';
+// Bookmarklet script encoded properly for browser bookmark bar drag & drop
+const RAW_COPY_ALL_SCRIPT =
+  '!function(){function t(t,e){var n=document.getElementById("__copy_wait_toast__");n||((n=document.createElement("div")).id="__copy_wait_toast__",Object.assign(n.style,{position:"fixed",top:"20px",right:"20px",zIndex:"2147483647",padding:"14px 20px",borderRadius:"8px",fontFamily:"system-ui, -apple-system, sans-serif",fontSize:"14px",fontWeight:"600",color:"#fff",boxShadow:"0 4px 14px rgba(0,0,0,0.3)",transition:"opacity 0.3s ease",maxWidth:"340px",lineHeight:"1.4"}),document.body.appendChild(n)),n.style.background=e?"#dc2626":"#16a34a",n.textContent=t,n.style.opacity="1",clearTimeout(n.__timer),e||(n.__timer=setTimeout(function(){n.style.opacity="0"},5e3))}!async function(){t("⏳ Đang chọn và sao chép dữ liệu, vui lòng đợi...",!1);try{var e,n=document.activeElement;if(!n||"TEXTAREA"!==n.tagName&&("INPUT"!==n.tagName||"text"!==n.type&&"search"!==n.type)){var o=window.getSelection(),i=document.createRange();i.selectNodeContents(document.body),o.removeAllRanges(),o.addRange(i),e=o.toString()}else n.select(),e=n.value;if(!e||0===e.length)return void t("⚠️ Không có dữ liệu nào để copy.",!0);if(navigator.clipboard&&navigator.clipboard.writeText)await navigator.clipboard.writeText(e);else if(!document.execCommand("copy"))throw new Error("Trình duyệt không hỗ trợ copy tự động.");t("✅ Đã copy xong "+e.length.toLocaleString("vi-VN")+" ký tự! Giờ bạn có thể dán (Ctrl+V) an toàn.",!1)}catch(e){t("❌ Copy thất bại: "+e.message,!0)}}()}();';
+
+const COPY_ALL_BOOKMARKLET = `javascript:${encodeURIComponent(RAW_COPY_ALL_SCRIPT)}`;
 
 export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   onUpdateRealtimeData,
@@ -228,6 +226,15 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   lastUpdateLuyKe,
   canViewDtQdTb = true,
 }) => {
+  const bookmarkletRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (bookmarkletRef.current) {
+      bookmarkletRef.current.href = COPY_ALL_BOOKMARKLET;
+      bookmarkletRef.current.setAttribute('href', COPY_ALL_BOOKMARKLET);
+    }
+  }, []);
+
   // Lock / Unlock states for Realtime & Luỹ Kế inputs (Tỉnh & Vùng)
   const [isRealtimeLockedTinh, setIsRealtimeLockedTinh] = useState(true);
   const [isRealtimeLockedVung, setIsRealtimeLockedVung] = useState(true);
@@ -802,13 +809,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
           />
           <div className="relative">
             <a
+              ref={bookmarkletRef}
               href={COPY_ALL_BOOKMARKLET}
-              onClick={(e) => {
+              draggable={true}
+              onClick={async (e) => {
                 e.preventDefault();
-                window.alert('Đây là bookmarklet — hãy KÉO (giữ chuột) nút "CopyAll" này lên thanh Bookmarks Bar của trình duyệt để lưu lại, không bấm trực tiếp. Sau khi lưu, sang trang BI, bấm bookmark đó để copy toàn bộ dữ liệu đang hiển thị.');
+                await copyTextToClipboard(COPY_ALL_BOOKMARKLET);
+                window.alert('Đã sao chép mã Bookmarklet CopyAll vào bộ nhớ tạm!\n\n• Cách 1: Kéo (giữ chuột) nút "CopyAll" này thả trực tiếp lên thanh Dấu trang (Bookmarks bar).\n• Cách 2: Bạn có thể tạo 1 Dấu trang mới trên trình duyệt rồi Dán (Ctrl+V / Cmd+V) mã vừa sao chép vào ô Địa chỉ URL.');
               }}
-              title="Kéo (không bấm) nút này vào thanh Bookmarks Bar để cài đặt — dùng trên trang BI để copy toàn bộ dữ liệu"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-300 transition-colors cursor-grab active:cursor-grabbing"
+              title="Kéo thả nút này lên thanh Bookmarks Bar (hoặc bấm để sao chép mã)"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl border border-amber-300 transition-colors cursor-grab active:cursor-grabbing shadow-xs"
             >
               <BookmarkPlus className="w-4 h-4 text-amber-700" />
               CopyAll
