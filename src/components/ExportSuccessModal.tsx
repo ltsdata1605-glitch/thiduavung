@@ -18,7 +18,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { copyImageToClipboard, copyTextToClipboard } from '../services/imageExport';
+import { copyImageToClipboard, copyTextToClipboard, isMobileUserAgent } from '../services/imageExport';
 import {
   RemarkTemplateConfig,
   RemarkDisplayMode,
@@ -51,6 +51,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
   remarkContext,
   currentUser,
 }) => {
+  const isMobile = useMemo(() => isMobileUserAgent(), []);
   const [copiedImage, setCopiedImage] = useState(false);
   const [copiedRemark, setCopiedRemark] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -106,8 +107,13 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
         // ignore
       }
 
-      setCopiedImage(true); // Default behavior is: image was auto-copied on export
-      setCopiedRemark(false);
+      if (isMobile) {
+        setCopiedImage(false);
+        setCopiedRemark(true); // Default behavior on mobile is: remark was auto-copied on export
+      } else {
+        setCopiedImage(true); // Default behavior on desktop is: image was auto-copied on export
+        setCopiedRemark(false);
+      }
 
       if (blob) {
         const url = URL.createObjectURL(blob);
@@ -119,7 +125,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
     } else {
       setPreviewUrl(null);
     }
-  }, [isOpen, blob]);
+  }, [isOpen, blob, isMobile]);
 
   if (!isOpen) return null;
 
@@ -224,17 +230,29 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
 
         {/* Content Body */}
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
-          {/* Default notice: Image automatically copied & downloaded */}
+          {/* Default notice: Image automatically copied on desktop / Remark automatically copied on mobile */}
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start gap-2.5">
             <span className="p-1 rounded-lg bg-emerald-500 text-white shrink-0 mt-0.5">
               <Check className="w-3.5 h-3.5 stroke-[3]" />
             </span>
             <div className="text-xs text-emerald-950 font-bold leading-relaxed">
-              <span>Đã tự động tải file ảnh về máy và </span>
-              <span className="text-emerald-700 font-extrabold underline decoration-emerald-400 decoration-2">
-                sao chép ẢNH vào Clipboard
-              </span>
-              . Bạn có thể nhấn <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded text-[11px] font-mono shadow-2xs">Ctrl + V</kbd> / <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded text-[11px] font-mono shadow-2xs">⌘ + V</kbd> để dán ảnh vào Zalo / Chat ngay!
+              {isMobile ? (
+                <>
+                  <span>Đã tải/lưu ảnh về máy và tự động </span>
+                  <span className="text-emerald-700 font-extrabold underline decoration-emerald-400 decoration-2">
+                    sao chép NHẬN XÉT vào Clipboard
+                  </span>
+                  . Bạn có thể dán ngay nhận xét vào Zalo / Chat!
+                </>
+              ) : (
+                <>
+                  <span>Đã tự động tải file ảnh về máy và </span>
+                  <span className="text-emerald-700 font-extrabold underline decoration-emerald-400 decoration-2">
+                    sao chép ẢNH vào Clipboard
+                  </span>
+                  . Bạn có thể nhấn <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded text-[11px] font-mono shadow-2xs">Ctrl + V</kbd> / <kbd className="px-1.5 py-0.5 bg-white border border-emerald-300 rounded text-[11px] font-mono shadow-2xs">⌘ + V</kbd> để dán ảnh vào Zalo / Chat ngay!
+                </>
+              )}
             </div>
           </div>
 
@@ -269,13 +287,15 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
               ) : (
                 <>
                   <ImageIcon className="w-4 h-4" />
-                  <span>COPY LẠI ẢNH</span>
+                  <span>{isMobile ? 'COPY ẢNH' : 'COPY LẠI ẢNH'}</span>
                 </>
               )}
             </button>
 
             {/* Button 2: Split Button - Copy Remark + Settings */}
-            <div className="flex items-stretch rounded-2xl overflow-hidden shadow-sm border-2 border-amber-300 bg-amber-50 hover:border-amber-400 transition-all">
+            <div className={`flex items-stretch rounded-2xl overflow-hidden shadow-sm border-2 transition-all ${
+              copiedRemark ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-300' : 'border-amber-300 bg-amber-50 hover:border-amber-400'
+            }`}>
               <button
                 type="button"
                 onClick={handleCopyRemark}
@@ -284,7 +304,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
                   !activeRemarkText && !remarkText
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-none'
                     : copiedRemark
-                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'text-amber-900 hover:bg-amber-100/80'
                 }`}
               >
@@ -308,9 +328,13 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
                 type="button"
                 onClick={() => setIsSettingsOpen((prev) => !prev)}
                 title="Tùy chọn & Lưu mẫu nhận xét mặc định (Firebase)"
-                className={`px-3 flex items-center justify-center border-l border-amber-300/80 transition-all cursor-pointer ${
+                className={`px-3 flex items-center justify-center border-l transition-all cursor-pointer ${
+                  copiedRemark ? 'border-emerald-300/80' : 'border-amber-300/80'
+                } ${
                   isSettingsOpen
                     ? 'bg-amber-500 text-white'
+                    : copiedRemark
+                    ? 'text-emerald-800 hover:bg-emerald-200/70'
                     : 'text-amber-800 hover:bg-amber-200/70'
                 }`}
               >

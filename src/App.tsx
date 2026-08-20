@@ -39,6 +39,7 @@ import {
   getLocalCache,
   getIndexedDbCache,
   clearAllLocalCache,
+  getLocalRemarkConfig,
   type DocKey,
 } from './services/storeService';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -1079,6 +1080,7 @@ function AppInner() {
       // Let ReportView re-render with pagination bypassed before capturing.
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_RutGon_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+      const remarkConfig = getLocalRemarkConfig();
       const remarkContext = {
         stores: activeStores,
         selectedProvince,
@@ -1090,6 +1092,10 @@ function AppInner() {
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
+        remarkDisplayMode: remarkConfig.displayMode,
+        templateType: remarkConfig.templateType,
+        includeEmoji: remarkConfig.includeEmoji,
+        includeCallToAction: remarkConfig.includeCallToAction,
       };
       const remarkText = generateReportRemarksText(remarkContext);
       const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText, remarkContext });
@@ -1120,6 +1126,7 @@ function AppInner() {
     try {
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_TongHop_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+      const remarkConfig = getLocalRemarkConfig();
       const remarkContext = {
         stores: activeStores,
         selectedProvince,
@@ -1131,6 +1138,10 @@ function AppInner() {
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
+        remarkDisplayMode: remarkConfig.displayMode,
+        templateType: remarkConfig.templateType,
+        includeEmoji: remarkConfig.includeEmoji,
+        includeCallToAction: remarkConfig.includeCallToAction,
       };
       const remarkText = generateReportRemarksText(remarkContext);
       const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText, remarkContext });
@@ -1174,7 +1185,8 @@ function AppInner() {
       ce: 'CE & GD',
     };
 
-    const remarkText = generateReportRemarksText({
+    const remarkConfig = getLocalRemarkConfig();
+    const remarkContext = {
       stores: activeStores,
       selectedProvince,
       selectedChannels,
@@ -1185,7 +1197,12 @@ function AppInner() {
       timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
       lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
       entityScope,
-    });
+      remarkDisplayMode: remarkConfig.displayMode,
+      templateType: remarkConfig.templateType,
+      includeEmoji: remarkConfig.includeEmoji,
+      includeCallToAction: remarkConfig.includeCallToAction,
+    };
+    const remarkText = generateReportRemarksText(remarkContext);
 
     setIsExportingAllRows(true);
     try {
@@ -1194,7 +1211,7 @@ function AppInner() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Xuat_Nhanh_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportGroupSpecificElement(targetEl, 'quick', filename, { remarkTextToCopy: remarkText });
+          const blob = await exportGroupSpecificElement(targetEl, 'quick', filename, { remarkTextToCopy: remarkText, remarkContext });
           if (blob) {
             showToast('✨ Đã xuất nhanh bảng xếp hạng (STT -> Tỉ lệ) & tự động sao chép nhận xét!');
           } else {
@@ -1213,7 +1230,7 @@ function AppInner() {
           const targetEl = document.getElementById('report-export-root');
           if (targetEl) {
             const filename = `Bang_Xep_Hang_Nhom_${grp.replace(/[^a-zA-Z0-9]/g, '_')}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-            const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
+            const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext });
             if (blob) exportedCount++;
           }
         }
@@ -1227,7 +1244,7 @@ function AppInner() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Hien_Thi_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
+          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext });
           if (blob) {
             showToast('✨ Đã xuất ảnh bảng xếp hạng hiển thị & tự động sao chép nhận xét!');
           } else {
@@ -1241,7 +1258,7 @@ function AppInner() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Nhom_${grp.replace(/[^a-zA-Z0-9]/g, '_')}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText });
+          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext });
           if (blob) {
             showToast('✨ Đã xuất 1 tấm ảnh báo cáo nhóm & tự động sao chép nhận xét!');
           } else {
