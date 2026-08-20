@@ -361,6 +361,151 @@ function computeSafeScale(targetWidth: number, targetHeight: number, requestedSc
   return Math.max(0.35, Math.round(safeScale * 100) / 100);
 }
 
+// Tables past this many data rows (the Siêu Thị tab, unpaginated for export,
+// can run into the hundreds) get captured in row-batches and stitched back
+// together instead of as one shot. html-to-image serializes the whole DOM
+// subtree into a single SVG/data-URI before it ever gets to rasterizing —
+// that serialization step scales with node count, not with the export's
+// pixelRatio, so the progressive scale-down retry below (which only shrinks
+// the OUTPUT canvas) never helps a genuinely huge table: mobile browsers
+// choke on the giant intermediate string itself. Capturing ~40 rows at a
+// time keeps each pass's DOM small enough to serialize reliably regardless
+// of total row count.
+const CHUNK_ROW_THRESHOLD = 50;
+const CHUNK_ROWS_PER_BATCH = 40;
+
+/**
+ * Capture a large `<table>` (already living inside the prepared, offscreen
+ * `clone`) as a sequence of small row-batch screenshots and stitch them into
+ * one PNG blob via plain Canvas drawImage — sidestepping the single giant
+ * DOM-to-SVG serialization that fails outright on huge mobile exports.
+ * Returns null (never throws) so callers can fall back to the normal
+ * whole-element capture path.
+ */
+async function captureChunkedTable(
+  clone: HTMLElement,
+  table: HTMLTableElement,
+  finalWidth: number,
+  scale: number
+): Promise<Blob | null> {
+  try {
+    const tbody = table.querySelector('tbody');
+    const thead = table.querySelector('thead');
+    if (!tbody) return null;
+
+    const allRows = Array.from(tbody.querySelectorAll(':scope > tr')) as HTMLTableRowElement[];
+    if (allRows.length === 0) return null;
+
+    // Lock every column to the width it needs across the FULL dataset,
+    // measured now while every row is still present. table-layout:auto
+    // would otherwise size each batch's columns from only the rows in that
+    // batch, misaligning columns between stitched segments.
+    const headerRows = thead ? Array.from(thead.querySelectorAll('tr')) : [];
+    const colCount = Math.max(
+      0,
+      ...headerRows.map((r) => r.children.length),
+      ...allRows.map((r) => r.children.length)
+    );
+    const colWidths = new Array(colCount).fill(0);
+    const measure = (tr: Element) => {
+      Array.from(tr.children).forEach((cell, idx) => {
+        if (idx >= colCount) return;
+        const w = (cell as HTMLElement).getBoundingClientRect().width;
+        if (w > colWidths[idx]) colWidths[idx] = w;
+      });
+    };
+    headerRows.forEach(measure);
+    allRows.forEach(measure);
+
+    table.querySelectorAll(':scope > colgroup').forEach((cg) => cg.remove());
+    const colgroupEl = document.createElement('colgroup');
+    colWidths.forEach((w) => {
+      const col = document.createElement('col');
+      col.style.width = `${Math.max(1, Math.ceil(w))}px`;
+      colgroupEl.appendChild(col);
+    });
+    table.insertBefore(colgroupEl, table.firstChild);
+    table.style.setProperty('table-layout', 'fixed', 'important');
+
+    allRows.forEach((r) => r.remove());
+
+    const rowBatches: HTMLTableRowElement[][] = [];
+    for (let i = 0; i < allRows.length; i += CHUNK_ROWS_PER_BATCH) {
+      rowBatches.push(allRows.slice(i, i + CHUNK_ROWS_PER_BATCH));
+    }
+
+    const htmlToImage = await import('html-to-image');
+    const destWidth = Math.round(finalWidth * scale);
+    const segments: { canvas: HTMLCanvasElement; destX: number; destW: number; destH: number }[] = [];
+    let cursorY = 0;
+
+    const captureNode = async (node: HTMLElement, cssW: number, cssH: number): Promise<HTMLCanvasElement | null> => {
+      for (const attemptScale of [scale, Math.max(0.5, scale * 0.5)]) {
+        try {
+          const canvas = await htmlToImage.toCanvas(node, {
+            pixelRatio: attemptScale,
+            backgroundColor: '#ffffff',
+            width: cssW,
+            height: cssH,
+          });
+          if (canvas && canvas.width > 0 && canvas.height > 0) return canvas;
+        } catch (e) {
+          console.warn('captureChunkedTable: batch capture failed, retrying...', e);
+        }
+      }
+      return null;
+    };
+
+    for (let bi = 0; bi < rowBatches.length; bi++) {
+      tbody.append(...rowBatches[bi]);
+      if (bi > 0) {
+        thead?.style.setProperty('display', 'none', 'important');
+        // divide-y only borders non-first children — replicate the hairline
+        // that this row would have had before it became a fresh batch's
+        // first row, so the stitched seam doesn't lose that border.
+        rowBatches[bi][0].style.setProperty('border-top', '1px solid #e2e8f0', 'important');
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const captureEl = bi === 0 ? clone : table;
+      const rect = captureEl.getBoundingClientRect();
+      const cssW = Math.ceil(rect.width);
+      const cssH = Math.ceil(rect.height);
+
+      // eslint-disable-next-line no-await-in-loop
+      const canvas = await captureNode(captureEl, cssW, cssH);
+      if (!canvas) return null;
+
+      const cloneRect = clone.getBoundingClientRect();
+      const destX = bi === 0 ? 0 : Math.round((rect.left - cloneRect.left) * scale);
+      const destH = Math.round(cssH * scale);
+      segments.push({ canvas, destX, destW: Math.round(cssW * scale), destH });
+      cursorY += destH;
+
+      rowBatches[bi].forEach((r) => r.remove());
+    }
+
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = destWidth;
+    finalCanvas.height = cursorY;
+    const ctx = finalCanvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    let y = 0;
+    segments.forEach((seg) => {
+      ctx.drawImage(seg.canvas, seg.destX, y, seg.destW, seg.destH);
+      y += seg.destH;
+    });
+
+    return await new Promise<Blob | null>((resolve) => finalCanvas.toBlob((b) => resolve(b), 'image/png'));
+  } catch (e) {
+    console.warn('captureChunkedTable failed, falling back to whole-element capture:', e);
+    return null;
+  }
+}
+
 /**
  * Clone `element`, fix everything that would otherwise render wrong/missing
  * in the export (oklch colors, scrolled-out table columns, Recharts SVGs, scrollbars),
@@ -591,28 +736,44 @@ export async function exportElementAsImage(
 
     const finalScale = computeSafeScale(finalWidth, height, scale);
 
-    const htmlToImage = await import('html-to-image');
-    
-    // Progressive scale retry to never fail on huge datasets or memory-constrained mobile devices
+    // Very large tables (Siêu Thị tab, unpaginated during export — can run
+    // into the hundreds of rows) are captured in row-batches and stitched
+    // together first; see captureChunkedTable for why the scale-retry loop
+    // below can't save them on its own.
     let blob: Blob | null = null;
-    const scalesToTry = [
-      finalScale,
-      Math.round(finalScale * 0.75 * 100) / 100,
-      Math.round(finalScale * 0.5 * 100) / 100,
-      0.35,
-    ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
+    const primaryTable = tablesInClone.reduce<HTMLTableElement | null>((biggest, t) => {
+      const table = t as HTMLTableElement;
+      const rows = table.querySelectorAll('tbody > tr').length;
+      const biggestRows = biggest ? biggest.querySelectorAll('tbody > tr').length : -1;
+      return rows > biggestRows ? table : biggest;
+    }, null);
+    if (primaryTable && primaryTable.querySelectorAll('tbody > tr').length > CHUNK_ROW_THRESHOLD) {
+      blob = await captureChunkedTable(clone, primaryTable, finalWidth, finalScale);
+    }
 
-    for (const curScale of scalesToTry) {
-      try {
-        blob = await htmlToImage.toBlob(clone, {
-          pixelRatio: curScale,
-          backgroundColor: '#ffffff',
-          width: finalWidth,
-          height,
-        });
-        if (blob && blob.size > 0) break;
-      } catch (scaleErr) {
-        console.warn(`html-to-image failed at scale ${curScale}, trying fallback scale...`, scaleErr);
+    if (!blob) {
+      const htmlToImage = await import('html-to-image');
+
+      // Progressive scale retry to never fail on huge datasets or memory-constrained mobile devices
+      const scalesToTry = [
+        finalScale,
+        Math.round(finalScale * 0.75 * 100) / 100,
+        Math.round(finalScale * 0.5 * 100) / 100,
+        0.35,
+      ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
+
+      for (const curScale of scalesToTry) {
+        try {
+          blob = await htmlToImage.toBlob(clone, {
+            pixelRatio: curScale,
+            backgroundColor: '#ffffff',
+            width: finalWidth,
+            height,
+          });
+          if (blob && blob.size > 0) break;
+        } catch (scaleErr) {
+          console.warn(`html-to-image failed at scale ${curScale}, trying fallback scale...`, scaleErr);
+        }
       }
     }
 
@@ -857,28 +1018,38 @@ export async function exportGroupSpecificElement(
 
     const finalScale = computeSafeScale(finalWidth, height, scale);
 
-    const htmlToImage = await import('html-to-image');
-    
-    // Progressive scale retry to never fail on huge datasets or memory-constrained mobile devices
+    // Very large tables (Siêu Thị tab, unpaginated during export — can run
+    // into the hundreds of rows) are captured in row-batches and stitched
+    // together first; see captureChunkedTable for why the scale-retry loop
+    // below can't save them on its own.
     let blob: Blob | null = null;
-    const scalesToTry = [
-      finalScale,
-      Math.round(finalScale * 0.75 * 100) / 100,
-      Math.round(finalScale * 0.5 * 100) / 100,
-      0.35,
-    ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
+    if (tableEl && tableEl.querySelectorAll('tbody > tr').length > CHUNK_ROW_THRESHOLD) {
+      blob = await captureChunkedTable(clone, tableEl, finalWidth, finalScale);
+    }
 
-    for (const curScale of scalesToTry) {
-      try {
-        blob = await htmlToImage.toBlob(clone, {
-          pixelRatio: curScale,
-          backgroundColor: '#ffffff',
-          width: finalWidth,
-          height,
-        });
-        if (blob && blob.size > 0) break;
-      } catch (scaleErr) {
-        console.warn(`html-to-image group export failed at scale ${curScale}, trying fallback scale...`, scaleErr);
+    if (!blob) {
+      const htmlToImage = await import('html-to-image');
+
+      // Progressive scale retry to never fail on huge datasets or memory-constrained mobile devices
+      const scalesToTry = [
+        finalScale,
+        Math.round(finalScale * 0.75 * 100) / 100,
+        Math.round(finalScale * 0.5 * 100) / 100,
+        0.35,
+      ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
+
+      for (const curScale of scalesToTry) {
+        try {
+          blob = await htmlToImage.toBlob(clone, {
+            pixelRatio: curScale,
+            backgroundColor: '#ffffff',
+            width: finalWidth,
+            height,
+          });
+          if (blob && blob.size > 0) break;
+        } catch (scaleErr) {
+          console.warn(`html-to-image group export failed at scale ${curScale}, trying fallback scale...`, scaleErr);
+        }
       }
     }
 
