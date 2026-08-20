@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
-import { StoreRecord, TimeMode, Channel } from '../types';
+import { StoreRecord, TimeMode, Channel, UserAccount } from '../types';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
   getBossForStore,
@@ -16,6 +16,7 @@ import {
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
 import { saveGroupSummaryCardsToFirebase, getLocalCache } from '../services/storeService';
+import { getCurrentSession } from '../services/authService';
 import { ExportLoadingModal } from './ExportLoadingModal';
 import { ProvinceRemarksModal, generateProvinceRemarksText } from './ProvinceRemarksModal';
 import { ProvinceDetailRemarksModal, generateProvinceDetailRemarksText } from './ProvinceDetailRemarksModal';
@@ -35,6 +36,7 @@ interface GroupReportViewProps {
   bossAssignments?: BossAssignmentRecord[];
   daysInMonth?: number;
   daysElapsed?: number;
+  currentUser?: UserAccount | null;
 }
 
 /** Distinct pastel colors per channel for headers & badges */
@@ -399,15 +401,6 @@ const ProvinceSummaryCard: React.FC<{
         <ChannelDropdownFilter selectedChannels={config.channels} onChange={onChangeChannels} />
 
         <div className="flex items-center gap-1 shrink-0">
-          {/* Nhận xét riêng cho bảng tỉnh */}
-          <button
-            onClick={() => setIsRemarksOpen(true)}
-            title="Xem & Sao chép Nhận xét thi đua cho ngành hàng này"
-            className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </button>
-
           {onRemove && (
             <button
               onClick={onRemove}
@@ -417,6 +410,15 @@ const ProvinceSummaryCard: React.FC<{
               <X className="w-4 h-4" />
             </button>
           )}
+
+          {/* Nhận xét riêng cho bảng tỉnh */}
+          <button
+            onClick={() => setIsRemarksOpen(true)}
+            title="Xem & Sao chép Nhận xét thi đua cho ngành hàng này"
+            className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
           <button
             onClick={() => {
               const remarkText = generateProvinceRemarksText({
@@ -486,7 +488,7 @@ const ProvinceSummaryCard: React.FC<{
             <thead>
               <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
                 <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
-                <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
+                <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
                 <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TARGET</th>
                 <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
                   {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
@@ -500,8 +502,8 @@ const ProvinceSummaryCard: React.FC<{
                 <tr key={row.tinh} className={idx % 2 === 0 ? 'bg-white' : 'bg-sky-50/20'}>
                   <td className="py-1.5 px-1.5 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
                   <td className="py-1.5 px-2 font-bold text-sky-900 border-r border-b border-slate-200 whitespace-nowrap">{row.tinh}</td>
-                  <td className="py-1.5 px-2 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{(timeMode === 'luyke' ? Math.round(row.target) : row.target).toLocaleString('vi-VN')}</td>
-                  <td className="py-1.5 px-2 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{(timeMode === 'luyke' ? Math.round(row.achieved) : row.achieved).toLocaleString('vi-VN')}</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(row.target).toLocaleString('vi-VN')}</td>
+                  <td className="py-1.5 px-2 text-center font-bold text-red-600 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(row.achieved).toLocaleString('vi-VN')}</td>
                   <td
                     className={`py-1.5 px-2 text-center border-r border-b border-slate-200 whitespace-nowrap ${
                       row.tag === 'Top' ? 'text-sky-800 font-bold bg-sky-50/60' : row.tag === 'Bot' ? 'text-rose-600 bg-rose-50/50 font-bold' : 'text-slate-700 font-bold'
@@ -520,8 +522,8 @@ const ProvinceSummaryCard: React.FC<{
               <tr className={`${tableFooterBgClass} font-bold text-xs rounded-none`}>
                 <td className={`py-1.5 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}></td>
                 <td className={`py-1.5 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>Tổng</td>
-                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{(timeMode === 'luyke' ? Math.round(totalSummary.target) : totalSummary.target).toLocaleString('vi-VN')}</td>
-                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{(timeMode === 'luyke' ? Math.round(totalSummary.achieved) : totalSummary.achieved).toLocaleString('vi-VN')}</td>
+                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.target).toLocaleString('vi-VN')}</td>
+                <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.achieved).toLocaleString('vi-VN')}</td>
                 <td className={`py-1.5 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap font-extrabold`}>{Math.round(totalSummary.rate)}%</td>
                 <td className="py-1.5 px-2 text-center font-extrabold whitespace-nowrap"></td>
               </tr>
@@ -546,7 +548,12 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   bossAssignments = [],
   daysInMonth,
   daysElapsed,
+  currentUser,
 }) => {
+  // Xác định accountId để lưu cấu hình bộ lọc riêng biệt theo từng tài khoản
+  const session = getCurrentSession();
+  const accountId = (currentUser?.accountId || session?.accountId || 'default').trim().toLowerCase();
+
   const isHiddenCat = (catName: string): boolean => {
     if (!categoryHiddenMap || Object.keys(categoryHiddenMap).length === 0) return false;
     if (categoryHiddenMap[catName]) return true;
@@ -555,6 +562,14 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
       (k) => k.toLowerCase().trim() === lower && categoryHiddenMap[k]
     );
   };
+
+  // Danh sách tỉnh sắp xếp theo alphabet tiếng Việt
+  const allAvailableProvinces = useMemo(() => {
+    return Array.from(new Set(stores.map((s) => s.tinh))).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [stores]);
+
+  // Luôn mặc định là tỉnh đầu tiên trong danh sách
+  const defaultProvince = allAvailableProvinces[0] || stores[0]?.tinh || 'An Giang';
 
   // Extract all category names dynamically from real uploaded/pasted store dataset (excluding hidden ones)
   const allCategoryNames = useMemo(() => {
@@ -589,7 +604,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     selectedCategory !== 'ALL' && selectedCategory ? selectedCategory : (sortedCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT')
   );
 
-  // Helper to build 4 default cards from top to bottom
+  // Helper to build 4 default cards from top to bottom - Mặc định kênh là ALL_CHANNELS
   const buildDefault4Cards = (cats: string[], defaultChannels: Channel[]): SummaryCardConfig[] => {
     const chs = defaultChannels.length > 0 ? defaultChannels : ALL_CHANNELS;
     const cat1 = cats[0] || 'TRẢ CHẬM HOMECREDIT';
@@ -604,27 +619,42 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     ];
   };
 
-  // BẢNG TỔNG QUAN TỈNH (CARD 1) — MẶC ĐỊNH LUÔN CÓ 4 BẢNG THEO THỨ TỰ TỪ TRÊN XUỐNG, ĐỒNG BỘ FIREBASE & INDEXEDDB
+  // BẢNG TỔNG QUAN TỈNH (CARD 1) — Lưu cấu hình theo từng tài khoản
+  const summaryCardsStorageKey = `tnb_${accountId}_summary_cards`;
   const [summaryCards, setSummaryCards] = useState<SummaryCardConfig[]>(() => {
-    const cached = getLocalCache().groupSummaryCards;
-    if (cached && Array.isArray(cached) && cached.length >= 4) {
-      return cached;
-    }
     try {
-      const local = localStorage.getItem('tnb_summary_cards');
+      const local = localStorage.getItem(summaryCardsStorageKey);
       if (local) {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed) && parsed.length >= 4) return parsed;
       }
     } catch {}
-    return buildDefault4Cards(allCategoryNames, selectedChannels);
+    const cached = getLocalCache().groupSummaryCards;
+    if (cached && Array.isArray(cached) && cached.length >= 4) {
+      return cached;
+    }
+    return buildDefault4Cards(allCategoryNames, ALL_CHANNELS);
   });
+
+  // Tự động load cấu hình bảng Card 1 khi đổi tài khoản
+  useEffect(() => {
+    try {
+      const local = localStorage.getItem(summaryCardsStorageKey);
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length >= 4) {
+          setSummaryCards(parsed);
+          return;
+        }
+      }
+    } catch {}
+  }, [summaryCardsStorageKey]);
 
   // Ensure 4 cards exist when sortedCategoryNames is loaded / updated
   useEffect(() => {
     setSummaryCards((prev) => {
       if (prev.length >= 4) return prev;
-      const chs = selectedChannels.length > 0 ? selectedChannels : ALL_CHANNELS;
+      const chs = ALL_CHANNELS;
       const newCards: SummaryCardConfig[] = [...prev];
       for (let i = prev.length; i < 4; i++) {
         const cat = sortedCategoryNames[i] || sortedCategoryNames[0] || allCategoryNames[0] || 'TRẢ CHẬM HOMECREDIT';
@@ -635,17 +665,17 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
         });
       }
       try {
-        localStorage.setItem('tnb_summary_cards', JSON.stringify(newCards));
+        localStorage.setItem(summaryCardsStorageKey, JSON.stringify(newCards));
       } catch {}
       void saveGroupSummaryCardsToFirebase(newCards);
       return newCards;
     });
-  }, [sortedCategoryNames]);
+  }, [sortedCategoryNames, summaryCardsStorageKey]);
 
   const persistSummaryCards = (newCards: SummaryCardConfig[]) => {
     setSummaryCards(newCards);
     try {
-      localStorage.setItem('tnb_summary_cards', JSON.stringify(newCards));
+      localStorage.setItem(summaryCardsStorageKey, JSON.stringify(newCards));
     } catch {}
     // Persist to Firebase Firestore & IndexedDB
     void saveGroupSummaryCardsToFirebase(newCards);
@@ -676,31 +706,42 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
     persistSummaryCards(newCards);
   };
 
+  // CARD 2: TỈNH CHI TIẾT — Mặc định luôn là tỉnh đầu tiên, lưu theo từng tài khoản
   const [selectedProvinceCard, setSelectedProvinceCard] = usePersistedState<string>(
-    'tnb_card2_province',
-    selectedProvince !== 'ALL' && selectedProvince ? selectedProvince : (stores[0]?.tinh || 'An Giang')
+    `tnb_${accountId}_card2_province`,
+    defaultProvince
   );
 
-  // BỘ LỌC TỈNH RIÊNG CHO BẢNG 3 (TOP/BOT)
+  // Khi danh sách tỉnh thay đổi, nếu tỉnh đã lưu không còn tồn tại thì tự động về tỉnh đầu tiên
+  useEffect(() => {
+    if (allAvailableProvinces.length > 0) {
+      if (!selectedProvinceCard || !allAvailableProvinces.includes(selectedProvinceCard)) {
+        setSelectedProvinceCard(allAvailableProvinces[0]);
+      }
+    }
+  }, [allAvailableProvinces, selectedProvinceCard, setSelectedProvinceCard]);
+
+  // BỘ LỌC TỈNH CHO BẢNG 3 (TOP/BOT) — Lưu theo từng tài khoản
   const [selectedProvinceCard3, setSelectedProvinceCard3] = usePersistedState<string>(
-    'tnb_card3_province',
+    `tnb_${accountId}_card3_province`,
     'ALL'
   );
 
-  // 2 INDEPENDENT CHANNEL FILTER STATES (Hoàn toàn riêng biệt, không liên kết nhau)
+  // KÊNH CHO BẢNG 2 — Mặc định ALL kênh, lưu theo từng tài khoản
   const [channelsCard2, setChannelsCard2] = usePersistedState<Channel[]>(
-    'tnb_card2_channels',
-    selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
+    `tnb_${accountId}_card2_channels`,
+    ALL_CHANNELS
   );
 
+  // KÊNH CHO BẢNG 3 (TOP/BOT) — Mặc định ALL kênh, lưu theo từng tài khoản
   const [channelsCard3, setChannelsCard3] = usePersistedState<Channel[]>(
-    'tnb_card3_channels',
-    selectedChannels.length > 0 ? selectedChannels : ['DML', 'DMM', 'DMS', 'TGD', 'TopZone']
+    `tnb_${accountId}_card3_channels`,
+    ALL_CHANNELS
   );
 
-  // CUSTOM TOP/BOT CRITERIA OPTIONS (Phần trăm hoặc Số lượng)
-  const [topBotMode, setTopBotMode] = usePersistedState<'percent' | 'count'>('tnb_topbot_mode', 'percent');
-  const [topBotValue, setTopBotValue] = usePersistedState<number>('tnb_topbot_value', 20);
+  // CUSTOM TOP/BOT CRITERIA OPTIONS (Phần trăm hoặc Số lượng) — Lưu theo từng tài khoản
+  const [topBotMode, setTopBotMode] = usePersistedState<'percent' | 'count'>(`tnb_${accountId}_topbot_mode`, 'percent');
+  const [topBotValue, setTopBotValue] = usePersistedState<number>(`tnb_${accountId}_topbot_value`, 20);
 
   const [isProvinceDetailRemarksOpen, setIsProvinceDetailRemarksOpen] = useState(false);
   const [isTopBotRemarksOpen, setIsTopBotRemarksOpen] = useState(false);
@@ -840,10 +881,6 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
       setExportingId(null);
     }
   };
-
-  const allAvailableProvinces = useMemo(() => {
-    return Array.from(new Set(stores.map((s) => s.tinh))).sort();
-  }, [stores]);
 
   return (
     <div className="space-y-6 pb-12">
@@ -996,10 +1033,10 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                         {/* Dòng Tiêu đề Kênh với màu riêng biệt */}
                         <tr className={`${getChannelHeaderBg(group.kenh)} font-bold uppercase text-[11px] rounded-none`}>
                           <th className="py-2 px-1 text-center border-r border-white/20 whitespace-nowrap">STT</th>
-                          <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">TỈNH</th>
-                          <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">BOSS</th>
+                          <th className="py-2 px-2 text-center border-r border-white/20 whitespace-nowrap">TỈNH</th>
+                          <th className="py-2 px-2 text-center border-r border-white/20 whitespace-nowrap">BOSS</th>
                           <th className="py-2 px-1 text-center border-r border-white/20 whitespace-nowrap">KÊNH</th>
-                          <th className="py-2 px-2 text-left border-r border-white/20 whitespace-nowrap">SIÊU THỊ</th>
+                          <th className="py-2 px-2 text-center border-r border-white/20 whitespace-nowrap">SIÊU THỊ</th>
                           <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">TAR</th>
                           <th className="py-2 px-1.5 text-center border-r border-white/20 whitespace-nowrap">
                             {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
@@ -1027,8 +1064,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                                   {formatStoreDisplayName(s.sieuthi)}
                                 </span>
                               </td>
-                              <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.target) : data.target}</td>
-                              <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.achieved) : data.achieved}</td>
+                              <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(data.target).toLocaleString('vi-VN')}</td>
+                              <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(data.achieved).toLocaleString('vi-VN')}</td>
                               <td
                                 className={`py-1.5 px-1.5 text-center font-bold border-b border-slate-200 whitespace-nowrap ${
                                   data.rate >= 100 ? 'text-sky-700' : data.rate >= 80 ? 'text-slate-700' : 'text-rose-600'
@@ -1174,115 +1211,121 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
               </div>
             </div>
 
-            {/* Top Section */}
-            <div className="w-full overflow-x-auto">
-              {topBotLeaderboard.top20.length > 0 ? (
-                <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
-                  <thead>
-                    <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
-                      <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
-                      <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
-                      <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>BOSS</th>
-                      <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>KÊNH</th>
-                      <th className={`py-2 px-2 text-left border-r ${tableHeaderBorderClass} whitespace-nowrap`}>SIÊU THỊ</th>
-                      <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TAR</th>
-                      <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
-                        {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
-                      </th>
-                      <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {topBotLeaderboard.top20.map((s, idx) => {
+            {/* Unified Top & Bot Table - Tự động vừa vặn nội dung chữ, các cột TOP và BOT bằng nhau 100% */}
+            <div className="w-full overflow-x-auto border-t border-slate-200">
+              <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
+                <tbody className="divide-y divide-slate-200">
+                  {/* TOP Header Row */}
+                  <tr className={`${tableHeaderBgClass} font-bold uppercase text-[11px] rounded-none`}>
+                    <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>STT</th>
+                    <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TỈNH</th>
+                    <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>BOSS</th>
+                    <th className={`py-2 px-1 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>KÊNH</th>
+                    <th className={`py-2 px-2 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>SIÊU THỊ</th>
+                    <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>TAR</th>
+                    <th className={`py-2 px-1.5 text-center border-r ${tableHeaderBorderClass} whitespace-nowrap`}>
+                      {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
+                    </th>
+                    <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
+                  </tr>
+
+                  {/* TOP Rows */}
+                  {topBotLeaderboard.top20.length > 0 ? (
+                    topBotLeaderboard.top20.map((s, idx) => {
                       const data = getCategoryData(s, activeCategory);
                       const rate = computeCompletionRate(data.target, data.achieved, timeMode, daysInMonth, daysElapsed);
                       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
                       return (
                         <tr key={s.id || idx} className="bg-white">
                           <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
-                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{s.tinh}</td>
-                          <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{s.tinh}</td>
+                          <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap truncate">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
                           <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
                               {getChannelLabel(effectiveKenh)}
                             </span>
                           </td>
-                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">
+                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap truncate">
                             <span data-store-name={s.sieuthi} className="store-name-cell">
                               {formatStoreDisplayName(s.sieuthi)}
                             </span>
                           </td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.target) : data.target}</td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.achieved) : data.achieved}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(data.target).toLocaleString('vi-VN')}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(data.achieved).toLocaleString('vi-VN')}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-sky-700 border-b border-slate-200 whitespace-nowrap">{Math.round(rate)}%</td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-6 text-center text-slate-400 font-bold text-xs border border-slate-200">
-                  Không tìm thấy siêu thị TOP nào phù hợp với bộ lọc.
-                </div>
-              )}
-            </div>
-
-            {/* Bot Section Header */}
-            <div className="bg-rose-200 text-rose-800 p-2 text-center font-bold text-xs uppercase rounded-none mt-3 border-x border-t border-rose-300">
-              DANH SÁCH BOT {topBotLabelText} THẤP NHẤT
-            </div>
-
-            {/* Bot Section */}
-            <div className="w-full overflow-x-auto">
-              {topBotLeaderboard.bot20.length > 0 ? (
-                <table className="w-full text-xs font-sans border-collapse border border-slate-200 table-auto">
-                  <thead>
-                    <tr className="bg-rose-100 text-rose-700 font-bold uppercase text-[11px] rounded-none">
-                      <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">STT</th>
-                      <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">TỈNH</th>
-                      <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">BOSS</th>
-                      <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">KÊNH</th>
-                      <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">SIÊU THỊ</th>
-                      <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">TAR</th>
-                      <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">
-                        {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
-                      </th>
-                      <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-slate-400 font-bold text-xs border border-slate-200">
+                        Không tìm thấy siêu thị TOP nào phù hợp với bộ lọc.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {topBotLeaderboard.bot20.map((s, idx) => {
+                  )}
+
+                  {/* Spacer Row Between TOP and BOT */}
+                  <tr className="border-0">
+                    <td colSpan={8} className="p-0 border-0 bg-white h-3"></td>
+                  </tr>
+
+                  {/* BOT Section Banner */}
+                  <tr className="border-0">
+                    <td colSpan={8} className="bg-rose-200 text-rose-800 py-2 px-3 text-center font-bold text-xs uppercase border-x border-t border-rose-300">
+                      DANH SÁCH BOT {topBotLabelText} THẤP NHẤT
+                    </td>
+                  </tr>
+
+                  {/* BOT Header Row */}
+                  <tr className="bg-rose-100 text-rose-700 font-bold uppercase text-[11px] rounded-none border-b border-rose-200">
+                    <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">STT</th>
+                    <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">TỈNH</th>
+                    <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">BOSS</th>
+                    <th className="py-2 px-1 text-center border-r border-rose-200 whitespace-nowrap">KÊNH</th>
+                    <th className="py-2 px-2 text-center border-r border-rose-200 whitespace-nowrap">SIÊU THỊ</th>
+                    <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">TAR</th>
+                    <th className="py-2 px-1.5 text-center border-r border-rose-200 whitespace-nowrap">
+                      {timeMode === 'luyke' ? 'L.KẾ' : 'REAL'}
+                    </th>
+                    <th className="py-2 px-1.5 text-center whitespace-nowrap">{timeMode === 'luyke' ? '%DKHT' : '%HT'}</th>
+                  </tr>
+
+                  {/* BOT Rows */}
+                  {topBotLeaderboard.bot20.length > 0 ? (
+                    topBotLeaderboard.bot20.map((s, idx) => {
                       const data = getCategoryData(s, activeCategory);
                       const rate = computeCompletionRate(data.target, data.achieved, timeMode, daysInMonth, daysElapsed);
                       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
                       return (
                         <tr key={s.id || idx} className="bg-slate-50">
                           <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
-                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{s.tinh}</td>
-                          <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{s.tinh}</td>
+                          <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap truncate">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
                           <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
                               {getChannelLabel(effectiveKenh)}
                             </span>
                           </td>
-                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap">
+                          <td className="py-1.5 px-2 font-bold text-slate-900 border-r border-b border-slate-200 whitespace-nowrap truncate">
                             <span data-store-name={s.sieuthi} className="store-name-cell">
                               {formatStoreDisplayName(s.sieuthi)}
                             </span>
                           </td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.target) : data.target}</td>
-                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{timeMode === 'luyke' ? Math.round(data.achieved) : data.achieved}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-amber-600 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(data.target).toLocaleString('vi-VN')}</td>
+                          <td className="py-1.5 px-1.5 text-center font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap">{Math.round(data.achieved).toLocaleString('vi-VN')}</td>
                           <td className="py-1.5 px-1.5 text-center font-bold text-rose-600 border-b border-slate-200 whitespace-nowrap">{Math.round(rate)}%</td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-6 text-center text-slate-400 font-bold text-xs border border-slate-200">
-                  Không tìm thấy siêu thị BOT nào phù hợp với bộ lọc.
-                </div>
-              )}
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-6 text-center text-slate-400 font-bold text-xs border border-slate-200">
+                        Không tìm thấy siêu thị BOT nào phù hợp với bộ lọc.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

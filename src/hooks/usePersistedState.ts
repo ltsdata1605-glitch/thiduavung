@@ -10,6 +10,8 @@ import { idbGet, idbSet } from '../services/indexedDbCache';
  */
 export function usePersistedState<T>(key: string, defaultValue: T): [T, Dispatch<SetStateAction<T>>] {
   const hadLocalStorageValueRef = useRef(true);
+  const currentKeyRef = useRef(key);
+
   const [value, setValue] = useState<T>(() => {
     try {
       const raw = localStorage.getItem(key);
@@ -20,6 +22,24 @@ export function usePersistedState<T>(key: string, defaultValue: T): [T, Dispatch
     hadLocalStorageValueRef.current = false;
     return defaultValue;
   });
+
+  // Re-sync when key changes (e.g. account switch)
+  useEffect(() => {
+    if (currentKeyRef.current !== key) {
+      currentKeyRef.current = key;
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) {
+          setValue(JSON.parse(raw) as T);
+          return;
+        }
+      } catch (e) {}
+      setValue(defaultValue);
+      void idbGet<T>(key).then((idbVal) => {
+        if (idbVal !== undefined) setValue(idbVal);
+      });
+    }
+  }, [key, defaultValue]);
 
   useEffect(() => {
     try {

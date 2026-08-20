@@ -1420,6 +1420,7 @@ function AppInner() {
                 onExportFull={handleExportFull}
                 onExportGroup={handleExportGroup}
                 forceShowAllRows={isExportingAllRows}
+                currentUser={currentUser}
               />
             </ErrorBoundary>
           )}

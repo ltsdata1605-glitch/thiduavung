@@ -182,6 +182,7 @@ interface ReportViewProps {
   // never receive this data — defaults true so callers that don't pass it
   // (e.g. any not-yet-updated usage) keep the previous, unrestricted behavior.
   canViewDtQdTb?: boolean;
+  currentUser?: UserAccount | null;
 }
 
 interface VerticalComparisonTableProps {
@@ -582,6 +583,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   daysInMonth: propDaysInMonth,
   daysElapsed: propDaysElapsed,
   canViewDtQdTb = true,
+  currentUser,
 }) => {
   // Non-privileged accounts can never see the DT Luỹ Kế/Realtime value view
   // even if 'value' somehow ended up in their persisted preference (e.g. the
@@ -1431,6 +1433,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           bossAssignments={bossAssignments}
           daysInMonth={propDaysInMonth}
           daysElapsed={propDaysElapsed}
+          currentUser={currentUser}
         />
       </React.Suspense>
     );

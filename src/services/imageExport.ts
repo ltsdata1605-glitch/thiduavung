@@ -313,20 +313,10 @@ export async function exportElementAsImage(
 ): Promise<Blob | null> {
   const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
 
-  const tableEl = element.querySelector<HTMLElement>('table');
-  // Scope the scroll wrapper lookup to the table itself — a plain element-wide
-  // querySelector would match the FIRST ".overflow-x-auto" in DOM order, which
-  // is often the (export-hidden) search/action toolbar above the table, not the
-  // table's own scroll wrapper. That mismeasured a narrow table's width against
-  // the wider toolbar and left blank padding on the right of the exported image.
-  // Only used as a fallback for totalRequiredWidth below, when the clone's own
-  // post-layout table measurement is unavailable. NOT used as a width floor —
-  // on screen the table has `w-full`, so a narrow table (few category columns
-  // selected, e.g. a single Ngành hàng filter) still reports a wide
-  // scrollWidth/offsetWidth simply because it was stretched to fill its
-  // container. Trusting that as a floor forced the exported canvas wider than
-  // the table's real content, leaving blank space on the right.
-  const liveTableWidth = tableEl ? Math.ceil(Math.max(tableEl.scrollWidth, tableEl.offsetWidth, tableEl.getBoundingClientRect().width)) : 0;
+  const liveTables = Array.from(element.querySelectorAll<HTMLElement>('table'));
+  const liveTableWidth = liveTables.length > 0
+    ? Math.max(...liveTables.map((t) => Math.ceil(Math.max(t.scrollWidth, t.offsetWidth, t.getBoundingClientRect().width))))
+    : 0;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -378,10 +368,13 @@ export async function exportElementAsImage(
   });
 
   clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
-    table.style.setProperty('width', 'max-content', 'important');
-    table.style.setProperty('min-width', 'auto', 'important');
-    table.style.setProperty('max-width', 'none', 'important');
-    table.style.setProperty('table-layout', 'auto', 'important');
+    const isFixed = table.classList.contains('table-fixed') || table.style.tableLayout === 'fixed';
+    if (!isFixed) {
+      table.style.setProperty('width', 'max-content', 'important');
+      table.style.setProperty('min-width', 'auto', 'important');
+      table.style.setProperty('max-width', 'none', 'important');
+      table.style.setProperty('table-layout', 'auto', 'important');
+    }
   });
 
   // Set clone dimensions to fit content
@@ -449,25 +442,17 @@ export async function exportElementAsImage(
     await fixOklchColors(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    // Re-measure after DOM attachment
-    const tableInClone = clone.querySelector('table');
-    const actualTableWidth = tableInClone ? Math.ceil(Math.max(tableInClone.scrollWidth, tableInClone.offsetWidth, tableInClone.getBoundingClientRect().width)) : 0;
+    // Re-measure after DOM attachment across all tables
+    const tablesInClone = Array.from(clone.querySelectorAll<HTMLElement>('table'));
+    const actualTableWidth = tablesInClone.length > 0
+      ? Math.max(...tablesInClone.map((t) => Math.ceil(Math.max(t.scrollWidth, t.offsetWidth, t.getBoundingClientRect().width))))
+      : 0;
     
     // Account for card padding/borders so the rightmost table column is never clipped.
-    // This used to add a flat +20px "safety" buffer on top — but a table with
-    // table-layout:auto does NOT reliably stretch to fill width:100% of a
-    // wider container (verified: forcing width:100% on a container 20px wider
-    // than the table's natural content left the table sitting at its own
-    // natural width regardless), so that buffer was never actually absorbed
-    // into extra column width. It just sat there as a permanent blank strip
-    // on the right of every single-card export (most visible on a card with
-    // no whole-table border, like the TGD/ĐMX overview cards). A small +4px
-    // margin still covers genuine sub-pixel measurement rounding without
-    // leaving a visible gap.
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const totalRequiredWidth = (actualTableWidth > 0 ? actualTableWidth : liveTableWidth) + padLeft + padRight + 4;
+    const totalRequiredWidth = Math.max(actualTableWidth, liveTableWidth) + padLeft + padRight + 4;
 
     const finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
 
@@ -488,11 +473,11 @@ export async function exportElementAsImage(
       }
     });
 
-    if (tableInClone) {
-      tableInClone.style.setProperty('width', '100%', 'important');
-      tableInClone.style.setProperty('max-width', '100%', 'important');
-      tableInClone.style.setProperty('box-sizing', 'border-box', 'important');
-    }
+    tablesInClone.forEach((table) => {
+      table.style.setProperty('width', '100%', 'important');
+      table.style.setProperty('max-width', '100%', 'important');
+      table.style.setProperty('box-sizing', 'border-box', 'important');
+    });
 
     // Calculate exact content height reliably
     const cloneScrollHeight = Math.ceil(clone.scrollHeight);
