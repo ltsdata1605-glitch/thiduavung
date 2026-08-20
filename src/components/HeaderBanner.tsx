@@ -984,32 +984,32 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             />
           </div>
 
-          {/* View Mode Segmented Toggle: % vs Doanh Thu / Thực Đạt — Super Admin / Admin only */}
+          {/* View Mode Segmented Toggle: %HT vs Doanh thu — Super Admin / Admin only */}
           {setValueDisplayMode && entityScope !== 'nhom' && canViewDtQdTb && (
-            <div className="flex items-center p-0.5 bg-slate-100 border border-slate-200 rounded-xl shrink-0 shadow-2xs">
+            <div className="flex items-center p-0.5 bg-slate-200/80 border border-slate-300/80 rounded-xl shrink-0 shadow-inner">
               <button
                 type="button"
                 onClick={() => setValueDisplayMode('percent')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                   valueDisplayMode === 'percent'
-                    ? 'bg-white text-sky-800 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-indigo-500/20 ring-1 ring-white/20'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                 }`}
-                title={timeMode === 'realtime' ? 'Chế độ xem % HT Target Ngày' : 'Chế độ xem % HT Dự Kiến'}
+                title={timeMode === 'realtime' ? 'Chế độ xem % Hoàn thành Realtime' : 'Chế độ xem % Hoàn thành Luỹ kế'}
               >
-                <span>%</span>
+                <span>%HT</span>
               </button>
               <button
                 type="button"
                 onClick={() => setValueDisplayMode('value')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
                   valueDisplayMode === 'value'
-                    ? 'bg-white text-emerald-800 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/20 ring-1 ring-white/20'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
                 }`}
-                title={timeMode === 'realtime' ? 'Chế độ xem Doanh thu Realtime' : 'Chế độ xem Doanh thu Luỹ Kế'}
+                title={timeMode === 'realtime' ? 'Chế độ xem Doanh thu Realtime' : 'Chế độ xem Doanh thu Luỹ kế'}
               >
-                <span>{timeMode === 'realtime' ? 'DT Realtime' : 'DT Luỹ Kế'}</span>
+                <span>Doanh thu</span>
               </button>
             </div>
           )}
