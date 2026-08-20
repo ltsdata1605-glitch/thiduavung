@@ -203,6 +203,24 @@ export async function initializeUsersCollection(): Promise<UserAccount[]> {
   return seededLocal;
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMsg: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(timeoutMsg));
+    }, timeoutMs);
+
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 /**
  * Authenticate user with Account ID and Password.
  *
@@ -231,25 +249,69 @@ export async function loginUser(
   const email = toSyntheticEmail(normalizedId);
   const authPass = toFirebaseAuthPassword(cleanPass);
 
-  // --- Path A: already migrated, normal Firebase Auth sign-in ---
+  // --- Path A: real Firebase Auth sign-in ---
   try {
-    await signInWithEmailAndPassword(auth, email, authPass);
+    await withTimeout(
+      signInWithEmailAndPassword(auth, email, authPass),
+      10000,
+      'Quá thời gian kết nối máy chủ xác thực (Timeout).'
+    );
 
-    if (!db) return { success: false, error: 'Chưa kết nối được cơ sở dữ liệu.' };
-    const snap = await getDoc(doc(db, USERS_COLLECTION, normalizedId));
-    if (!snap.exists()) {
-      return { success: false, error: 'Không tìm thấy hồ sơ tài khoản. Vui lòng liên hệ Super Admin (3717).' };
+    let profile: UserAccount | null = null;
+
+    if (db) {
+      try {
+        const snap = await withTimeout(
+          getDoc(doc(db, USERS_COLLECTION, normalizedId)),
+          5000,
+          'getDoc timeout'
+        );
+        if (snap.exists()) {
+          profile = snap.data() as UserAccount;
+        }
+      } catch (dbErr) {
+        console.warn('Could not fetch user profile from Firestore live, checking local cache:', dbErr);
+      }
     }
-    const profile = snap.data() as UserAccount;
+
+    // If Firestore getDoc is slow/offline, try reading from local cache
+    if (!profile) {
+      const cached = await readAccountsCache();
+      const match = cached?.find((u) => u.accountId.toLowerCase() === normalizedId);
+      if (match) {
+        profile = match;
+      }
+    }
+
+    // Fallback profile if profile document is not found or still syncing
+    if (!profile) {
+      profile = {
+        accountId: normalizedId,
+        name: normalizedId === '3717' ? 'Super Admin TNB' : `Tài khoản ${normalizedId}`,
+        role: normalizedId === '3717' ? 'super_admin' : 'viewer',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
     if (!profile.isActive) {
       return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
     }
 
     const updatedUser = { ...profile, lastLogin: new Date().toISOString() };
     saveSession(updatedUser);
-    updateDoc(doc(db, USERS_COLLECTION, normalizedId), { lastLogin: updatedUser.lastLogin }).catch(() => {});
+    if (db) {
+      updateDoc(doc(db, USERS_COLLECTION, normalizedId), { lastLogin: updatedUser.lastLogin }).catch(() => {});
+    }
     return { success: true, user: updatedUser };
-  } catch (authErr) {
+  } catch (authErr: any) {
+    const code = authErr?.code;
+    if (code === 'auth/too-many-requests') {
+      return { success: false, error: 'Đăng nhập thất bại quá nhiều lần. Vui lòng thử lại sau vài phút!' };
+    }
+    if (code === 'auth/network-request-failed') {
+      return { success: false, error: 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối WiFi/4G!' };
+    }
     // Not yet migrated to Firebase Auth (or the password is genuinely wrong) —
     // fall through to the legacy check, which is the authoritative answer.
   }
@@ -257,7 +319,11 @@ export async function loginUser(
   // --- Path B: legacy verification + lazy migration ---
   try {
     const inputHash = await hashPassword(cleanPass);
-    const allUsers = await initializeUsersCollection();
+    const allUsers = await withTimeout(
+      initializeUsersCollection(),
+      6000,
+      'Quá thời gian đồng bộ dữ liệu tài khoản.'
+    );
     const matchedUser = allUsers.find((u) => u.accountId.toLowerCase() === normalizedId);
 
     if (!matchedUser) {
@@ -296,9 +362,10 @@ export async function loginUser(
     }
 
     return { success: true, user: updatedUser };
-  } catch (err) {
-    // Firestore denied the list read (rules already restrictive + wrong
-    // password) — fail closed with the same generic message.
+  } catch (err: any) {
+    if (err?.message?.includes('Timeout') || err?.message?.includes('thời gian')) {
+      return { success: false, error: err.message };
+    }
     return { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' };
   }
 }

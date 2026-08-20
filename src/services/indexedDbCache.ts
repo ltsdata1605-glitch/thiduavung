@@ -16,15 +16,34 @@ function openDb(): Promise<IDBDatabase> {
       reject(new Error('IndexedDB not available in this environment'));
       return;
     }
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const idb = req.result;
-      if (!idb.objectStoreNames.contains(STORE_NAME)) {
-        idb.createObjectStore(STORE_NAME);
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    const timer = setTimeout(() => {
+      reject(new Error('IndexedDB open timed out'));
+    }, 2500);
+
+    try {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const idb = req.result;
+        if (!idb.objectStoreNames.contains(STORE_NAME)) {
+          idb.createObjectStore(STORE_NAME);
+        }
+      };
+      req.onsuccess = () => {
+        clearTimeout(timer);
+        resolve(req.result);
+      };
+      req.onerror = () => {
+        clearTimeout(timer);
+        reject(req.error);
+      };
+      req.onblocked = () => {
+        clearTimeout(timer);
+        reject(new Error('IndexedDB blocked'));
+      };
+    } catch (err) {
+      clearTimeout(timer);
+      reject(err);
+    }
   });
 }
 

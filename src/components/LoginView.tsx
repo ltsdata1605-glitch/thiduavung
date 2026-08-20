@@ -19,14 +19,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const result = await loginUser(accountId, password);
+      const result = await Promise.race([
+        loginUser(accountId, password),
+        new Promise<{ success: boolean; user?: UserAccount; error?: string }>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Hệ thống phản hồi quá lâu (Timeout). Vui lòng thử lại!')),
+            12000
+          )
+        ),
+      ]);
+
       if (result.success && result.user) {
         onLoginSuccess(result.user);
       } else {
         setErrorMsg(result.error || 'Đăng nhập thất bại!');
       }
-    } catch (err) {
-      setErrorMsg('Lỗi kết nối hệ thống xác thực. Vui lòng thử lại!');
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Lỗi kết nối hệ thống xác thực. Vui lòng thử lại!');
     } finally {
       setIsLoading(false);
     }
