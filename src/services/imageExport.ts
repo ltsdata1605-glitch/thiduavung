@@ -420,8 +420,12 @@ export async function exportElementAsImage(
     cell.style.setProperty('white-space', 'nowrap', 'important');
   });
 
-  // Remove fixed max-width limits from header wrappers inside th
-  clone.querySelectorAll<HTMLElement>('th div, th span').forEach((el) => {
+  // Ensure category header titles wrap cleanly on \n breaks (max 6 chars per line)
+  clone.querySelectorAll<HTMLElement>('th[data-group], th div, th span, .whitespace-pre-line').forEach((el) => {
+    el.style.setProperty('white-space', 'pre-line', 'important');
+    el.style.setProperty('word-break', 'break-word', 'important');
+    el.style.setProperty('line-height', '1.15', 'important');
+    el.style.setProperty('text-align', 'center', 'important');
     el.style.setProperty('max-width', 'none', 'important');
     el.style.setProperty('width', 'auto', 'important');
   });
@@ -647,7 +651,11 @@ export async function exportGroupSpecificElement(
       cell.style.setProperty('white-space', 'nowrap', 'important');
     });
 
-    clone.querySelectorAll<HTMLElement>('th div, th span').forEach((el) => {
+    clone.querySelectorAll<HTMLElement>('th[data-group], th div, th span, .whitespace-pre-line').forEach((el) => {
+      el.style.setProperty('white-space', 'pre-line', 'important');
+      el.style.setProperty('word-break', 'break-word', 'important');
+      el.style.setProperty('line-height', '1.15', 'important');
+      el.style.setProperty('text-align', 'center', 'important');
       el.style.setProperty('max-width', 'none', 'important');
       el.style.setProperty('width', 'auto', 'important');
     });
@@ -672,16 +680,20 @@ export async function exportGroupSpecificElement(
     });
 
     clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
-      cell.style.setProperty('white-space', 'nowrap', 'important');
-      cell.style.setProperty('padding-left', '8px', 'important');
-      cell.style.setProperty('padding-right', '8px', 'important');
       cell.style.setProperty('width', 'auto', 'important');
       cell.style.setProperty('max-width', 'none', 'important');
       cell.style.setProperty('min-width', 'auto', 'important');
+      cell.style.setProperty('padding-left', '8px', 'important');
+      cell.style.setProperty('padding-right', '8px', 'important');
       cell.style.setProperty('box-sizing', 'border-box', 'important');
+      cell.style.setProperty('white-space', 'nowrap', 'important');
     });
 
-    clone.querySelectorAll<HTMLElement>('th div, th span').forEach((el) => {
+    clone.querySelectorAll<HTMLElement>('th[data-group], th div, th span, .whitespace-pre-line').forEach((el) => {
+      el.style.setProperty('white-space', 'pre-line', 'important');
+      el.style.setProperty('word-break', 'break-word', 'important');
+      el.style.setProperty('line-height', '1.15', 'important');
+      el.style.setProperty('text-align', 'center', 'important');
       el.style.setProperty('max-width', 'none', 'important');
       el.style.setProperty('width', 'auto', 'important');
     });

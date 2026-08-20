@@ -118,34 +118,54 @@ export const resolveCategoryDisplayName = (
  * Splits any word in a category string that exceeds maxLen (default 6) into 2 lines.
  * Ensures no single word token exceeds 6 characters, keeping category column headers compact.
  */
+/**
+ * Formats a category header title by wrapping words into lines with max `maxLen` (default 6) characters per line.
+ * If a word or line exceeds maxLen, it breaks across lines using \n.
+ */
 export const formatCategoryHeaderTitle = (title: string, maxLen: number = 6): string => {
   if (!title) return '';
 
-  // Split title by space or punctuation boundaries
-  const words = title.split(/(\s+|\/|,)/);
+  let normalized = title.trim();
+  normalized = normalized.replace(/HOMECREDIT/gi, 'HOME CREDIT');
+  normalized = normalized.replace(/FECREDIT/gi, 'FE CREDIT');
+  normalized = normalized.replace(/SHINHAN/gi, 'SHIN HAN');
+  normalized = normalized.replace(/ICALLME/gi, 'ICALL ME');
+  normalized = normalized.replace(/VINAPHONE/gi, 'VINA PHONE');
+  normalized = normalized.replace(/BLUETOOTH/gi, 'BLUET OOTH');
+  normalized = normalized.replace(/ANDROID/gi, 'ANDR OID');
 
-  const processed = words.map((word) => {
-    if (!word || /^\s+$/.test(word) || word === '/' || word === ',') return word;
+  const rawWords = normalized.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
 
-    // Remove non-word trailing characters for length check
-    const cleanWord = word.replace(/[^a-zA-Z0-9À-ỹ+]/g, '');
-    if (cleanWord.length <= maxLen) {
-      return word;
+  for (const word of rawWords) {
+    if (!word) continue;
+
+    if (word.length > maxLen) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+      for (let i = 0; i < word.length; i += maxLen) {
+        lines.push(word.slice(i, i + maxLen));
+      }
+    } else {
+      if (!currentLine) {
+        currentLine = word;
+      } else if ((currentLine + ' ' + word).length <= maxLen) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
     }
+  }
 
-    const upper = word.toUpperCase();
-    if (upper.includes('HOMECREDIT')) return word.replace(/HOMECREDIT/i, 'HOME\nCREDIT');
-    if (upper.includes('FECREDIT')) return word.replace(/FECREDIT/i, 'FE\nCREDIT');
-    if (upper.includes('SHINHAN')) return word.replace(/SHINHAN/i, 'SHIN\nHAN');
-    if (upper.includes('ICALLME')) return word.replace(/ICALLME/i, 'ICALL\nME');
-    if (upper.includes('VINAPHONE')) return word.replace(/VINAPHONE/i, 'VINA\nPHONE');
+  if (currentLine) {
+    lines.push(currentLine);
+  }
 
-    // Default mid-split for any other word > 6 chars
-    const mid = Math.ceil(word.length / 2);
-    return word.slice(0, mid) + '\n' + word.slice(mid);
-  });
-
-  return processed.join('');
+  return lines.join('\n');
 };
 
 export interface BossValidationResult {
