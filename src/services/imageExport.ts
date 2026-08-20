@@ -353,8 +353,12 @@ function computeSafeScale(targetWidth: number, targetHeight: number, requestedSc
     safeScale = Math.min(safeScale, areaScale);
   }
 
-  // Never drop below 0.75, round to 2 decimal places
-  return Math.max(0.75, Math.round(safeScale * 100) / 100);
+  // Hardware boundary check (never exceed maxDim)
+  const hardwareMaxScale = Math.min(maxDim / Math.max(targetWidth, 1), maxDim / Math.max(targetHeight, 1));
+  safeScale = Math.min(safeScale, hardwareMaxScale);
+
+  // Allow scale down to 0.35 for huge datasets so canvas never crashes
+  return Math.max(0.35, Math.round(safeScale * 100) / 100);
 }
 
 /**
@@ -588,14 +592,31 @@ export async function exportElementAsImage(
     const finalScale = computeSafeScale(finalWidth, height, scale);
 
     const htmlToImage = await import('html-to-image');
-    const blob = await htmlToImage.toBlob(clone, {
-      pixelRatio: finalScale,
-      backgroundColor: '#ffffff',
-      width: finalWidth,
-      height,
-    });
+    
+    // Progressive scale retry to never fail on huge datasets or memory-constrained mobile devices
+    let blob: Blob | null = null;
+    const scalesToTry = [
+      finalScale,
+      Math.round(finalScale * 0.75 * 100) / 100,
+      Math.round(finalScale * 0.5 * 100) / 100,
+      0.35,
+    ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
 
-    if (!blob) throw new Error('html-to-image trả về rỗng.');
+    for (const curScale of scalesToTry) {
+      try {
+        blob = await htmlToImage.toBlob(clone, {
+          pixelRatio: curScale,
+          backgroundColor: '#ffffff',
+          width: finalWidth,
+          height,
+        });
+        if (blob && blob.size > 0) break;
+      } catch (scaleErr) {
+        console.warn(`html-to-image failed at scale ${curScale}, trying fallback scale...`, scaleErr);
+      }
+    }
+
+    if (!blob) throw new Error('html-to-image không thể kết xuất ảnh do kích thước quá lớn.');
     downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
   } catch (error) {
@@ -837,14 +858,31 @@ export async function exportGroupSpecificElement(
     const finalScale = computeSafeScale(finalWidth, height, scale);
 
     const htmlToImage = await import('html-to-image');
-    const blob = await htmlToImage.toBlob(clone, {
-      pixelRatio: finalScale,
-      backgroundColor: '#ffffff',
-      width: finalWidth,
-      height,
-    });
+    
+    // Progressive scale retry to never fail on huge datasets or memory-constrained mobile devices
+    let blob: Blob | null = null;
+    const scalesToTry = [
+      finalScale,
+      Math.round(finalScale * 0.75 * 100) / 100,
+      Math.round(finalScale * 0.5 * 100) / 100,
+      0.35,
+    ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
 
-    if (!blob) throw new Error('html-to-image trả về rỗng.');
+    for (const curScale of scalesToTry) {
+      try {
+        blob = await htmlToImage.toBlob(clone, {
+          pixelRatio: curScale,
+          backgroundColor: '#ffffff',
+          width: finalWidth,
+          height,
+        });
+        if (blob && blob.size > 0) break;
+      } catch (scaleErr) {
+        console.warn(`html-to-image group export failed at scale ${curScale}, trying fallback scale...`, scaleErr);
+      }
+    }
+
+    if (!blob) throw new Error('html-to-image không thể kết xuất ảnh do kích thước quá lớn.');
     downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
   } catch (error) {

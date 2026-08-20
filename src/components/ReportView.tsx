@@ -1030,6 +1030,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // and only for accounts with canViewDtQdTb permission (Super Admin / Admin).
   const showDtQdTbColumn = !isProvinceView && canViewDtQdTb;
 
+  const [isMobileScreen, setIsMobileScreen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Cumulative left offsets (px) for the frozen info columns — must match the
   // <colgroup> widths below exactly, since sticky positioning needs a fixed
   // pixel left value per column, not a relative one. `total` (where the
@@ -1634,7 +1646,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           />
         ) : (
           /* Scrollable Data Table matching user screenshot #4 header design */
-          <div className="overflow-x-auto overflow-y-visible select-none border border-slate-200 rounded-none">
+          <div className="overflow-x-auto overflow-y-visible select-none border border-slate-200 rounded-none touch-pan-x" style={{ WebkitOverflowScrolling: 'touch' }}>
           <table className="w-full text-left border-separate border-spacing-0 text-xs whitespace-nowrap table-fixed">
             {/* table-fixed makes the <col> widths below authoritative instead of
                 merely a hint — without it, browsers just widen a column to fit
@@ -1649,7 +1661,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 </>
               ) : (
                 <>
-                  <col style={{ width: 56 }} />
+                  <col style={{ width: isMobileScreen ? 44 : 56 }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 100 }} />
                   <col style={{ width: 54 }} />
@@ -1678,7 +1690,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   rowSpan={2}
                   onClick={() => handleSort('rank')}
                   style={{ left: FROZEN_LEFT.stt, top: 0 }}
-                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center ${isProvinceView ? 'w-[40px]' : 'w-[56px]'} select-none`}
+                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center ${isProvinceView ? 'w-[40px]' : isMobileScreen ? 'w-[44px]' : 'w-[56px]'} select-none`}
                   title="Click để sắp xếp theo STT (Click vào STT từng dòng để chọn so sánh)"
                 >
                   STT {(sortField === 'rank' || sortField === 'stt') ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1686,8 +1698,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <th
                   rowSpan={2}
                   onClick={() => handleSort('tinh')}
-                  style={{ left: FROZEN_LEFT.tinh, top: 0 }}
-                  className={`sticky z-40 py-1.5 px-2 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] select-none`}
+                  style={!isMobileScreen ? { left: FROZEN_LEFT.tinh, top: 0 } : { top: 0 }}
+                  className={`sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-2 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] select-none`}
                   title="Click để sắp xếp theo Tỉnh"
                 >
                   TỈNH {sortField === 'tinh' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1698,8 +1710,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     <th
                       rowSpan={2}
                       onClick={() => handleSort('boss')}
-                      style={{ left: FROZEN_LEFT.boss, top: 0 }}
-                      className={`sticky z-40 py-1.5 px-2 ${frozenHeaderThClass} align-middle text-center w-[100px] select-none`}
+                      style={!isMobileScreen ? { left: FROZEN_LEFT.boss, top: 0 } : { top: 0 }}
+                      className={`sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-2 ${frozenHeaderThClass} align-middle text-center w-[100px] select-none`}
                       title="Click để sắp xếp theo Boss"
                     >
                       BOSS {sortField === 'boss' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1708,8 +1720,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     <th
                       rowSpan={2}
                       onClick={() => handleSort('kenh')}
-                      style={{ left: FROZEN_LEFT.kenh, top: 0 }}
-                      className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] select-none`}
+                      style={!isMobileScreen ? { left: FROZEN_LEFT.kenh, top: 0 } : { top: 0 }}
+                      className={`sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] select-none`}
                       title="Click để sắp xếp theo Kênh"
                     >
                       KÊNH {sortField === 'kenh' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1718,8 +1730,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     <th
                       rowSpan={2}
                       onClick={() => handleSort('sieuthi')}
-                      style={{ left: FROZEN_LEFT.sieuthi, top: 0 }}
-                      className={`sticky z-40 py-1.5 px-2.5 ${frozenHeaderThClass} align-middle text-center w-[280px] whitespace-normal break-words leading-[1.1] select-none`}
+                      style={!isMobileScreen ? { left: FROZEN_LEFT.sieuthi, top: 0 } : { top: 0 }}
+                      className={`sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-2.5 ${frozenHeaderThClass} align-middle text-center w-[280px] whitespace-normal break-words leading-[1.1] select-none`}
                       title="Click để sắp xếp theo Siêu Thị"
                     >
                       SIÊU THỊ {sortField === 'sieuthi' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1730,8 +1742,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <th
                   rowSpan={2}
                   onClick={() => handleSort('achieved')}
-                  style={{ left: FROZEN_LEFT.dat, top: 0 }}
-                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
+                  style={!isMobileScreen ? { left: FROZEN_LEFT.dat, top: 0 } : { top: 0 }}
+                  className={`sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[60px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
                   title="Click để sắp xếp theo Đạt"
                 >
                   DK ĐẠT {sortField === 'achieved' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1740,8 +1752,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <th
                   rowSpan={2}
                   onClick={() => handleSort('rate')}
-                  style={{ left: FROZEN_LEFT.tyLe, top: 0 }}
-                  className={`sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[54px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
+                  style={!isMobileScreen ? { left: FROZEN_LEFT.tyLe, top: 0 } : { top: 0 }}
+                  className={`sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[54px] whitespace-normal break-words leading-[1.1] font-extrabold select-none`}
                   title="Click để sắp xếp theo Tỷ lệ %"
                 >
                   TỶ LỆ % {sortField === 'rate' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1751,8 +1763,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   <th
                     rowSpan={2}
                     onClick={() => handleSort('dtQdTb')}
-                    style={{ left: FROZEN_LEFT.dtQdTb, top: 0 }}
-                    className={`export-hide sticky z-40 py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] font-extrabold select-none text-[10px]`}
+                    style={!isMobileScreen ? { left: FROZEN_LEFT.dtQdTb, top: 0 } : { top: 0 }}
+                    className={`export-hide sticky ${!isMobileScreen ? 'z-40' : 'z-30'} py-1.5 px-1 ${frozenHeaderThClass} align-middle text-center w-[80px] whitespace-normal break-words leading-[1.1] font-extrabold select-none text-[10px]`}
                     title="Click để sắp xếp theo DTQĐ TB 5T2026"
                   >
                     DTQĐ TB 5T2026 {sortField === 'dtQdTb' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
@@ -1899,21 +1911,21 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     </td>
 
                     {/* Tỉnh — sticky (frozen) column */}
-                    <td style={{ left: FROZEN_LEFT.tinh }} className={`sticky z-10 py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 font-sans ${rowBgClass}`}>
+                    <td style={!isMobileScreen ? { left: FROZEN_LEFT.tinh } : undefined} className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 font-sans ${rowBgClass}`}>
                       {store.tinh}
                     </td>
 
                     {!isProvinceView && (
                       <>
                         {/* Boss — sticky (frozen) column */}
-                        <td style={{ left: FROZEN_LEFT.boss }} className={`sticky z-10 py-2 px-2 text-center border-r border-b border-slate-200 font-sans ${rowBgClass}`}>
+                        <td style={!isMobileScreen ? { left: FROZEN_LEFT.boss } : undefined} className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-2 text-center border-r border-b border-slate-200 font-sans ${rowBgClass}`}>
                           <span className="inline-block px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-extrabold text-[11px] whitespace-nowrap">
                             {resolveBoss(store.sieuthi, store.boss)}
                           </span>
                         </td>
 
                         {/* Kênh — sticky (frozen) column derived from BOSS file */}
-                        <td style={{ left: FROZEN_LEFT.kenh }} className={`sticky z-10 py-2 px-1 text-center border-r border-b border-slate-200 font-sans text-xs ${rowBgClass}`}>
+                        <td style={!isMobileScreen ? { left: FROZEN_LEFT.kenh } : undefined} className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-1 text-center border-r border-b border-slate-200 font-sans text-xs ${rowBgClass}`}>
                           {(() => {
                             const effectiveKenh = resolveKenh(store.sieuthi, store.kenh);
                             return (
@@ -1937,7 +1949,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         </td>
 
                         {/* Siêu thị — sticky (frozen) column */}
-                        <td style={{ left: FROZEN_LEFT.sieuthi }} className={`sticky z-10 py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 font-sans whitespace-nowrap min-w-[280px] ${rowBgClass}`}>
+                        <td style={!isMobileScreen ? { left: FROZEN_LEFT.sieuthi } : undefined} className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 font-sans whitespace-nowrap min-w-[280px] ${rowBgClass}`}>
                           <span data-store-name={store.sieuthi} className="store-name-cell">
                             {formatStoreDisplayName(store.sieuthi)}
                           </span>
@@ -1946,15 +1958,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     )}
 
                     {/* Đạt: Count of ngành hàng that reached >= 100% out of displayed ngành hàng */}
-                    <td style={{ left: FROZEN_LEFT.dat }} className={`sticky z-10 py-2 px-2.5 border-r border-b border-slate-200 font-extrabold text-slate-900 text-center ${rowBgClass}`}>
+                    <td style={!isMobileScreen ? { left: FROZEN_LEFT.dat } : undefined} className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-2.5 border-r border-b border-slate-200 font-extrabold text-slate-900 text-center ${rowBgClass}`}>
                       {`${displayedCategoryNames.filter((cat) => (getCategoryData(store, cat).rate ?? 0) >= 100).length}/${displayedCategoryNames.length}`}
                     </td>
 
                     {/* Tỷ lệ % Completion — whole cell filled with the status
                         color, no inner bordered pill; sticky (frozen) column */}
                     <td
-                      style={{ left: FROZEN_LEFT.tyLe }}
-                      className={`sticky z-10 py-2 px-2.5 text-center border-r border-b border-slate-200 font-sans font-black ${
+                      style={!isMobileScreen ? { left: FROZEN_LEFT.tyLe } : undefined}
+                      className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-2.5 text-center border-r border-b border-slate-200 font-sans font-black ${
                         store.rate >= 120
                           ? 'bg-emerald-300 text-emerald-950'
                           : store.rate >= 100
@@ -1970,8 +1982,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     {/* Cột phụ: DTQĐ TB 5T2026 — đặt phía sau Tỷ lệ %, lấy từ File BOSS; KHÔNG XUẤT ẢNH (export-hide); Super Admin/Admin only */}
                     {showDtQdTbColumn && (
                       <td
-                        style={{ left: FROZEN_LEFT.dtQdTb }}
-                        className={`export-hide sticky z-10 py-2 px-1.5 text-center border-r border-b border-slate-200 font-sans font-extrabold text-[11px] text-slate-700 whitespace-nowrap ${rowBgClass}`}
+                        style={!isMobileScreen ? { left: FROZEN_LEFT.dtQdTb } : undefined}
+                        className={`export-hide ${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-1.5 text-center border-r border-b border-slate-200 font-sans font-extrabold text-[11px] text-slate-700 whitespace-nowrap ${rowBgClass}`}
                       >
                         {formatDtQdTb(parseDtQdTbNum(resolveDtQd(store.sieuthi)))}
                       </td>
@@ -1995,14 +2007,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <td colSpan={isProvinceView ? 2 : 5} style={{ left: FROZEN_LEFT.stt }} className="sticky z-20 py-3 px-3 border-r border-slate-700 text-center uppercase tracking-wider font-sans bg-slate-950">
                   Tổng
                 </td>
-                <td style={{ left: FROZEN_LEFT.dat }} className="sticky z-20 py-3 px-2.5 text-center border-r border-slate-700 bg-slate-950 text-amber-300 font-extrabold">
+                <td style={!isMobileScreen ? { left: FROZEN_LEFT.dat } : undefined} className={`${!isMobileScreen ? 'sticky z-20' : ''} py-3 px-2.5 text-center border-r border-slate-700 bg-slate-950 text-amber-300 font-extrabold`}>
                   {`${categoryAverages.filter((c) => c.avgRate >= 100).length}/${categoryAverages.length}`}
                 </td>
-                <td style={{ left: FROZEN_LEFT.tyLe }} className="sticky z-20 py-3 px-2.5 text-center border-r border-slate-700 bg-slate-950 text-amber-300 font-extrabold">
+                <td style={!isMobileScreen ? { left: FROZEN_LEFT.tyLe } : undefined} className={`${!isMobileScreen ? 'sticky z-20' : ''} py-3 px-2.5 text-center border-r border-slate-700 bg-slate-950 text-amber-300 font-extrabold`}>
                   {overallRate}%
                 </td>
                 {showDtQdTbColumn && (
-                  <td style={{ left: FROZEN_LEFT.dtQdTb }} className="export-hide sticky z-20 py-3 px-1 text-center border-r border-slate-700 bg-slate-950 text-amber-200 font-extrabold text-xs whitespace-nowrap">
+                  <td style={!isMobileScreen ? { left: FROZEN_LEFT.dtQdTb } : undefined} className={`export-hide ${!isMobileScreen ? 'sticky z-20' : ''} py-3 px-1 text-center border-r border-slate-700 bg-slate-950 text-amber-200 font-extrabold text-xs whitespace-nowrap`}>
                     {formatDtQdTb(totalDtQdTb)}
                   </td>
                 )}
