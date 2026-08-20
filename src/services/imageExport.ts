@@ -359,11 +359,6 @@ export async function exportElementAsImage(
 ): Promise<Blob | null> {
   const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
 
-  const liveTables = Array.from(element.querySelectorAll<HTMLElement>('table'));
-  const liveTableWidth = liveTables.length > 0
-    ? Math.max(...liveTables.map((t) => Math.ceil(Math.max(t.scrollWidth, t.offsetWidth, t.getBoundingClientRect().width))))
-    : 0;
-
   const clone = element.cloneNode(true) as HTMLElement;
 
   // Remove control bars and camera export buttons
@@ -508,13 +503,13 @@ export async function exportElementAsImage(
     const tablesInClone = Array.from(clone.querySelectorAll<HTMLElement>('table'));
     const actualTableWidth = tablesInClone.length > 0
       ? Math.max(...tablesInClone.map((t) => Math.ceil(Math.max(t.scrollWidth, t.offsetWidth, t.getBoundingClientRect().width))))
-      : 0;
+      : Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, clone.getBoundingClientRect().width));
     
     // Account for card padding/borders so the rightmost table column is never clipped.
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const totalRequiredWidth = Math.max(actualTableWidth, liveTableWidth) + padLeft + padRight + 4;
+    const totalRequiredWidth = actualTableWidth + padLeft + padRight;
 
     const finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
 
@@ -750,8 +745,7 @@ export async function exportGroupSpecificElement(
     const computedStyle = window.getComputedStyle(clone);
     const padLeft = parseFloat(computedStyle.paddingLeft) || 0;
     const padRight = parseFloat(computedStyle.paddingRight) || 0;
-    const minWidth = groupKey === 'quick' ? (tableWidth + padLeft + padRight + 4) : 600;
-    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight + 4, minWidth));
+    const finalWidth = Math.ceil(Math.max(tableWidth + padLeft + padRight, 360));
 
     // Explicitly constrain clone, captureContainer, and all child div containers to finalWidth
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
