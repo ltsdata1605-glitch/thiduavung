@@ -1759,56 +1759,43 @@ export const ReportView: React.FC<ReportViewProps> = ({
                   </th>
                 )}
 
-                {groupBandRuns.length > 0 ? (
-                  groupBandRuns.map((run, i) => (
-                    <th
-                      key={i}
-                      data-group={getGroupTag(run.style.label)}
-                      colSpan={run.count}
-                      className={`py-1.5 ${run.style.band} ${i < groupBandRuns.length - 1 ? `border-r ${run.style.bandBorder}` : ''}`}
-                    >
-                      {run.count > 1 ? `${run.style.label} (${run.count} NGÀNH HÀNG)` : run.style.label}
-                    </th>
-                  ))
-                ) : (
-                  <th className={`py-1.5 ${UNKNOWN_GROUP_STYLE.band}`}>
-                    {selectedCategoryGroup !== 'ALL' ? selectedCategoryGroup.toUpperCase() : 'KHÔNG CÓ NGÀNH HÀNG'} (0 NGÀNH HÀNG)
+                {groupBandRuns.map((run, i) => (
+                  <th
+                    key={i}
+                    data-group={getGroupTag(run.style.label)}
+                    colSpan={run.count}
+                    className={`py-1.5 ${run.style.band} ${i < groupBandRuns.length - 1 ? `border-r ${run.style.bandBorder}` : ''}`}
+                  >
+                    {run.count > 1 ? `${run.style.label} (${run.count} NGÀNH HÀNG)` : run.style.label}
                   </th>
-                )}
+                ))}
               </tr>
 
               {/* Specific Category Column Headers (Row 2 — frozen info columns spanned from Row 1 above) */}
               <tr className="font-bold text-[10px] uppercase border-b border-slate-200">
-
-                {displayedCategoryNames.length > 0 ? (
-                  displayedCategoryNames.map((cat) => {
-                    const style = unifiedFilterStyle || getPresetGroupStyle(cat, categoryGroupMap);
-                    const groupTag = getGroupTag(style.label);
-                    const isSorted = sortField === cat;
-                    return (
-                      <th
-                        key={cat}
-                        data-group={groupTag}
-                        onClick={() => handleSort(cat)}
-                        title={`Ngành hàng: ${cat} (Click để sắp xếp)`}
-                        className={`py-1 px-1 border-r ${style.cellBorder} ${style.cell} text-center w-[54px] max-w-[65px] align-middle font-bold text-[10px] uppercase cursor-pointer hover:brightness-95 transition-all select-none`}
-                      >
-                        <div className="max-w-[52px] mx-auto break-words whitespace-pre-line leading-[1.1] text-center flex flex-col items-center justify-center">
-                          <span>{formatCategoryHeaderTitle(resolveCategoryDisplayName(cat, categoryDisplayNameMap), 6)}</span>
-                          {isSorted && (
-                            <span className="text-[9px] text-indigo-900 font-black mt-0.5">
-                              {sortOrder === 'asc' ? '▲' : '▼'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-                    );
-                  })
-                ) : (
-                  <th className={`py-2 px-1.5 ${UNKNOWN_GROUP_STYLE.cell} text-center w-[54px] whitespace-normal break-words leading-[1.1] align-middle`}>
-                    NHÓM CHƯA CÓ NGÀNH HÀNG
-                  </th>
-                )}
+                {displayedCategoryNames.map((cat) => {
+                  const style = unifiedFilterStyle || getPresetGroupStyle(cat, categoryGroupMap);
+                  const groupTag = getGroupTag(style.label);
+                  const isSorted = sortField === cat;
+                  return (
+                    <th
+                      key={cat}
+                      data-group={groupTag}
+                      onClick={() => handleSort(cat)}
+                      title={`Ngành hàng: ${cat} (Click để sắp xếp)`}
+                      className={`py-1 px-1 border-r ${style.cellBorder} ${style.cell} text-center w-[54px] max-w-[65px] align-middle font-bold text-[10px] uppercase cursor-pointer hover:brightness-95 transition-all select-none`}
+                    >
+                      <div className="max-w-[52px] mx-auto break-words whitespace-pre-line leading-[1.1] text-center flex flex-col items-center justify-center">
+                        <span>{formatCategoryHeaderTitle(resolveCategoryDisplayName(cat, categoryDisplayNameMap), 6)}</span>
+                        {isSorted && (
+                          <span className="text-[9px] text-indigo-900 font-black mt-0.5">
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
 
@@ -1990,19 +1977,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       </td>
                     )}
 
-                    {displayedCategoryNames.length > 0 ? (
-                      displayedCategoryNames.map((cat) => {
-                        const style = unifiedFilterStyle || getPresetGroupStyle(cat, categoryGroupMap);
-                        const groupTag = getGroupTag(style.label);
-                        return (
-                          <td key={cat} data-group={groupTag} className="py-2 px-1.5 text-center border-r border-b border-slate-200">
-                            {renderCatRate(cat)}
-                          </td>
-                        );
-                      })
-                    ) : (
-                      <td className="py-2.5 px-1.5 text-center border-b border-slate-200 text-slate-300">-</td>
-                    )}
+                    {displayedCategoryNames.map((cat) => {
+                      const style = unifiedFilterStyle || getPresetGroupStyle(cat, categoryGroupMap);
+                      const groupTag = getGroupTag(style.label);
+                      return (
+                        <td key={cat} data-group={groupTag} className="py-2 px-1.5 text-center border-r border-b border-slate-200">
+                          {renderCatRate(cat)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
@@ -2025,12 +2008,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 )}
 
                 {/* Overall Category Averages */}
-                {categoryAverages.length === 0 ? (
-                  <td className="py-3 px-1 text-center border-r border-slate-800 bg-slate-900 text-amber-300 font-extrabold">
-                    -
-                  </td>
-                ) : (
-                  categoryAverages.map(({ avgRate, totalA, cName }, cIdx) => {
+                {categoryAverages.map(({ avgRate, totalA, cName }, cIdx) => {
                     const groupName = getCategoryGroup(cName, categoryGroupMap);
                     const groupTag = getGroupTag(groupName);
 
@@ -2054,8 +2032,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                         {displayFooterVal}
                       </td>
                     );
-                  })
-                )}
+                  })}
               </tr>
 
               {sortedStores.length === 0 && (
