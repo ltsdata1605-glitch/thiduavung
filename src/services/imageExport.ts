@@ -397,11 +397,33 @@ export async function exportElementAsImage(
     el.style.setProperty('overflow', 'visible', 'important');
   });
 
-  // Compact table cells padding
+  // Remove all colgroups in tables so they don't constrain column widths artificially
+  clone.querySelectorAll('colgroup').forEach((cg) => cg.remove());
+
+  // Set all tables to table-layout: auto and width: max-content so columns naturally fit their cell contents & headers
+  clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+    table.classList.remove('table-fixed');
+    table.style.setProperty('width', 'max-content', 'important');
+    table.style.setProperty('min-width', 'max-content', 'important');
+    table.style.setProperty('max-width', 'none', 'important');
+    table.style.setProperty('table-layout', 'auto', 'important');
+  });
+
+  // Let all table cells size naturally to their contents with clean, consistent padding
   clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
-    cell.style.setProperty('padding-left', '6px', 'important');
-    cell.style.setProperty('padding-right', '6px', 'important');
+    cell.style.setProperty('width', 'auto', 'important');
+    cell.style.setProperty('min-width', 'auto', 'important');
+    cell.style.setProperty('max-width', 'none', 'important');
+    cell.style.setProperty('padding-left', '8px', 'important');
+    cell.style.setProperty('padding-right', '8px', 'important');
+    cell.style.setProperty('box-sizing', 'border-box', 'important');
     cell.style.setProperty('white-space', 'nowrap', 'important');
+  });
+
+  // Remove fixed max-width limits from header wrappers inside th
+  clone.querySelectorAll<HTMLElement>('th div, th span').forEach((el) => {
+    el.style.setProperty('max-width', 'none', 'important');
+    el.style.setProperty('width', 'auto', 'important');
   });
 
   // Expand scrollable containers to show ALL content (no clipping)
@@ -411,16 +433,6 @@ export async function exportElementAsImage(
     container.style.setProperty('height', 'auto', 'important');
     container.style.setProperty('width', 'max-content', 'important');
     container.style.setProperty('max-width', 'none', 'important');
-  });
-
-  clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
-    const isFixed = table.classList.contains('table-fixed') || table.style.tableLayout === 'fixed';
-    if (!isFixed) {
-      table.style.setProperty('width', 'max-content', 'important');
-      table.style.setProperty('min-width', 'auto', 'important');
-      table.style.setProperty('max-width', 'none', 'important');
-      table.style.setProperty('table-layout', 'auto', 'important');
-    }
   });
 
   // Set clone dimensions to fit content
@@ -617,139 +629,28 @@ export async function exportGroupSpecificElement(
     // Remove existing colgroups
     clone.querySelectorAll('colgroup').forEach((cg) => cg.remove());
 
-    if (isProvinceQuick) {
-      // Tab Vùng: STT(50px), Tỉnh(160px), Đạt(80px), Tỷ lệ %(85px) => Total 375px
-      const colWidths = [50, 160, 80, 85];
-      const tableTotalWidth = colWidths.reduce((a, b) => a + b, 0);
+    clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+      table.classList.remove('table-fixed');
+      table.style.setProperty('width', 'max-content', 'important');
+      table.style.setProperty('min-width', 'max-content', 'important');
+      table.style.setProperty('max-width', 'none', 'important');
+      table.style.setProperty('table-layout', 'auto', 'important');
+    });
 
-      clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
-        table.style.setProperty('width', `${tableTotalWidth}px`, 'important');
-        table.style.setProperty('min-width', `${tableTotalWidth}px`, 'important');
-        table.style.setProperty('max-width', `${tableTotalWidth}px`, 'important');
-        table.style.setProperty('table-layout', 'fixed', 'important');
-      });
+    clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
+      cell.style.setProperty('width', 'auto', 'important');
+      cell.style.setProperty('min-width', 'auto', 'important');
+      cell.style.setProperty('max-width', 'none', 'important');
+      cell.style.setProperty('padding-left', '8px', 'important');
+      cell.style.setProperty('padding-right', '8px', 'important');
+      cell.style.setProperty('box-sizing', 'border-box', 'important');
+      cell.style.setProperty('white-space', 'nowrap', 'important');
+    });
 
-      clone.querySelectorAll<HTMLElement>('thead tr').forEach((tr) => {
-        const ths = Array.from(tr.children) as HTMLElement[];
-        ths.forEach((th, idx) => {
-          const w = colWidths[idx] || 80;
-          th.style.setProperty('width', `${w}px`, 'important');
-          th.style.setProperty('min-width', `${w}px`, 'important');
-          th.style.setProperty('max-width', `${w}px`, 'important');
-          th.style.setProperty('box-sizing', 'border-box', 'important');
-          th.style.setProperty('text-align', idx === 1 ? 'left' : 'center', 'important');
-          th.style.setProperty('padding-left', idx === 1 ? '12px' : '6px', 'important');
-          th.style.setProperty('padding-right', '6px', 'important');
-        });
-      });
-
-      clone.querySelectorAll<HTMLElement>('tbody tr').forEach((tr) => {
-        const tds = Array.from(tr.children) as HTMLElement[];
-        tds.forEach((td, idx) => {
-          const w = colWidths[idx] || 80;
-          td.style.setProperty('width', `${w}px`, 'important');
-          td.style.setProperty('min-width', `${w}px`, 'important');
-          td.style.setProperty('max-width', `${w}px`, 'important');
-          td.style.setProperty('box-sizing', 'border-box', 'important');
-          td.style.setProperty('text-align', idx === 1 ? 'left' : 'center', 'important');
-          td.style.setProperty('padding-left', idx === 1 ? '12px' : '6px', 'important');
-          td.style.setProperty('padding-right', '6px', 'important');
-          td.style.setProperty('white-space', 'nowrap', 'important');
-        });
-      });
-
-      // Tfoot: Total row
-      clone.querySelectorAll<HTMLElement>('tfoot tr').forEach((tr) => {
-        const tds = Array.from(tr.children) as HTMLElement[];
-        if (tds.length === 3) {
-          // td[0] has colSpan 2 (STT + Tỉnh) => width = 50 + 160 = 210px
-          const spanW = colWidths[0] + colWidths[1];
-          tds[0].style.setProperty('width', `${spanW}px`, 'important');
-          tds[0].style.setProperty('min-width', `${spanW}px`, 'important');
-          tds[0].style.setProperty('max-width', `${spanW}px`, 'important');
-          tds[0].style.setProperty('box-sizing', 'border-box', 'important');
-          tds[0].style.setProperty('text-align', 'center', 'important');
-
-          tds[1].style.setProperty('width', `${colWidths[2]}px`, 'important');
-          tds[1].style.setProperty('min-width', `${colWidths[2]}px`, 'important');
-          tds[1].style.setProperty('max-width', `${colWidths[2]}px`, 'important');
-          tds[1].style.setProperty('box-sizing', 'border-box', 'important');
-          tds[1].style.setProperty('text-align', 'center', 'important');
-
-          tds[2].style.setProperty('width', `${colWidths[3]}px`, 'important');
-          tds[2].style.setProperty('min-width', `${colWidths[3]}px`, 'important');
-          tds[2].style.setProperty('max-width', `${colWidths[3]}px`, 'important');
-          tds[2].style.setProperty('box-sizing', 'border-box', 'important');
-          tds[2].style.setProperty('text-align', 'center', 'important');
-        }
-      });
-    } else {
-      // Tab Siêu Thị: STT(45px), Tỉnh(85px), Boss(85px), Kênh(65px), Siêu thị(290px), Đạt(75px), Tỷ lệ %(80px) => Total 725px
-      const colWidths = [45, 85, 85, 65, 290, 75, 80];
-      const tableTotalWidth = colWidths.reduce((a, b) => a + b, 0);
-
-      clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
-        table.style.setProperty('width', `${tableTotalWidth}px`, 'important');
-        table.style.setProperty('min-width', `${tableTotalWidth}px`, 'important');
-        table.style.setProperty('max-width', `${tableTotalWidth}px`, 'important');
-        table.style.setProperty('table-layout', 'fixed', 'important');
-      });
-
-      clone.querySelectorAll<HTMLElement>('thead tr').forEach((tr) => {
-        const ths = Array.from(tr.children) as HTMLElement[];
-        ths.forEach((th, idx) => {
-          const w = colWidths[idx] || 80;
-          th.style.setProperty('width', `${w}px`, 'important');
-          th.style.setProperty('min-width', `${w}px`, 'important');
-          th.style.setProperty('max-width', `${w}px`, 'important');
-          th.style.setProperty('box-sizing', 'border-box', 'important');
-          th.style.setProperty('text-align', idx === 1 || idx === 4 ? 'left' : 'center', 'important');
-          th.style.setProperty('padding-left', idx === 1 || idx === 4 ? '10px' : '6px', 'important');
-          th.style.setProperty('padding-right', '6px', 'important');
-        });
-      });
-
-      clone.querySelectorAll<HTMLElement>('tbody tr').forEach((tr) => {
-        const tds = Array.from(tr.children) as HTMLElement[];
-        tds.forEach((td, idx) => {
-          const w = colWidths[idx] || 80;
-          td.style.setProperty('width', `${w}px`, 'important');
-          td.style.setProperty('min-width', `${w}px`, 'important');
-          td.style.setProperty('max-width', `${w}px`, 'important');
-          td.style.setProperty('box-sizing', 'border-box', 'important');
-          td.style.setProperty('text-align', idx === 1 || idx === 4 ? 'left' : 'center', 'important');
-          td.style.setProperty('padding-left', idx === 1 || idx === 4 ? '10px' : '6px', 'important');
-          td.style.setProperty('padding-right', '6px', 'important');
-          td.style.setProperty('white-space', 'nowrap', 'important');
-        });
-      });
-
-      // Tfoot: Total row
-      clone.querySelectorAll<HTMLElement>('tfoot tr').forEach((tr) => {
-        const tds = Array.from(tr.children) as HTMLElement[];
-        if (tds.length === 3) {
-          // td[0] has colSpan 5 (STT + Tỉnh + Boss + Kênh + Siêu thị) => 45 + 85 + 85 + 65 + 290 = 570px
-          const spanW = colWidths.slice(0, 5).reduce((a, b) => a + b, 0);
-          tds[0].style.setProperty('width', `${spanW}px`, 'important');
-          tds[0].style.setProperty('min-width', `${spanW}px`, 'important');
-          tds[0].style.setProperty('max-width', `${spanW}px`, 'important');
-          tds[0].style.setProperty('box-sizing', 'border-box', 'important');
-          tds[0].style.setProperty('text-align', 'center', 'important');
-
-          tds[1].style.setProperty('width', `${colWidths[5]}px`, 'important');
-          tds[1].style.setProperty('min-width', `${colWidths[5]}px`, 'important');
-          tds[1].style.setProperty('max-width', `${colWidths[5]}px`, 'important');
-          tds[1].style.setProperty('box-sizing', 'border-box', 'important');
-          tds[1].style.setProperty('text-align', 'center', 'important');
-
-          tds[2].style.setProperty('width', `${colWidths[6]}px`, 'important');
-          tds[2].style.setProperty('min-width', `${colWidths[6]}px`, 'important');
-          tds[2].style.setProperty('max-width', `${colWidths[6]}px`, 'important');
-          tds[2].style.setProperty('box-sizing', 'border-box', 'important');
-          tds[2].style.setProperty('text-align', 'center', 'important');
-        }
-      });
-    }
+    clone.querySelectorAll<HTMLElement>('th div, th span').forEach((el) => {
+      el.style.setProperty('max-width', 'none', 'important');
+      el.style.setProperty('width', 'auto', 'important');
+    });
   } else {
     // Other group exports or full matrix
     if (groupKey !== 'all') {
@@ -763,7 +664,10 @@ export async function exportGroupSpecificElement(
 
     clone.querySelectorAll('colgroup').forEach((cg) => cg.remove());
     clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+      table.classList.remove('table-fixed');
       table.style.setProperty('width', 'max-content', 'important');
+      table.style.setProperty('min-width', 'max-content', 'important');
+      table.style.setProperty('max-width', 'none', 'important');
       table.style.setProperty('table-layout', 'auto', 'important');
     });
 
@@ -774,6 +678,12 @@ export async function exportGroupSpecificElement(
       cell.style.setProperty('width', 'auto', 'important');
       cell.style.setProperty('max-width', 'none', 'important');
       cell.style.setProperty('min-width', 'auto', 'important');
+      cell.style.setProperty('box-sizing', 'border-box', 'important');
+    });
+
+    clone.querySelectorAll<HTMLElement>('th div, th span').forEach((el) => {
+      el.style.setProperty('max-width', 'none', 'important');
+      el.style.setProperty('width', 'auto', 'important');
     });
   }
 
