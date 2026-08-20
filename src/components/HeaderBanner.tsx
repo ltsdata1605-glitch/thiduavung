@@ -205,26 +205,8 @@ const CategoryGroupMultiSelectFilter: React.FC<{
 
           {/* Options List */}
           <div className="max-h-60 overflow-y-auto p-1 divide-y divide-slate-50">
-            {/* "Tất cả" option */}
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center gap-2 cursor-pointer ${
-                isAll ? 'bg-indigo-50 text-indigo-900 font-black' : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <span
-                className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-all shrink-0 ${
-                  isAll ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 bg-white'
-                }`}
-              >
-                {isAll && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
-              </span>
-              <span>Tất cả các nhóm</span>
-            </button>
-
             {categoryGroupList.map((g) => {
-              const isChecked = !isAll && selectedList.includes(g);
+              const isChecked = isAll || selectedList.includes(g);
               const count = groupCategoryCounts[g] || 0;
 
               return (
@@ -234,7 +216,7 @@ const CategoryGroupMultiSelectFilter: React.FC<{
                   onClick={() => toggleGroup(g)}
                   className={`w-full px-3 py-2 text-xs font-bold text-left rounded-xl transition-all flex items-center justify-between gap-2 cursor-pointer ${
                     isChecked
-                      ? 'bg-indigo-100 text-indigo-950 font-black'
+                      ? 'bg-indigo-50 text-indigo-950 font-black'
                       : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
