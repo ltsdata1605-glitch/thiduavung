@@ -19,12 +19,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
+      // authService.loginUser already bounds itself internally (Path A sign-in
+      // timeout + Path B legacy fallback timeout can together take up to ~16s,
+      // more on higher-latency mobile networks). This race is only a last-resort
+      // safety net for a full hang, so it must stay comfortably above that —
+      // a tighter budget here was firing before the internal fallback could
+      // finish, showing a false "Timeout" error while login was still working,
+      // and leaving the abandoned request competing for bandwidth with the
+      // user's inevitable retry.
       const result = await Promise.race([
         loginUser(accountId, password),
         new Promise<{ success: boolean; user?: UserAccount; error?: string }>((_, reject) =>
           setTimeout(
             () => reject(new Error('Hệ thống phản hồi quá lâu (Timeout). Vui lòng thử lại!')),
-            12000
+            25000
           )
         ),
       ]);
@@ -82,7 +90,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 placeholder="Nhập mã tài khoản được cấp..."
-                className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600"
+                className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-base sm:text-xs font-bold text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600"
               />
             </div>
           </div>
@@ -99,7 +107,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Nhập mật khẩu..."
-                className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600"
+                className="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-800 rounded-xl text-base sm:text-xs font-bold text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600"
               />
             </div>
           </div>
