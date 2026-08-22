@@ -215,6 +215,8 @@ export interface ExportElementOptions {
   elementsToHide?: string[];
   /** Export scale multiplier — higher = sharper but heavier. */
   scale?: number;
+  /** White border margin around the exported image in CSS pixels (default: 12). */
+  borderWidth?: number;
   /** Remark text to automatically copy to clipboard on export */
   remarkTextToCopy?: string;
   /** Context parameters for generating dynamic remark templates */
@@ -289,8 +291,17 @@ function computeSafeScale(targetWidth: number, targetHeight: number, requestedSc
  * containers expanded, dimensions locked to width/height) to a PNG Blob via
  * html2canvas-pro, retrying at progressively lower scales so a
  * memory-constrained mobile device still gets an image rather than nothing.
+ *
+ * Adds a thin, clean white border around the final canvas for a polished,
+ * professional aesthetic on chat apps (Zalo, Messenger, Teams) and dark backgrounds.
  */
-async function rasterizeToBlob(node: HTMLElement, width: number, height: number, requestedScale: number): Promise<Blob | null> {
+async function rasterizeToBlob(
+  node: HTMLElement,
+  width: number,
+  height: number,
+  requestedScale: number,
+  borderMargin: number = 12
+): Promise<Blob | null> {
   const finalScale = computeSafeScale(width, height, requestedScale);
   const scalesToTry = [
     finalScale,
@@ -310,7 +321,27 @@ async function rasterizeToBlob(node: HTMLElement, width: number, height: number,
         useCORS: true,
         logging: false,
       });
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
+
+      // Tạo viền trắng bao quanh mỏng đẹp mắt và chuyên nghiệp
+      const border = borderMargin > 0 ? Math.max(2, Math.round(borderMargin * curScale)) : 0;
+
+      let targetCanvas: HTMLCanvasElement = canvas;
+      if (border > 0) {
+        const framedCanvas = document.createElement('canvas');
+        framedCanvas.width = canvas.width + border * 2;
+        framedCanvas.height = canvas.height + border * 2;
+        const ctx = framedCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, framedCanvas.width, framedCanvas.height);
+          ctx.drawImage(canvas, border, border);
+          targetCanvas = framedCanvas;
+        }
+      }
+
+      const blob = await new Promise<Blob | null>((resolve) =>
+        targetCanvas.toBlob((b) => resolve(b), 'image/png')
+      );
       if (blob && blob.size > 0) return blob;
     } catch (scaleErr) {
       console.warn(`html2canvas failed at scale ${curScale}, trying fallback scale...`, scaleErr);
@@ -329,7 +360,7 @@ export async function exportElementAsImage(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
+  const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12 } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -546,7 +577,7 @@ export async function exportElementAsImage(
     const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
     const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
 
-    const blob = await rasterizeToBlob(clone, finalWidth, height, scale);
+    const blob = await rasterizeToBlob(clone, finalWidth, height, scale, borderWidth);
     if (!blob) throw new Error('Không thể kết xuất ảnh do kích thước quá lớn.');
     downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
@@ -569,7 +600,7 @@ export async function exportGroupSpecificElement(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const { elementsToHide = ['.export-hide'], scale = 2.5 } = options;
+  const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12 } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -782,7 +813,7 @@ export async function exportGroupSpecificElement(
     const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
     const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
 
-    const blob = await rasterizeToBlob(clone, finalWidth, height, scale);
+    const blob = await rasterizeToBlob(clone, finalWidth, height, scale, borderWidth);
     if (!blob) throw new Error('Không thể kết xuất ảnh do kích thước quá lớn.');
     downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
