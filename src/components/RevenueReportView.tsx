@@ -610,11 +610,14 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     if (selectedProvince && selectedProvince !== 'ALL') {
       return selectedProvince.toUpperCase();
     }
+    if (selectedTinhMoi && selectedTinhMoi !== 'ALL') {
+      return selectedTinhMoi.toUpperCase();
+    }
     if (selectedBoss && selectedBoss !== 'ALL') {
       return `BOSS ${selectedBoss.toUpperCase()}`;
     }
     return 'TOÀN VÙNG TNB';
-  }, [selectedProvince, selectedBoss]);
+  }, [selectedProvince, selectedTinhMoi, selectedBoss]);
 
   // Grouped stores by Channel for "SIÊU THỊ MỚI"
   const storesByChannel = useMemo(() => {
@@ -740,6 +743,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     const scopeTitle =
       selectedProvince !== 'ALL'
         ? `TỈNH ${selectedProvince.toUpperCase()}`
+        : selectedTinhMoi !== 'ALL'
+        ? `TỈNH MỚI ${selectedTinhMoi.toUpperCase()}`
         : selectedBoss !== 'ALL'
         ? `BOSS ${selectedBoss}`
         : 'TOÀN VÙNG TNB';
