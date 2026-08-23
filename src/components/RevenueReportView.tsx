@@ -752,6 +752,10 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   };
 
   const toggleChannel = (channel: Channel) => {
+    if (entityScope === 'topbot') {
+      setSelectedChannels([channel]);
+      return;
+    }
     if (selectedChannels.includes(channel)) {
       if (selectedChannels.length > 1) {
         setSelectedChannels(selectedChannels.filter((c) => c !== channel));
@@ -1129,7 +1133,12 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => setEntityScope('topbot')}
+                onClick={() => {
+                  setEntityScope('topbot');
+                  if (selectedChannels.length !== 1) {
+                    setSelectedChannels([selectedChannels[0] || 'DML']);
+                  }
+                }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'topbot'
                     ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-200/60 shadow-2xs'
@@ -1238,11 +1247,17 @@ ${botLines || 'Đang cập nhật'}
                     }`}
                   >
                     <span
-                      className={`w-3.5 h-3.5 rounded-xs border flex items-center justify-center transition-all ${
+                      className={`w-3.5 h-3.5 ${entityScope === 'topbot' ? 'rounded-full' : 'rounded-xs'} border flex items-center justify-center transition-all ${
                         isChecked ? 'bg-white border-white text-blue-600' : 'border-slate-400 bg-white'
                       }`}
                     >
-                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      {isChecked && (
+                        entityScope === 'topbot' ? (
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        ) : (
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        )
+                      )}
                     </span>
                     <span>{ch}</span>
                   </button>
