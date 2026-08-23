@@ -1185,6 +1185,9 @@ export function parseRevenuePastedData(
       const valDtQd = parseNum(cells[6]);
       const valTargetQd = parseNum(cells[7]);
 
+      var dtThuc = valDtRaw;
+      var dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
+
       if (valTargetQd > 0 || valDtQd > 0) {
         achieved = valDtQd;
         target = valTargetQd;
@@ -1205,6 +1208,8 @@ export function parseRevenuePastedData(
       target: Math.round(target * 100) / 100,
       achieved: Math.round(achieved * 100) / 100,
       rate: Number(rate.toFixed(1)),
+      dtThuc: dataType === 'doanhthu' ? (dtThuc || 0) : undefined,
+      dtQd: dataType === 'doanhthu' ? (dtQd || 0) : undefined,
       kenh: kenhFromSieuThi(sieuthi),
       boss: '',
       categoryMap: {},

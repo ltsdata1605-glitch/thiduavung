@@ -72,6 +72,9 @@ export interface RevenueRecordItem {
   targetDt: number;
   achievedDt: number;
   rateDt: number;
+  dtThuc: number; // Doanh thu thực trước quy đổi (DT Realtime / DTLK)
+  dtQd: number;   // Doanh thu sau quy đổi (DT Realtime QĐ / DTQĐ)
+  qdEff: number;  // Hiệu quả quy đổi = (dtQd - dtThuc) / dtThuc * 100
   targetTc?: number;
   achievedTc: number;
   rateTc?: number;
@@ -187,6 +190,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       const targetDt = dt.target || 0;
       const achievedDt = dt.achieved || 0;
       const rateDt = dt.rate ?? (targetDt > 0 ? (achievedDt / targetDt) * 100 : 0);
+      const dtThuc = dt.dtThuc !== undefined ? dt.dtThuc : achievedDt;
+      const dtQd = dt.dtQd !== undefined ? dt.dtQd : achievedDt;
+      const qdEff = dtThuc > 0 ? ((dtQd - dtThuc) / dtThuc) * 100 : 0;
 
       const targetTc = matchedTc?.target || 0;
       const achievedTc = matchedTc?.achieved || 0;
@@ -205,6 +211,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         targetDt,
         achievedDt,
         rateDt: Number(rateDt.toFixed(1)),
+        dtThuc,
+        dtQd,
+        qdEff: Number(qdEff.toFixed(1)),
         targetTc,
         achievedTc,
         rateTc: Number(rateTc.toFixed(1)),
@@ -236,6 +245,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           targetDt: 0,
           achievedDt: 0,
           rateDt: 0,
+          dtThuc: 0,
+          dtQd: 0,
+          qdEff: 0,
           targetTc,
           achievedTc,
           rateTc: Number(rateTc.toFixed(1)),
@@ -304,6 +316,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         tinh: string;
         targetDt: number;
         achievedDt: number;
+        dtThuc: number;
+        dtQd: number;
         targetTc: number;
         achievedTc: number;
         storesCount: number;
@@ -317,6 +331,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         tinh,
         targetDt: 0,
         achievedDt: 0,
+        dtThuc: 0,
+        dtQd: 0,
         targetTc: 0,
         achievedTc: 0,
         storesCount: 0,
@@ -325,6 +341,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
       cur.targetDt += item.targetDt;
       cur.achievedDt += item.achievedDt;
+      cur.dtThuc += item.dtThuc || 0;
+      cur.dtQd += item.dtQd || 0;
       cur.targetTc += item.targetTc || 0;
       cur.achievedTc += item.achievedTc;
       cur.storesCount += 1;
@@ -338,6 +356,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const rateDt = p.targetDt > 0 ? Number(((p.achievedDt / p.targetDt) * 100).toFixed(1)) : 0;
         const rateTc = p.targetTc > 0 ? Number(((p.achievedTc / p.targetTc) * 100).toFixed(1)) : 0;
         const tcRatio = p.achievedDt > 0 ? Number(((p.achievedTc / p.achievedDt) * 100).toFixed(1)) : 0;
+        const qdEff = p.dtThuc > 0 ? Number((((p.dtQd - p.dtThuc) / p.dtThuc) * 100).toFixed(1)) : 0;
 
         return {
           stt: idx + 1,
@@ -345,6 +364,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           targetDt: p.targetDt,
           achievedDt: p.achievedDt,
           rateDt,
+          dtThuc: p.dtThuc,
+          dtQd: p.dtQd,
+          qdEff,
           targetTc: p.targetTc,
           achievedTc: p.achievedTc,
           rateTc,
@@ -362,6 +384,10 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     const totalAchievedDt = filteredItems.reduce((acc, i) => acc + i.achievedDt, 0);
     const totalRateDt = totalTargetDt > 0 ? Number(((totalAchievedDt / totalTargetDt) * 100).toFixed(1)) : 0;
 
+    const totalDtThuc = filteredItems.reduce((acc, i) => acc + (i.dtThuc || 0), 0);
+    const totalDtQd = filteredItems.reduce((acc, i) => acc + (i.dtQd || 0), 0);
+    const totalQdEff = totalDtThuc > 0 ? Number((((totalDtQd - totalDtThuc) / totalDtThuc) * 100).toFixed(1)) : 0;
+
     const totalTargetTc = filteredItems.reduce((acc, i) => acc + (i.targetTc || 0), 0);
     const totalAchievedTc = filteredItems.reduce((acc, i) => acc + i.achievedTc, 0);
     const totalRateTc = totalTargetTc > 0 ? Number(((totalAchievedTc / totalTargetTc) * 100).toFixed(1)) : 0;
@@ -373,6 +399,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       totalTargetDt,
       totalAchievedDt,
       totalRateDt,
+      totalDtThuc,
+      totalDtQd,
+      totalQdEff,
       totalTargetTc,
       totalAchievedTc,
       totalRateTc,
@@ -392,6 +421,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         kenh: string;
         targetDt: number;
         achievedDt: number;
+        dtThuc: number;
+        dtQd: number;
         targetTc: number;
         achievedTc: number;
         storesCount: number;
@@ -404,12 +435,16 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         kenh,
         targetDt: 0,
         achievedDt: 0,
+        dtThuc: 0,
+        dtQd: 0,
         targetTc: 0,
         achievedTc: 0,
         storesCount: 0,
       };
       cur.targetDt += item.targetDt;
       cur.achievedDt += item.achievedDt;
+      cur.dtThuc += item.dtThuc || 0;
+      cur.dtQd += item.dtQd || 0;
       cur.targetTc += item.targetTc || 0;
       cur.achievedTc += item.achievedTc;
       cur.storesCount += 1;
@@ -422,13 +457,15 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const p = map.get(ch)!;
         const rateDt = p.targetDt > 0 ? Number(((p.achievedDt / p.targetDt) * 100).toFixed(1)) : 0;
         const tcRatio = p.achievedDt > 0 ? Number(((p.achievedTc / p.achievedDt) * 100).toFixed(1)) : 0;
-        const qdEff = rateDt > 0 ? Number(Math.min(99.9, Math.max(30.0, 50.0 + (rateDt - 20) * 0.7)).toFixed(1)) : 50.0;
+        const qdEff = p.dtThuc > 0 ? Number((((p.dtQd - p.dtThuc) / p.dtThuc) * 100).toFixed(1)) : 0;
 
         return {
           kenh: ch,
           targetDt: p.targetDt,
           achievedDt: p.achievedDt,
           rateDt,
+          dtThuc: p.dtThuc,
+          dtQd: p.dtQd,
           targetTc: p.targetTc,
           achievedTc: p.achievedTc,
           tcRatio,
@@ -575,12 +612,13 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const totalAchievedDt = channelStores.reduce((acc, i) => acc + i.achievedDt, 0);
         const totalRateDt = totalTargetDt > 0 ? Number(((totalAchievedDt / totalTargetDt) * 100).toFixed(1)) : 0;
         const totalProjectedAchieved = thoiGianSdPercent > 0 ? Math.round(totalAchievedDt / (thoiGianSdPercent / 100)) : totalAchievedDt;
-        const totalProjectedRate = thoiGianSdPercent > 0 ? Number(((totalRateDt / (thoiGianSdPercent / 100))).toFixed(1)) : totalRateDt;
+        const totalDtThuc = channelStores.reduce((acc, i) => acc + (i.dtThuc || 0), 0);
+        const totalDtQd = channelStores.reduce((acc, i) => acc + (i.dtQd || 0), 0);
+        const totalQdEff = totalDtThuc > 0 ? Number((((totalDtQd - totalDtThuc) / totalDtThuc) * 100).toFixed(1)) : 0;
 
         const totalTargetTc = channelStores.reduce((acc, i) => acc + (i.targetTc || 0), 0);
         const totalAchievedTc = channelStores.reduce((acc, i) => acc + i.achievedTc, 0);
         const totalTcRatio = totalAchievedDt > 0 ? Number(((totalAchievedTc / totalAchievedDt) * 100).toFixed(1)) : 0;
-        const totalQdEff = totalRateDt > 0 ? Number(Math.min(99.9, Math.max(30.0, 50.0 + (totalRateDt - 20) * 0.7)).toFixed(1)) : 50.0;
 
         groups.push({
           channel: ch,
@@ -1325,8 +1363,7 @@ ${botLines || 'Đang cập nhật'}
                     const isCurrentPink = p.rateDt < 21.0 && p.rateDt > 0;
                     const isProjectedPink = projected < 80.0 && projected > 0;
                     const isProjectedGreen = projected >= 100.0;
-                    const qdEff = p.rateDt > 0 ? Number(Math.min(99.9, Math.max(30.0, 50.0 + (p.rateDt - 20) * 0.7)).toFixed(1)) : 50.0;
-                    const isQdRed = qdEff < 50.0;
+                    const isQdRed = p.qdEff < 50.0;
                     const isTcRed = p.tcRatio < 50.0;
 
                     return (
@@ -1358,7 +1395,7 @@ ${botLines || 'Đang cập nhật'}
                         <td className={`p-2 sm:p-2.5 text-center border-r border-slate-200 font-mono font-black ${
                           isQdRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {Math.round(qdEff)}%
+                          {Math.round(p.qdEff)}%
                         </td>
                         <td className={`p-2 sm:p-2.5 text-center font-mono font-black ${
                           isTcRed ? 'text-rose-600' : 'text-slate-800'
@@ -1381,7 +1418,7 @@ ${botLines || 'Đang cập nhật'}
                       {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0)}%
                     </td>
                     <td className="p-2.5 sm:p-3 text-center font-mono text-white">
-                      {Math.round(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)}%
+                      {Math.round(totalSummary.totalQdEff)}%
                     </td>
                     <td className="p-2.5 sm:p-3 text-center font-mono text-white">
                       {Math.round(totalSummary.totalTcRatio)}%
@@ -1543,7 +1580,7 @@ ${botLines || 'Đang cập nhật'}
                         const isProjGreen = projRate >= 100.0;
                         const isProjPink = projRate < 80.0 && projRate > 0;
                         const isNegative = s.achievedDt < 0 || s.rateDt < 0;
-                        const isQdRed = s.rateDt > 0 && s.achievedDt > 0 ? (s.rateDt < 50) : false;
+                        const isQdRed = s.qdEff < 50.0;
                         const isTcRed = s.tcRatio < 50.0;
 
                         return (
@@ -1586,7 +1623,7 @@ ${botLines || 'Đang cập nhật'}
                             <td className={`p-1.5 text-center border-r border-slate-300 font-black whitespace-nowrap ${
                               isQdRed ? 'text-red-600' : 'text-slate-950'
                             }`}>
-                              {Math.round(s.rateDt > 0 ? Math.min(333.3, Math.max(0.0, 50.0 + (s.rateDt - 20) * 0.9)) : 0.0)}%
+                              {Math.round(s.qdEff)}%
                             </td>
                             <td className={`p-1.5 text-center font-black whitespace-nowrap ${
                               isTcRed ? 'text-red-600' : 'text-slate-950'
@@ -1620,7 +1657,7 @@ ${botLines || 'Đang cập nhật'}
                       {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt)}%
                     </td>
                     <td className="p-2 bg-[#fbb040] text-center border-r border-slate-300 whitespace-nowrap">
-                      {Math.round(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)}%
+                      {Math.round(totalSummary.totalQdEff)}%
                     </td>
                     <td className="p-2 bg-[#fdbb84] text-center whitespace-nowrap">
                       {Math.round(totalSummary.totalTcRatio)}%

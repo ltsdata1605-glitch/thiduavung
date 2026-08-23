@@ -55,6 +55,8 @@ export interface StoreRecord {
   categoryMap?: Record<string, { target: number; achieved: number; rate: number }>;
 
   achievedCategories?: number;
+  dtThuc?: number; // Doanh thu thực trước quy đổi (DT Realtime / DTLK)
+  dtQd?: number;   // Doanh thu sau quy đổi (DT Realtime QĐ / DTQĐ)
   lastUpdated?: string;
 }
 
