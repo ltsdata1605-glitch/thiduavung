@@ -517,12 +517,13 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       };
     }
 
-    // Realtime mode
+    // Realtime mode (Giờ mở cửa: 7h30 -> Giờ đóng cửa: 21h30, tổng 14 tiếng = 840 phút)
     const currentMins = hours * 60 + mins;
     const startMins = 7 * 60 + 30; // 07:30
-    const endMins = 22 * 60; // 22:00
-    const elapsed = Math.max(0, Math.min(endMins - startMins, currentMins - startMins));
-    const pct = Number(((elapsed / (endMins - startMins)) * 100).toFixed(1));
+    const endMins = 21 * 60 + 30; // 21:30
+    const totalWorkingMins = endMins - startMins; // 840 mins
+    const elapsed = Math.max(0, Math.min(totalWorkingMins, currentMins - startMins));
+    const pct = Number(((elapsed / totalWorkingMins) * 100).toFixed(1));
     const timeDisplay = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
     const dayStr = String(day).padStart(2, '0');
     const monthStr = String(month).padStart(2, '0');
