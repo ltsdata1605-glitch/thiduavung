@@ -326,10 +326,12 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   const filteredItems = useMemo(() => {
     return mergedItems.filter((item) => {
       if (selectedChannels.length > 0 && !selectedChannels.includes(item.kenh as Channel)) return false;
-      if (selectedProvince !== 'ALL' && item.tinh !== selectedProvince) return false;
-      if (selectedBoss !== 'ALL' && item.boss !== selectedBoss) return false;
-      if (selectedPhanLoaiShop !== 'ALL' && item.phanLoaiShop !== selectedPhanLoaiShop) return false;
-      if (selectedTinhMoi !== 'ALL' && item.tinhMoi !== selectedTinhMoi) return false;
+      if (entityScope !== 'tong') {
+        if (selectedProvince !== 'ALL' && item.tinh !== selectedProvince) return false;
+        if (selectedBoss !== 'ALL' && item.boss !== selectedBoss) return false;
+        if (selectedPhanLoaiShop !== 'ALL' && item.phanLoaiShop !== selectedPhanLoaiShop) return false;
+        if (selectedTinhMoi !== 'ALL' && item.tinhMoi !== selectedTinhMoi) return false;
+      }
 
       if (searchTerm) {
         const q = searchTerm.toLowerCase().trim();
@@ -341,7 +343,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       }
       return true;
     });
-  }, [mergedItems, selectedChannels, selectedProvince, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, searchTerm]);
+  }, [mergedItems, selectedChannels, selectedProvince, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, searchTerm, entityScope]);
 
   // Province-level Rollup
   const provinceSummaryRows = useMemo(() => {
@@ -1004,7 +1006,13 @@ ${botLines || 'Đang cập nhật'}
             {/* Scope Selector: TỔNG / VÙNG / SIÊU THỊ */}
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shrink-0">
               <button
-                onClick={() => setEntityScope('tong')}
+                onClick={() => {
+                  setEntityScope('tong');
+                  setSelectedProvince('ALL');
+                  setSelectedTinhMoi('ALL');
+                  setSelectedPhanLoaiShop('ALL');
+                  setSelectedChannels(['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
+                }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'tong'
                     ? 'bg-amber-50 text-amber-800 border-amber-300 ring-2 ring-amber-200/60 shadow-2xs'
@@ -1167,52 +1175,56 @@ ${botLines || 'Đang cập nhật'}
               })}
             </div>
 
-            <div className="h-4 w-px bg-slate-200 mx-0.5"></div>
+            {entityScope !== 'tong' && (
+              <>
+                <div className="h-4 w-px bg-slate-200 mx-0.5"></div>
 
-            {/* Phân loại Shop */}
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">PHÂN LOẠI:</span>
-              <select
-                value={selectedPhanLoaiShop}
-                onChange={(e) => setSelectedPhanLoaiShop(e.target.value)}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
-              >
-                <option value="ALL">Tất cả</option>
-                {uniquePhanLoais.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
+                {/* Phân loại Shop */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">PHÂN LOẠI:</span>
+                  <select
+                    value={selectedPhanLoaiShop}
+                    onChange={(e) => setSelectedPhanLoaiShop(e.target.value)}
+                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
+                  >
+                    <option value="ALL">Tất cả</option>
+                    {uniquePhanLoais.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Tỉnh Mới 2026 */}
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">TỈNH MỚI:</span>
-              <select
-                value={selectedTinhMoi}
-                onChange={(e) => setSelectedTinhMoi(e.target.value)}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
-              >
-                <option value="ALL">Tất cả</option>
-                {uniqueTinhMois.map((tm) => (
-                  <option key={tm} value={tm}>{tm}</option>
-                ))}
-              </select>
-            </div>
+                {/* Tỉnh Mới 2026 */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">TỈNH MỚI:</span>
+                  <select
+                    value={selectedTinhMoi}
+                    onChange={(e) => setSelectedTinhMoi(e.target.value)}
+                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
+                  >
+                    <option value="ALL">Tất cả</option>
+                    {uniqueTinhMois.map((tm) => (
+                      <option key={tm} value={tm}>{tm}</option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Tỉnh */}
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">TỈNH:</span>
-              <select
-                value={selectedProvince}
-                onChange={(e) => handleProvinceChange(e.target.value)}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
-              >
-                <option value="ALL">Tất cả</option>
-                {uniqueProvinces.map((pr) => (
-                  <option key={pr} value={pr}>{pr}</option>
-                ))}
-              </select>
-            </div>
+                {/* Tỉnh */}
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">TỈNH:</span>
+                  <select
+                    value={selectedProvince}
+                    onChange={(e) => handleProvinceChange(e.target.value)}
+                    className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
+                  >
+                    <option value="ALL">Tất cả</option>
+                    {uniqueProvinces.map((pr) => (
+                      <option key={pr} value={pr}>{pr}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
