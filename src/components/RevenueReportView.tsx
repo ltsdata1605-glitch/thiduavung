@@ -1736,7 +1736,7 @@ ${botLines || 'Đang cập nhật'}
           </div>
         ) : entityScope === 'topbot' ? (
           /* TAB TOP/BOT: EXACT MATCH DESIGN WITH 2 SEPARATE COLUMNS (GAP IN BETWEEN) */
-          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 my-2 select-none">
+          <div id="topbot-report-container" className="w-full max-w-6xl mx-auto grid grid-cols-2 gap-4 my-2 select-none">
             {/* LEFT COLUMN: CHANNEL HEADER & TOP/BOT D.THU TABLE */}
             <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
               {/* Channel Big Banner */}

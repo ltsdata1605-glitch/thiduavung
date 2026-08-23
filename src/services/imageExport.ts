@@ -546,6 +546,30 @@ export async function exportElementAsImage(
     container.style.setProperty('max-width', 'none', 'important');
   });
 
+  // Ensure Tab TOP/BOT 2-column layout renders side-by-side in single image
+  const topbotContainer = clone.querySelector<HTMLElement>('#topbot-report-container');
+  if (topbotContainer) {
+    topbotContainer.style.setProperty('display', 'grid', 'important');
+    topbotContainer.style.setProperty('grid-template-columns', 'repeat(2, minmax(0, 1fr))', 'important');
+    topbotContainer.style.setProperty('gap', '16px', 'important');
+    topbotContainer.style.setProperty('width', '1180px', 'important');
+    topbotContainer.style.setProperty('min-width', '1180px', 'important');
+    topbotContainer.style.setProperty('max-width', '1180px', 'important');
+
+    topbotContainer.querySelectorAll<HTMLElement>('.overflow-x-auto').forEach((c) => {
+      c.style.setProperty('width', '100%', 'important');
+      c.style.setProperty('min-width', '100%', 'important');
+      c.style.setProperty('max-width', '100%', 'important');
+    });
+
+    topbotContainer.querySelectorAll<HTMLElement>('table').forEach((t) => {
+      t.style.setProperty('width', '100%', 'important');
+      t.style.setProperty('min-width', '100%', 'important');
+      t.style.setProperty('max-width', '100%', 'important');
+      t.style.setProperty('table-layout', 'auto', 'important');
+    });
+  }
+
   // Set clone dimensions to fit content
   clone.style.setProperty('width', 'max-content', 'important');
   clone.style.setProperty('min-width', 'auto', 'important');
