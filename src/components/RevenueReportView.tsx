@@ -802,8 +802,8 @@ ${botLines || 'Đang cập nhật'}
             </p>
           </div>
 
-          {/* Action Toolbar */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Action Toolbar (Hidden during image export) */}
+          <div className="flex items-center gap-2 flex-wrap export-hide">
             {/* Search Input */}
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -1109,8 +1109,8 @@ ${botLines || 'Đang cập nhật'}
               </table>
             </div>
 
-            {/* Pagination Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            {/* Pagination Controls (Hidden during image export) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 export-hide">
               <div className="flex items-center gap-2 text-xs text-slate-600 font-bold">
                 <span>Hiển thị:</span>
                 <select
