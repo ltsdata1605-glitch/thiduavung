@@ -1379,62 +1379,66 @@ ${botLines || 'Đang cập nhật'}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  {/* Tier 1: Top Group Header Row */}
-                  <tr className="border-b border-slate-300">
+                  {/* Tier 1: Group Headers & Merged Columns */}
+                  <tr className="border-b border-slate-700 bg-slate-900 text-white font-black text-xs uppercase tracking-tight">
                     <th
-                      colSpan={2}
-                      className="bg-teal-600 text-white font-black p-2 text-center border-r border-teal-700 text-xs sm:text-sm tracking-tight w-36 shadow-inner"
+                      rowSpan={2}
+                      className="py-2.5 px-1.5 text-center border-r border-slate-700 text-slate-300 w-10 align-middle"
+                    >
+                      STT
+                    </th>
+                    <th
+                      rowSpan={2}
+                      className="py-2.5 px-2.5 text-left border-r border-slate-700 text-slate-200 w-28 align-middle"
                     >
                       BOSS
                     </th>
                     <th
-                      className="bg-teal-600 text-white font-black p-2 text-left pl-3 border-r border-teal-700 text-xs sm:text-sm tracking-tight shadow-inner"
+                      rowSpan={2}
+                      className="py-2.5 px-3 text-left border-r border-slate-700 text-white align-middle"
                     >
                       SIÊU THỊ
                     </th>
                     <th
                       colSpan={3}
-                      className="bg-gradient-to-r from-amber-500 to-amber-600 text-white font-black p-2 text-center border-r border-amber-600 text-xs tracking-tight shadow-inner"
+                      className="py-2 px-2 text-center border-r border-slate-700 text-amber-300 bg-slate-900/95"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       colSpan={2}
-                      className="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black p-2 text-center border-r border-amber-500 text-xs tracking-tight leading-tight shadow-inner"
+                      className="py-2 px-2 text-center border-r border-slate-700 text-emerald-300 bg-slate-900/95 leading-tight"
                     >
                       <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
-                      <div className="text-[10px] font-bold uppercase opacity-90">THEO TỈ TRỌNG TỪNG GIỜ</div>
+                      <div className="text-[10px] font-bold text-emerald-400/80 uppercase">THEO TỈ TRỌNG TỪNG GIỜ</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-gradient-to-b from-amber-500 to-amber-600 text-white font-black p-2 text-center border-r border-amber-600 text-xs leading-tight w-24 align-middle shadow-inner"
+                      className="py-2.5 px-2 text-center border-r border-slate-700 text-amber-300 text-xs leading-tight w-24 align-middle bg-slate-900"
                     >
                       <div>HIỆU QUẢ</div>
                       <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-bold mt-1 text-amber-100 uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold text-amber-100">MIN = 50%</div>
+                      <div className="text-[10px] font-bold mt-1 text-slate-400 uppercase">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold text-slate-400">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-gradient-to-b from-orange-500 to-amber-600 text-white font-black p-2 text-center text-xs leading-tight w-24 align-middle shadow-inner"
+                      className="py-2.5 px-2 text-center text-orange-300 text-xs leading-tight w-24 align-middle bg-slate-900"
                     >
                       <div>TỈ TRỌNG</div>
                       <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-bold mt-1 text-orange-100 uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold text-orange-100">MIN = 50%</div>
+                      <div className="text-[10px] font-bold mt-1 text-slate-400 uppercase">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold text-slate-400">MIN = 50%</div>
                     </th>
                   </tr>
 
-                  {/* Tier 2: Sub-Header Row */}
-                  <tr className="border-b border-slate-300 bg-teal-800 text-teal-50 font-black text-xs">
-                    <th className="p-2 border-r border-teal-700 text-center w-10">STT</th>
-                    <th className="p-2 border-r border-teal-700 text-left pl-2.5 w-28">BOSS</th>
-                    <th className="p-2 border-r border-teal-700 text-left pl-2.5">SIÊU THỊ</th>
-                    <th className="p-2 border-r border-amber-600 text-right pr-2 w-20 bg-amber-600 text-white">MỤC TIÊU</th>
-                    <th className="p-2 border-r border-amber-600 text-right pr-2 w-20 bg-amber-600 text-white">THỰC HIỆN</th>
-                    <th className="p-2 border-r border-amber-600 text-center w-20 bg-amber-600 text-white">HOÀN THÀNH</th>
-                    <th className="p-2 border-r border-amber-500 text-right pr-2 w-20 bg-amber-300 text-amber-950 font-bold">THỰC HIỆN</th>
-                    <th className="p-2 border-r border-amber-500 text-center w-20 bg-amber-300 text-amber-950 font-bold">HOÀN THÀNH</th>
+                  {/* Tier 2: Sub-Headers under Spanned Groups */}
+                  <tr className="border-b border-slate-700 bg-slate-950 text-slate-300 font-bold text-[11px] uppercase">
+                    <th className="py-2 px-2 border-r border-slate-700 text-right pr-2 w-20">MỤC TIÊU</th>
+                    <th className="py-2 px-2 border-r border-slate-700 text-right pr-2 w-20">THỰC HIỆN</th>
+                    <th className="py-2 px-2 border-r border-slate-700 text-center w-20">HOÀN THÀNH</th>
+                    <th className="py-2 px-2 border-r border-slate-700 text-right pr-2 w-20">THỰC HIỆN</th>
+                    <th className="py-2 px-2 border-r border-slate-700 text-center w-20">HOÀN THÀNH</th>
                   </tr>
                 </thead>
 
