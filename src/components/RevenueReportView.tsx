@@ -723,6 +723,16 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     }
   };
 
+  const removeVietnameseTones = (str: string) => {
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_]/g, '');
+  };
+
   const handleExport = async (mode: 'quick' | 'group' | 'all' | 'province' | 'tinhmoi') => {
     const el = document.getElementById('revenue-report-export-root');
     if (!el) {
@@ -731,6 +741,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     }
     setExportMode(mode);
     setIsExporting(true);
+    const timePrefix = timeMode === 'realtime' ? 'Realtime' : 'LuyKe';
+
     try {
       if (mode === 'province') {
         const prevProv = selectedProvince;
@@ -744,8 +756,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           await new Promise((r) => setTimeout(r, 400));
           const targetEl = document.getElementById('revenue-report-export-root');
           if (targetEl) {
-            const cleanProv = prov.replace(/[^a-zA-Z0-9]/g, '_');
-            const filename = `Bao_Cao_Doanh_Thu_Tinh_${cleanProv}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+            const cleanProv = removeVietnameseTones(prov);
+            const filename = `${timePrefix}_${cleanProv}.png`;
             const remarkText = generateRevenueRemarks('template_1', 'user');
             const blob = await exportElementAsImage(targetEl, filename, {
               remarkTextToCopy: remarkText,
@@ -770,8 +782,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           await new Promise((r) => setTimeout(r, 400));
           const targetEl = document.getElementById('revenue-report-export-root');
           if (targetEl) {
-            const cleanTm = tm.replace(/[^a-zA-Z0-9]/g, '_');
-            const filename = `Bao_Cao_Doanh_Thu_TinhMoi_${cleanTm}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+            const cleanTm = removeVietnameseTones(tm);
+            const filename = `${timePrefix}_${cleanTm}.png`;
             const remarkText = generateRevenueRemarks('template_1', 'user');
             const blob = await exportElementAsImage(targetEl, filename, {
               remarkTextToCopy: remarkText,
@@ -786,7 +798,21 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         }
       } else {
         await new Promise((r) => setTimeout(r, 250));
-        const filename = `Bao_Cao_Doanh_Thu_${mode === 'quick' ? 'Nhanh_' : ''}${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+        let filename = `${timePrefix}_Bao_Cao.png`;
+        if (entityScope === 'tong') {
+          filename = `${timePrefix}_Tong.png`;
+        } else if (entityScope === 'sieuthi') {
+          filename = mode === 'quick' ? `${timePrefix}_Nhanh_Vung.png` : `${timePrefix}_Vung.png`;
+        } else {
+          if (selectedProvince !== 'ALL') {
+            filename = `${timePrefix}_${removeVietnameseTones(selectedProvince)}.png`;
+          } else if (selectedTinhMoi !== 'ALL') {
+            filename = `${timePrefix}_${removeVietnameseTones(selectedTinhMoi)}.png`;
+          } else {
+            filename = entityScope === 'sieuthimoi' ? `${timePrefix}_Sieu_Thi_Moi.png` : `${timePrefix}_Sieu_Thi.png`;
+          }
+        }
+
         const remarkText = generateRevenueRemarks('template_1', 'user');
         const blob = await exportElementAsImage(el, filename, {
           remarkTextToCopy: remarkText,
