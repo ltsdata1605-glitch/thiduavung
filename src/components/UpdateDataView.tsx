@@ -454,7 +454,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     // Validate BEFORE touching any lock/modal state — a bad paste (wrong
     // sheet, wrong box, random text) gets rejected instantly instead of
     // running the full processing overlay only to land on 0/garbage rows.
-    const validation = validateStoreHeaders(text);
+    // Also cross-checks the pasted header against this exact box (Realtime
+    // vs Luỹ Kế, Tỉnh vs Siêu Thị) — e.g. Luỹ Kế data pasted into a Realtime
+    // box, or store-level data pasted into a province-rollup box.
+    const validation = validateStoreHeaders(text, {
+      timeMode: isRealtime ? 'realtime' : 'luyke',
+      granularity: scope === 'tinh' ? 'tinh' : 'sieuthi',
+    });
     if (!validation.isValid) {
       setStoreValidationError({ ...validation, scopeName: `${title} (${scopeName})` });
       return;

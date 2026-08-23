@@ -656,14 +656,28 @@ export function parseBossPastedData(text: string): {
   };
 }
 
+/** What one of the 4 Realtime/Luỹ Kế × Tỉnh/Vùng paste boxes is supposed to receive. */
+export interface PasteScopeExpectation {
+  timeMode: 'realtime' | 'luyke';
+  granularity: 'tinh' | 'sieuthi';
+}
+
 /**
  * Validates that pasted text (any of the 4 Realtime/Luỹ Kế Tỉnh/Vùng boxes)
  * actually looks like a store competition table — i.e. has a recognizable
  * TARGET/CHỈ TIÊU and/or ĐẠT/REALTIME/LUỸ KẾ column — before the expensive
  * parse+save pipeline runs. Catches the common "pasted the wrong sheet /
  * wrong box" mistake instead of silently producing 0 or garbage rows.
+ *
+ * When `expected` is given, also cross-checks the pasted header against
+ * which box it landed in — e.g. text carrying a REALTIME column pasted into
+ * a Luỹ Kế box, or store-level text (SIÊU THỊ/BOSS columns) pasted into a
+ * Tỉnh (province rollup) box — and reports a dedicated mismatch error
+ * instead of silently accepting data that's structurally valid but destined
+ * for the wrong box. Ambiguous headers (neither signal present) are never
+ * flagged — false positives are worse than missing a rare mismatch.
  */
-export function validateStoreHeaders(text: string): BossValidationResult {
+export function validateStoreHeaders(text: string, expected?: PasteScopeExpectation): BossValidationResult {
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
@@ -698,6 +712,7 @@ export function validateStoreHeaders(text: string): BossValidationResult {
       .trim();
 
   let headerCells: string[] | null = null;
+  let headerNormCells: string[] = [];
   let hasTarget = false;
   let hasAchieved = false;
 
@@ -715,6 +730,7 @@ export function validateStoreHeaders(text: string): BossValidationResult {
 
     if (tTarget || tAchieved || tRate) {
       headerCells = cells;
+      headerNormCells = normHeaders;
       hasTarget = tTarget;
       hasAchieved = tAchieved;
       break;
@@ -732,6 +748,51 @@ export function validateStoreHeaders(text: string): BossValidationResult {
       extraColumns: [],
       foundColumns,
     };
+  }
+
+  if (expected) {
+    const hasStoreCol = headerNormCells.some((h) => h.includes('SIEU THI') || h.includes('STORE') || h.includes('CUA HANG'));
+    const hasBossCol = headerNormCells.some((h) => h.includes('BOSS'));
+    const hasTinhCol = headerNormCells.some((h) => h.includes('TINH') || h.includes('PROVINCE'));
+
+    let detectedGranularity: 'tinh' | 'sieuthi' | null = null;
+    if (hasStoreCol || hasBossCol) detectedGranularity = 'sieuthi';
+    else if (hasTinhCol) detectedGranularity = 'tinh';
+
+    const hasRealtimeMarker = headerNormCells.some((h) => h.includes('REALTIME'));
+    const hasLuyKeMarker = headerNormCells.some(
+      (h) => h.includes('LUY KE') || h.includes('LUYKE') || h.includes('DTLK') || h.includes('SLLK') || h.includes('DU KIEN')
+    );
+
+    let detectedTimeMode: 'realtime' | 'luyke' | null = null;
+    if (hasRealtimeMarker && !hasLuyKeMarker) detectedTimeMode = 'realtime';
+    else if (hasLuyKeMarker && !hasRealtimeMarker) detectedTimeMode = 'luyke';
+
+    const mismatches: string[] = [];
+    if (detectedGranularity && detectedGranularity !== expected.granularity) {
+      mismatches.push(
+        detectedGranularity === 'sieuthi'
+          ? `Dữ liệu bạn dán có cột "${hasStoreCol ? 'SIÊU THỊ' : 'BOSS'}" => đây là dữ liệu SIÊU THỊ (chi tiết từng cửa hàng), nhưng ô này chỉ nhận dữ liệu TỈNH (tổng hợp theo tỉnh).`
+          : `Dữ liệu bạn dán chỉ có cột TỈNH, không có cột SIÊU THỊ/BOSS => đây là dữ liệu TỈNH (tổng hợp), nhưng ô này chỉ nhận dữ liệu SIÊU THỊ (chi tiết từng cửa hàng).`
+      );
+    }
+    if (detectedTimeMode && detectedTimeMode !== expected.timeMode) {
+      mismatches.push(
+        detectedTimeMode === 'realtime'
+          ? `Dữ liệu bạn dán có cột "REALTIME" => đây là dữ liệu REALTIME, nhưng ô này chỉ nhận dữ liệu LŨY KẾ.`
+          : `Dữ liệu bạn dán có cột "LŨY KẾ/DTLK/SLLK/DỰ KIẾN" => đây là dữ liệu LŨY KẾ, nhưng ô này chỉ nhận dữ liệu REALTIME.`
+      );
+    }
+
+    if (mismatches.length > 0) {
+      return {
+        isValid: false,
+        errorMessage: `Có vẻ bạn đã dán NHẦM Ô! ${mismatches.join(' ')}`,
+        missingColumns: [],
+        extraColumns: [],
+        foundColumns,
+      };
+    }
   }
 
   return {
