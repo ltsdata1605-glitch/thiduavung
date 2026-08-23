@@ -1587,37 +1587,20 @@ ${botLines || 'Đang cập nhật'}
 
                         const sttBgClass =
                           idx === 0
-                            ? 'bg-amber-100/90 text-amber-950'
+                            ? 'bg-[#ffff00] text-slate-950 font-black'
                             : idx === 1
-                            ? 'bg-slate-100 text-slate-900'
+                            ? 'bg-[#eaecf0] text-slate-950 font-black'
                             : idx === 2
-                            ? 'bg-orange-100/80 text-orange-950'
-                            : 'bg-white text-slate-700';
+                            ? 'bg-[#f8cca6] text-slate-950 font-black'
+                            : 'bg-white text-slate-950 font-bold';
 
                         return (
                           <tr
                             key={s.id || s.sieuthi}
                             className="bg-white hover:bg-slate-50 transition-colors border-b border-slate-300"
                           >
-                            <td className={`p-1 text-center border-r border-slate-300 font-black w-8 whitespace-nowrap ${sttBgClass}`}>
-                              {idx === 0 ? (
-                                <span className="inline-flex items-center justify-center gap-0.5">
-                                  <span>🥇</span>
-                                  <span>1</span>
-                                </span>
-                              ) : idx === 1 ? (
-                                <span className="inline-flex items-center justify-center gap-0.5">
-                                  <span>🥈</span>
-                                  <span>2</span>
-                                </span>
-                              ) : idx === 2 ? (
-                                <span className="inline-flex items-center justify-center gap-0.5">
-                                  <span>🥉</span>
-                                  <span>3</span>
-                                </span>
-                              ) : (
-                                <span>{idx + 1}</span>
-                              )}
+                            <td className={`p-1.5 text-center border-r border-slate-300 text-xs w-7 whitespace-nowrap ${sttBgClass}`}>
+                              {idx + 1}
                             </td>
                             <td className="p-1.5 text-left pl-2 border-r border-slate-300 font-black text-slate-950 whitespace-nowrap" title={s.boss}>
                               {s.boss || '-'}
