@@ -265,6 +265,16 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     [mergedItems]
   );
 
+  // Mặc định chỉ chọn 1 tỉnh khi ở Tab Siêu Thị Mới
+  useEffect(() => {
+    if (entityScope === 'sieuthimoi') {
+      if (selectedProvince === 'ALL' && uniqueProvinces.length > 0) {
+        const defaultProv = uniqueProvinces.includes('Sóc Trăng') ? 'Sóc Trăng' : uniqueProvinces[0];
+        setSelectedProvince(defaultProv);
+      }
+    }
+  }, [entityScope, uniqueProvinces, selectedProvince]);
+
   // Filtered Store Items
   const filteredItems = useMemo(() => {
     return mergedItems.filter((item) => {
@@ -782,7 +792,13 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => setEntityScope('sieuthimoi')}
+                onClick={() => {
+                  setEntityScope('sieuthimoi');
+                  if (selectedProvince === 'ALL' && uniqueProvinces.length > 0) {
+                    const defaultProv = uniqueProvinces.includes('Sóc Trăng') ? 'Sóc Trăng' : uniqueProvinces[0];
+                    setSelectedProvince(defaultProv);
+                  }
+                }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'sieuthimoi'
                     ? 'bg-purple-50 text-purple-700 border-purple-300 ring-2 ring-purple-200/60 shadow-2xs'
@@ -943,7 +959,7 @@ ${botLines || 'Đang cập nhật'}
                 onChange={(e) => setSelectedProvince(e.target.value)}
                 className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
               >
-                <option value="ALL">Tất cả</option>
+                {entityScope !== 'sieuthimoi' && <option value="ALL">Tất cả</option>}
                 {uniqueProvinces.map((pr) => (
                   <option key={pr} value={pr}>{pr}</option>
                 ))}
