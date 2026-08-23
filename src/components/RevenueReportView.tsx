@@ -1106,16 +1106,6 @@ ${botLines || 'Đang cập nhật'}
               <span>Nhận xét</span>
             </button>
 
-            {/* Xuất Nhanh Button */}
-            <button
-              onClick={() => handleExport('quick')}
-              disabled={isExporting}
-              className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
-            >
-              <Zap className="w-3.5 h-3.5 fill-white" />
-              <span>Xuất nhanh</span>
-            </button>
-
             {/* Xuất Theo Nhóm Button */}
             <button
               onClick={() => handleExport('group')}
