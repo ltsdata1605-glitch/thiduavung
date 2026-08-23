@@ -612,6 +612,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const totalAchievedDt = channelStores.reduce((acc, i) => acc + i.achievedDt, 0);
         const totalRateDt = totalTargetDt > 0 ? Number(((totalAchievedDt / totalTargetDt) * 100).toFixed(1)) : 0;
         const totalProjectedAchieved = thoiGianSdPercent > 0 ? Math.round(totalAchievedDt / (thoiGianSdPercent / 100)) : totalAchievedDt;
+        const totalProjectedRate = thoiGianSdPercent > 0 ? Number(((totalRateDt / (thoiGianSdPercent / 100))).toFixed(1)) : totalRateDt;
         const totalDtThuc = channelStores.reduce((acc, i) => acc + (i.dtThuc || 0), 0);
         const totalDtQd = channelStores.reduce((acc, i) => acc + (i.dtQd || 0), 0);
         const totalQdEff = totalDtThuc > 0 ? Number((((totalDtQd - totalDtThuc) / totalDtThuc) * 100).toFixed(1)) : 0;

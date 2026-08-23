@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { StoreRecord } from '../types';
+import { StoreRecord, UserAccount } from '../types';
 import {
   parsePastedData,
   parseRevenuePastedData,

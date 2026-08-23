@@ -1373,13 +1373,20 @@ function AppInner() {
           }
         }
       } else {
+        const targetMap: Record<string, string> = {
+          ict: 'ICT',
+          dichvu: 'DỊCH VỤ',
+          ce: 'CE & GD',
+        };
         const grp = targetMap[target] || 'ALL';
         setSelectedCategoryGroup(grp);
         await new Promise((r) => setTimeout(r, 350));
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Nhom_${grp.replace(/[^a-zA-Z0-9]/g, '_')}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext });
+          const groupRemarkCtx = { ...baseRemarkContext, selectedCategoryGroup: grp };
+          const groupRemarkTxt = generateReportRemarksText(groupRemarkCtx);
+          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: groupRemarkTxt, remarkContext: groupRemarkCtx });
           if (blob) {
             showToast('✨ Đã xuất 1 tấm ảnh báo cáo nhóm & tự động sao chép nhận xét!');
           } else {

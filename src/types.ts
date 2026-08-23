@@ -103,6 +103,7 @@ export type UserRole = 'super_admin' | 'admin' | 'editor' | 'viewer';
 
 export interface UserAccount {
   accountId: string; // E.g., '3717'
+  username?: string; // Optional alias for accountId
   password?: string;
   passwordHash?: string;
   name: string;

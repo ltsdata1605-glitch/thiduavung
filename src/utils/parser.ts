@@ -1202,6 +1202,8 @@ export function parseRevenuePastedData(
     const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
 
     results.push({
+      stt: results.length + 1,
+      rank: results.length + 1,
       id: mst,
       sieuthi,
       tinh: tinh || 'Khác',
