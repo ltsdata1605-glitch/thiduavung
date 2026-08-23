@@ -1051,68 +1051,11 @@ ${botLines || 'Đang cập nhật'}
                 onChange={(e) => handleProvinceChange(e.target.value)}
                 className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
               >
-                {entityScope !== 'sieuthimoi' && <option value="ALL">Tất cả</option>}
+                <option value="ALL">Tất cả</option>
                 {uniqueProvinces.map((pr) => (
                   <option key={pr} value={pr}>{pr}</option>
                 ))}
               </select>
-            </div>
-
-            {/* Boss */}
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">BOSS:</span>
-              <select
-                value={selectedBoss}
-                onChange={(e) => setSelectedBoss(e.target.value)}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
-              >
-                <option value="ALL">Tất cả</option>
-                {uniqueBosses.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Nhóm hiển thị: Tất cả, Doanh thu, Trả chậm */}
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase">CHẾ ĐỘ:</span>
-              <select
-                value={selectedMetricGroup}
-                onChange={(e) => setSelectedMetricGroup(e.target.value)}
-                className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
-              >
-                <option value="ALL">Tất cả (DT + Trả chậm)</option>
-                <option value="DT">Chỉ Doanh Thu</option>
-                <option value="TC">Chỉ Trả Chậm</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Right: %HT vs Doanh Thu Value Mode Pill */}
-          <div className="flex items-center gap-2 self-start xl:self-auto shrink-0">
-            <div className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200 text-xs shrink-0 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setValueDisplayMode('percent')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                  valueDisplayMode === 'percent'
-                    ? 'bg-blue-600 text-white shadow-2xs font-extrabold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                %HT
-              </button>
-              <button
-                type="button"
-                onClick={() => setValueDisplayMode('value')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                  valueDisplayMode === 'value'
-                    ? 'bg-blue-600 text-white shadow-2xs font-extrabold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Doanh thu
-              </button>
             </div>
           </div>
         </div>
