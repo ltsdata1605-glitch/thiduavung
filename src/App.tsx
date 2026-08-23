@@ -1085,10 +1085,14 @@ function AppInner() {
         stores: activeStores,
         selectedProvince,
         selectedChannels,
+        selectedBoss,
+        selectedPhanLoaiShop,
+        selectedTinhMoi,
         selectedCategory,
         selectedCategoryGroup,
         categoryGroupMap,
         bossAssignments,
+        categoryDisplayNameMap,
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
@@ -1131,10 +1135,14 @@ function AppInner() {
         stores: activeStores,
         selectedProvince,
         selectedChannels,
+        selectedBoss,
+        selectedPhanLoaiShop,
+        selectedTinhMoi,
         selectedCategory,
         selectedCategoryGroup,
         categoryGroupMap,
         bossAssignments,
+        categoryDisplayNameMap,
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
@@ -1179,21 +1187,19 @@ function AppInner() {
     });
 
     const previousGroup = selectedCategoryGroup;
-    const targetMap: Record<string, string> = {
-      ict: 'ICT',
-      dichvu: 'DỊCH VỤ',
-      ce: 'CE & GD',
-    };
-
     const remarkConfig = getLocalRemarkConfig();
-    const remarkContext = {
+    const baseRemarkContext = {
       stores: activeStores,
       selectedProvince,
       selectedChannels,
+      selectedBoss,
+      selectedPhanLoaiShop,
+      selectedTinhMoi,
       selectedCategory,
       selectedCategoryGroup,
       categoryGroupMap,
       bossAssignments,
+      categoryDisplayNameMap,
       timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
       lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
       entityScope,
@@ -1202,7 +1208,7 @@ function AppInner() {
       includeEmoji: remarkConfig.includeEmoji,
       includeCallToAction: remarkConfig.includeCallToAction,
     };
-    const remarkText = generateReportRemarksText(remarkContext);
+    const remarkText = generateReportRemarksText(baseRemarkContext);
 
     setIsExportingAllRows(true);
     try {
@@ -1211,7 +1217,7 @@ function AppInner() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Xuat_Nhanh_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportGroupSpecificElement(targetEl, 'quick', filename, { remarkTextToCopy: remarkText, remarkContext });
+          const blob = await exportGroupSpecificElement(targetEl, 'quick', filename, { remarkTextToCopy: remarkText, remarkContext: baseRemarkContext });
           if (blob) {
             showToast('✨ Đã xuất nhanh bảng xếp hạng (STT -> Tỉ lệ) & tự động sao chép nhận xét!');
           } else {
@@ -1230,7 +1236,9 @@ function AppInner() {
           const targetEl = document.getElementById('report-export-root');
           if (targetEl) {
             const filename = `Bang_Xep_Hang_Nhom_${grp.replace(/[^a-zA-Z0-9]/g, '_')}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-            const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext });
+            const groupRemarkCtx = { ...baseRemarkContext, selectedCategoryGroup: grp };
+            const groupRemarkTxt = generateReportRemarksText(groupRemarkCtx);
+            const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: groupRemarkTxt, remarkContext: groupRemarkCtx });
             if (blob) exportedCount++;
           }
         }
@@ -1244,7 +1252,7 @@ function AppInner() {
         const targetEl = document.getElementById('report-export-root');
         if (targetEl) {
           const filename = `Bang_Xep_Hang_Hien_Thi_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext });
+          const blob = await exportElementAsImage(targetEl, filename, { remarkTextToCopy: remarkText, remarkContext: baseRemarkContext });
           if (blob) {
             showToast('✨ Đã xuất ảnh bảng xếp hạng hiển thị & tự động sao chép nhận xét!');
           } else {
@@ -1509,6 +1517,9 @@ function AppInner() {
         stores={activeStores}
         selectedProvince={selectedProvince}
         selectedChannels={selectedChannels}
+        selectedBoss={selectedBoss}
+        selectedPhanLoaiShop={selectedPhanLoaiShop}
+        selectedTinhMoi={selectedTinhMoi}
         selectedCategory={selectedCategory}
         selectedCategoryGroup={selectedCategoryGroup}
         categoryGroupMap={categoryGroupMap}
@@ -1516,6 +1527,7 @@ function AppInner() {
         categoryDisplayNameMap={categoryDisplayNameMap}
         timeModeName={timeMode === 'realtime' ? 'Realtime' : 'Luỹ kế'}
         lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
+        entityScope={entityScope}
       />
 
       {/* Super Admin User Management Modal */}
