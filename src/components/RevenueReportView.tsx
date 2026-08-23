@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount } from '../types';
+import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount, RemarkDisplayMode } from '../types';
 import {
   formatVND,
   formatPercent,
   formatStoreDisplayName,
+  formatStoreRemarkLine,
   getChannelForStore,
   getBossForStore,
   getPhanLoaiShopForStore,
@@ -30,6 +31,8 @@ import {
   Check,
   X,
   AlertTriangle,
+  AlertCircle,
+  Flame,
   MessageSquare,
   ChevronLeft,
   ChevronRight,
@@ -150,7 +153,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   // Remarks Modal State
   const [isRemarksModalOpen, setIsRemarksModalOpen] = useState(false);
   const [remarkCopied, setRemarkCopied] = useState(false);
-  const [activeRemarkTemplate, setActiveRemarkTemplate] = useState<'top_bot' | 'warning' | 'summary'>('top_bot');
+  const [activeRemarkTemplate, setActiveRemarkTemplate] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
+  const [customRemarkText, setCustomRemarkText] = useState<string>('');
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
@@ -726,7 +731,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     try {
       await new Promise((r) => setTimeout(r, 250));
       const filename = `Bao_Cao_Doanh_Thu_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const remarkText = generateRevenueRemarks();
+      const remarkText = generateRevenueRemarks('template_1', 'user');
       const blob = await exportElementAsImage(el, filename, {
         remarkTextToCopy: remarkText,
       });
@@ -738,7 +743,10 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     }
   };
 
-  const generateRevenueRemarks = (): string => {
+  const generateRevenueRemarks = (
+    template: 'template_1' | 'template_2' | 'template_3' = activeRemarkTemplate,
+    mode: RemarkDisplayMode = remarkDisplayMode
+  ): string => {
     const timeTitle = timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ';
     const scopeTitle =
       selectedProvince !== 'ALL'
@@ -749,10 +757,27 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         ? `BOSS ${selectedBoss}`
         : 'TOÀN VÙNG TNB';
 
-    if (activeRemarkTemplate === 'warning') {
+    const getBossTag = (bossStr?: string) => {
+      if (!bossStr) return '';
+      const m = bossStr.match(/_(\d+)$/);
+      return m ? `@${m[1]}` : (bossStr.startsWith('@') ? bossStr : `@${bossStr}`);
+    };
+
+    if (template === 'template_2') {
       const warningStores = sortedItems.filter((i) => i.rateDt < 80 && i.targetDt > 0).slice(0, 15);
       const lines = warningStores
-        .map((s, idx) => `⚠️ #${idx + 1} ${formatStoreDisplayName(s.sieuthi)}: ${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | Trả chậm: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`)
+        .map((s, idx) => {
+          const prefix = `⚠️ #${idx + 1}`;
+          const valPart = `${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)}`;
+          return formatStoreRemarkLine({
+            prefix,
+            storeName: formatStoreDisplayName(s.sieuthi),
+            bossTag: getBossTag(s.boss),
+            valuePart: valPart,
+            rate: s.rateDt,
+            mode,
+          });
+        })
         .join('\n');
 
       return `📈 CẬP NHẬT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitle} - ${lastUpdatedTime}
@@ -761,23 +786,45 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 💳 Doanh Thu Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}% tổng DT)
 📊 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
 
-🚨 CÁC SIÊU THỊ CẦN TĂNG TỐC DOANH THU:
+🚨 CÁC SIÊU THỊ CẦN TĂNG TỐC DOANH THU (< 80%):
 ${lines || 'Tất cả siêu thị đều đang đạt tiến độ rất tốt!'}
 
 ━━━━━━━━━━━━━━
-👉 Đề nghị các Siêu thị & Tỉnh bám sát số liệu, đẩy mạnh tư vấn trả chậm và bán lẻ để bứt phá mục tiêu! 💪🏼🔥`;
+👉 Đề nghị các Quản lý Siêu thị tập trung cao độ, đẩy mạnh số bán và bán trả góp để về đích! 💪🏼🔥`;
     }
 
-    if (activeRemarkTemplate === 'summary') {
+    if (template === 'template_3') {
       const top3 = sortedItems.slice(0, 3);
-      const bot3 = sortedItems.slice(-3).reverse();
+      const bot3 = sortedItems.filter((i) => i.targetDt > 0).slice(-3).reverse();
 
       const topLines = top3
-        .map((s, idx) => `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} #${idx + 1} ${formatStoreDisplayName(s.sieuthi)}: ${formatVND(s.achievedDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`)
+        .map((s, idx) => {
+          const prefix = `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} #${idx + 1}`;
+          const valPart = `${formatVND(s.achievedDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
+          return formatStoreRemarkLine({
+            prefix,
+            storeName: formatStoreDisplayName(s.sieuthi),
+            bossTag: getBossTag(s.boss),
+            valuePart: valPart,
+            rate: s.rateDt,
+            mode,
+          });
+        })
         .join('\n');
 
       const botLines = bot3
-        .map((s, idx) => `🔻 #${sortedItems.length - idx} ${formatStoreDisplayName(s.sieuthi)}: ${formatVND(s.achievedDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`)
+        .map((s, idx) => {
+          const prefix = `🔻 #${sortedItems.length - idx}`;
+          const valPart = `${formatVND(s.achievedDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
+          return formatStoreRemarkLine({
+            prefix,
+            storeName: formatStoreDisplayName(s.sieuthi),
+            bossTag: getBossTag(s.boss),
+            valuePart: valPart,
+            rate: s.rateDt,
+            mode,
+          });
+        })
         .join('\n');
 
       return `📊 TÓM TẮT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitle} - ${lastUpdatedTime}
@@ -795,16 +842,38 @@ ${botLines || 'Đang cập nhật'}
 👉 Đề nghị các Đội ngũ tập trung tối đa nguồn lực hoàn thành xuất sắc chỉ tiêu! 💪🏼🔥`;
     }
 
-    // Default: TOP / BOT
+    // Default: Mẫu 1: TOP / BOT
     const top10 = sortedItems.slice(0, 10);
     const bot10 = sortedItems.filter((i) => i.targetDt > 0).slice(-10).reverse();
 
     const topLines = top10
-      .map((s, idx) => `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹'} #${idx + 1} ${formatStoreDisplayName(s.sieuthi)}: ${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`)
+      .map((s, idx) => {
+        const prefix = `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹'} #${idx + 1}`;
+        const valPart = `${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
+        return formatStoreRemarkLine({
+          prefix,
+          storeName: formatStoreDisplayName(s.sieuthi),
+          bossTag: getBossTag(s.boss),
+          valuePart: valPart,
+          rate: s.rateDt,
+          mode,
+        });
+      })
       .join('\n');
 
     const botLines = bot10
-      .map((s, idx) => `🔻 #${sortedItems.length - idx} ${formatStoreDisplayName(s.sieuthi)}: ${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`)
+      .map((s, idx) => {
+        const prefix = `🔻 #${sortedItems.length - idx}`;
+        const valPart = `${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
+        return formatStoreRemarkLine({
+          prefix,
+          storeName: formatStoreDisplayName(s.sieuthi),
+          bossTag: getBossTag(s.boss),
+          valuePart: valPart,
+          rate: s.rateDt,
+          mode,
+        });
+      })
       .join('\n');
 
     return `📈 BẢNG XẾP HẠNG DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitle} - ${lastUpdatedTime}
@@ -824,7 +893,7 @@ ${botLines || 'Đang cập nhật'}
   };
 
   const handleCopyRemarks = async () => {
-    const txt = generateRevenueRemarks();
+    const txt = customRemarkText || generateRevenueRemarks(activeRemarkTemplate, remarkDisplayMode);
     const ok = await copyTextToClipboard(txt);
     if (ok) {
       setRemarkCopied(true);
@@ -1945,10 +2014,13 @@ ${botLines || 'Đang cập nhật'}
       {isRemarksModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
             <div className="px-6 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2.5 font-black text-base">
                 <MessageSquare className="w-5 h-5 text-amber-200" />
-                <span>NHẬN XÉT DOANH THU &amp; TRẢ CHẬM</span>
+                <span>
+                  NHẬN XÉT DỮ LIỆU ĐANG LỌC ({currentProvinceTitle ? (currentProvinceTitle.startsWith('TỈNH') ? currentProvinceTitle : `TỈNH ${currentProvinceTitle}`) : 'TOÀN VÙNG TNB'})
+                </span>
               </div>
               <button
                 onClick={() => setIsRemarksModalOpen(false)}
@@ -1958,60 +2030,126 @@ ${botLines || 'Đang cập nhật'}
               </button>
             </div>
 
+            {/* Body */}
             <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Template Selector Tabs & Remark Format Selector */}
               <div>
-                <label className="text-xs font-extrabold text-slate-700 block mb-2">
-                  Chọn mẫu nhận xét:
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <label className="text-xs font-extrabold text-slate-700">
+                    Chọn mẫu nội dung nhận xét:
+                  </label>
+
+                  {/* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User */}
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+                    {(
+                      [
+                        { id: 'user', label: 'User' },
+                        { id: 'sieuthi', label: 'Siêu thị' },
+                        { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setRemarkDisplayMode(opt.id);
+                          setCustomRemarkText('');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          remarkDisplayMode === opt.id
+                            ? 'bg-amber-500 text-white shadow-xs font-black'
+                            : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
+                        }`}
+                      >
+                        <span
+                          className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
+                            remarkDisplayMode === opt.id ? 'border-white bg-white text-amber-600' : 'border-slate-400 bg-white'
+                          }`}
+                        >
+                          {remarkDisplayMode === opt.id && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                        </span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Template Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-2xl">
                   <button
-                    onClick={() => setActiveRemarkTemplate('top_bot')}
-                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
-                      activeRemarkTemplate === 'top_bot'
-                        ? 'bg-amber-500 text-white shadow-xs font-black'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    onClick={() => {
+                      setActiveRemarkTemplate('template_1');
+                      setCustomRemarkText('');
+                    }}
+                    className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      activeRemarkTemplate === 'template_1' && !customRemarkText
+                        ? 'bg-white text-amber-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Mẫu 1: TOP / BOT
+                    <Flame className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <span className="truncate">Mẫu 1: TOP/BOT</span>
                   </button>
+
                   <button
-                    onClick={() => setActiveRemarkTemplate('warning')}
-                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
-                      activeRemarkTemplate === 'warning'
-                        ? 'bg-rose-600 text-white shadow-xs font-black'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    onClick={() => {
+                      setActiveRemarkTemplate('template_2');
+                      setCustomRemarkText('');
+                    }}
+                    className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      activeRemarkTemplate === 'template_2' && !customRemarkText
+                        ? 'bg-white text-rose-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Mẫu 2: Cần tăng tốc
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <span className="truncate">Mẫu 2: Cần tăng tốc</span>
                   </button>
+
                   <button
-                    onClick={() => setActiveRemarkTemplate('summary')}
-                    className={`py-2 px-3 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
-                      activeRemarkTemplate === 'summary'
-                        ? 'bg-sky-600 text-white shadow-xs font-black'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    onClick={() => {
+                      setActiveRemarkTemplate('template_3');
+                      setCustomRemarkText('');
+                    }}
+                    className={`py-2 px-2.5 rounded-xl font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      activeRemarkTemplate === 'template_3' && !customRemarkText
+                        ? 'bg-white text-sky-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Mẫu 3: Tóm tắt
+                    <Zap className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                    <span className="truncate">Mẫu 3: Đầy đủ / Tóm tắt</span>
                   </button>
                 </div>
               </div>
 
+              {/* Text Area Content */}
               <div>
-                <label className="text-xs font-extrabold text-slate-700 block mb-1.5">
-                  Nội dung nhận xét tự động theo bộ lọc:
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-extrabold text-slate-700">
+                    Nội dung nhận xét (tự động theo bộ lọc):
+                  </label>
+                  {customRemarkText && (
+                    <button
+                      onClick={() => setCustomRemarkText('')}
+                      className="text-[11px] font-bold text-amber-600 hover:underline cursor-pointer"
+                    >
+                      Khôi phục mẫu gốc
+                    </button>
+                  )}
+                </div>
                 <textarea
                   rows={13}
-                  readOnly
-                  value={generateRevenueRemarks()}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-mono rounded-2xl p-3.5 leading-relaxed select-all shadow-inner focus:outline-hidden"
+                  value={customRemarkText || generateRevenueRemarks(activeRemarkTemplate, remarkDisplayMode)}
+                  onChange={(e) => setCustomRemarkText(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-mono rounded-2xl p-3.5 focus:outline-hidden focus:ring-2 focus:ring-amber-500 leading-relaxed select-all shadow-inner"
                 />
               </div>
             </div>
 
+            {/* Footer */}
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <span className="text-xs text-slate-500 font-semibold">Sẵn sàng dán trực tiếp vào Zalo / Teams</span>
+              <span className="text-xs text-slate-500 font-semibold">Sẵn sàng dán trực tiếp vào Zalo / Line / Teams</span>
               <button
                 onClick={handleCopyRemarks}
                 className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs text-white transition-all shadow-md cursor-pointer ${
