@@ -1776,13 +1776,13 @@ ${botLines || 'Đang cập nhật'}
                           <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
                             {s.rank}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.boss || '-'}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
                             {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
@@ -1797,13 +1797,13 @@ ${botLines || 'Đang cập nhật'}
                           <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
                             {s.rank}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.boss || '-'}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
                             {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
@@ -1870,13 +1870,13 @@ ${botLines || 'Đang cập nhật'}
                           <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
                             {s.rank}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.boss || '-'}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
                             {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
@@ -1891,13 +1891,13 @@ ${botLines || 'Đang cập nhật'}
                           <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
                             {s.rank}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.boss || '-'}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
                             {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
                           </td>
-                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold whitespace-nowrap text-xs">
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
