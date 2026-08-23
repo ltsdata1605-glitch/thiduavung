@@ -286,7 +286,14 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     [mergedItems]
   );
   const uniquePhanLoais = useMemo(
-    () => Array.from(new Set(mergedItems.map((i) => i.phanLoaiShop).filter(Boolean))).sort(),
+    () =>
+      Array.from(
+        new Set(
+          mergedItems
+            .map((i) => i.phanLoaiShop)
+            .filter((s) => Boolean(s) && s !== '-' && s !== '--' && s !== 'N/A' && s?.trim() !== '')
+        )
+      ).sort(),
     [mergedItems]
   );
   const uniqueTinhMois = useMemo(
@@ -801,7 +808,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         }
       } else if (mode === 'size') {
         const prevPhanLoai = selectedPhanLoaiShop;
-        const sizesToExport = uniquePhanLoais.filter((s) => s && s !== 'ALL');
+        const sizesToExport = uniquePhanLoais.filter((s) => s && s !== 'ALL' && s !== '-' && s !== '--' && s !== 'N/A' && s.trim() !== '');
         let exportedCount = 0;
 
         for (const sz of sizesToExport) {
