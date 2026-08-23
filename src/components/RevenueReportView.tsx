@@ -1347,128 +1347,127 @@ ${botLines || 'Đang cập nhật'}
             </div>
           </div>
         ) : entityScope === 'sieuthimoi' ? (
-          /* TAB SIÊU THỊ MỚI (TRÌNH BÀY DẠNG BẢNG & CỘT THEO ẢNH MẪU 1:1) */
-          <div className="w-full max-w-6xl mx-auto bg-white border border-slate-300 shadow-md font-sans select-none overflow-hidden rounded-2xl my-2">
+          /* TAB SIÊU THỊ MỚI (CHÍNH XÁC 100% THEO HÌNH ẢNH MẪU) */
+          <div className="w-full max-w-5xl mx-auto bg-white border-2 border-black font-sans select-none overflow-hidden my-2">
             {/* Header: DOANH THU QĐ NGÀY & TÊN TỈNH */}
-            <div className="py-3.5 px-6 flex items-center justify-between bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 text-white shadow-xs">
-              <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase text-white drop-shadow-xs">
-                DOANH THU QĐ {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}
-              </h1>
-              <h2 className="text-xl sm:text-2xl font-black text-amber-300 tracking-wider uppercase drop-shadow-xs">
-                {currentProvinceTitle}
-              </h2>
+            <div className="grid grid-cols-2 border-b-2 border-black bg-white">
+              <div className="py-2.5 px-4 border-r-2 border-black flex items-center justify-start">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-black tracking-tight uppercase">
+                  DOANH THU QĐ {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}
+                </h1>
+              </div>
+              <div className="py-2.5 px-4 flex items-center justify-start">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-red-600 tracking-tight uppercase">
+                  {currentProvinceTitle}
+                </h2>
+              </div>
             </div>
 
             {/* Sub-Header Bar: REALTIME & THỜI GIAN ĐÃ SỬ DỤNG */}
-            <div className="grid grid-cols-4 border-b border-slate-300 bg-slate-100/90 text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans shadow-2xs">
-              <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
+            <div className="grid grid-cols-4 border-b-2 border-black bg-white text-center text-xs sm:text-sm divide-x-2 divide-black font-sans font-black text-black">
+              <div className="py-2 px-3 uppercase flex items-center justify-start pl-4">
                 REALTIME :
               </div>
-              <div className="py-2.5 px-3 font-black text-indigo-700 flex items-center justify-center font-mono">
+              <div className="py-2 px-3 flex items-center justify-start pl-4 font-mono">
                 {realtimeTimeAndDateStr}
               </div>
-              <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
+              <div className="py-2 px-3 uppercase flex items-center justify-start pl-4">
                 THỜI GIAN ĐÃ SỬ DỤNG :
               </div>
-              <div className="py-2.5 px-3 font-black text-emerald-700 flex items-center justify-center font-mono">
+              <div className="py-2 px-3 flex items-center justify-start pl-4 font-mono">
                 {thoiGianSdPercent}%
               </div>
             </div>
 
             {/* TABLE */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs border-t border-black">
                 <thead>
-                  {/* Tier 1: Group Headers & Merged Columns */}
-                  <tr className="border-b border-slate-700 bg-slate-900 text-white font-black text-xs uppercase tracking-tight">
+                  {/* Tier 1: Group Headers */}
+                  <tr className="border-b border-black">
                     <th
+                      colSpan={2}
                       rowSpan={2}
-                      className="py-2.5 px-1.5 text-center border-r border-slate-700 text-slate-300 w-10 align-middle"
-                    >
-                      STT
-                    </th>
-                    <th
-                      rowSpan={2}
-                      className="py-2.5 px-2.5 text-left border-r border-slate-700 text-slate-200 w-28 align-middle"
+                      className="bg-[#00c08b] text-black font-black p-2 text-center border-r border-black align-middle text-sm w-36"
                     >
                       BOSS
                     </th>
                     <th
                       rowSpan={2}
-                      className="py-2.5 px-3 text-left border-r border-slate-700 text-white align-middle"
+                      className="bg-[#00c08b] text-black font-black p-2 text-left pl-3 border-r border-black align-middle text-sm"
                     >
                       SIÊU THỊ
                     </th>
                     <th
                       colSpan={3}
-                      className="py-2 px-2 text-center border-r border-slate-700 text-amber-300 bg-slate-900/95"
+                      className="bg-[#fbb040] text-black font-black p-2 text-center border-r border-black text-xs leading-tight"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       colSpan={2}
-                      className="py-2 px-2 text-center border-r border-slate-700 text-emerald-300 bg-slate-900/95 leading-tight"
+                      className="bg-[#fde047] text-black font-black p-2 text-center border-r border-black text-xs leading-tight"
                     >
                       <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
-                      <div className="text-[10px] font-bold text-emerald-400/80 uppercase">THEO TỈ TRỌNG TỪNG GIỜ</div>
+                      <div className="text-[10px] font-bold uppercase opacity-90">THEO TỈ TRỌNG TỪNG GIỜ</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="py-2.5 px-2 text-center border-r border-slate-700 text-amber-300 text-xs leading-tight w-24 align-middle bg-slate-900"
+                      className="bg-[#fbb040] text-black font-black p-2 text-center border-r border-black text-xs leading-tight w-24 align-middle"
                     >
                       <div>HIỆU QUẢ</div>
                       <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-bold mt-1 text-slate-400 uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold text-slate-400">MIN = 50%</div>
+                      <div className="text-[10px] font-bold mt-1 uppercase">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="py-2.5 px-2 text-center text-orange-300 text-xs leading-tight w-24 align-middle bg-slate-900"
+                      className="bg-[#fdbb84] text-black font-black p-2 text-center text-xs leading-tight w-24 align-middle"
                     >
                       <div>TỈ TRỌNG</div>
                       <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-bold mt-1 text-slate-400 uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold text-slate-400">MIN = 50%</div>
+                      <div className="text-[10px] font-bold mt-1 uppercase">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold">MIN = 50%</div>
                     </th>
                   </tr>
 
-                  {/* Tier 2: Sub-Headers under Spanned Groups */}
-                  <tr className="border-b border-slate-700 bg-slate-950 text-slate-300 font-bold text-[11px] uppercase">
-                    <th className="py-2 px-2 border-r border-slate-700 text-right pr-2 w-20">MỤC TIÊU</th>
-                    <th className="py-2 px-2 border-r border-slate-700 text-right pr-2 w-20">THỰC HIỆN</th>
-                    <th className="py-2 px-2 border-r border-slate-700 text-center w-20">HOÀN THÀNH</th>
-                    <th className="py-2 px-2 border-r border-slate-700 text-right pr-2 w-20">THỰC HIỆN</th>
-                    <th className="py-2 px-2 border-r border-slate-700 text-center w-20">HOÀN THÀNH</th>
+                  {/* Tier 2: Sub-Header Row */}
+                  <tr className="border-b border-black font-black text-xs">
+                    <th className="p-1.5 border-r border-black text-center w-20 bg-[#fbb040] text-black">MỤC TIÊU</th>
+                    <th className="p-1.5 border-r border-black text-center w-20 bg-[#fbb040] text-black">THỰC HIỆN</th>
+                    <th className="p-1.5 border-r border-black text-center w-20 bg-[#fbb040] text-black">HOÀN THÀNH</th>
+                    <th className="p-1.5 border-r border-black text-center w-20 bg-[#fde047] text-black">THỰC HIỆN</th>
+                    <th className="p-1.5 border-r border-black text-center w-20 bg-[#fde047] text-black">HOÀN THÀNH</th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-200 text-slate-900 font-sans">
+                <tbody className="text-black font-sans font-bold">
                   {storesByChannel.map((group) => (
                     <React.Fragment key={group.channel}>
                       {/* Channel Group Header Row */}
-                      <tr className={`${getChannelHeaderBg(group.channel)} font-black border-t border-b border-slate-300 text-xs`}>
-                        <td colSpan={3} className="p-2 text-left pl-3 sm:pl-4 border-r border-white/20 text-sm uppercase tracking-wider">
+                      <tr className="border-b border-black font-black text-xs">
+                        <td colSpan={3} className="p-1.5 bg-[#00c08b] text-left pl-3 border-r border-black text-xs font-black">
                           {group.channel}
                         </td>
-                        <td className="p-2 text-right pr-2 border-r border-white/20 font-mono">
+                        <td className="p-1.5 bg-[#fbb040] text-right pr-2 border-r border-black font-mono">
                           {group.totalTargetDt.toLocaleString('vi-VN')}
                         </td>
-                        <td className="p-2 text-right pr-2 border-r border-white/20 font-mono">
+                        <td className="p-1.5 bg-[#fbb040] text-right pr-2 border-r border-black font-mono">
                           {group.totalAchievedDt.toLocaleString('vi-VN')}
                         </td>
-                        <td className="p-2 text-center border-r border-white/20">
+                        <td className="p-1.5 bg-[#fbb040] text-center border-r border-black">
                           {group.totalRateDt.toFixed(1)}%
                         </td>
-                        <td className="p-2 text-right pr-2 border-r border-white/20 font-mono">
+                        <td className="p-1.5 bg-[#fde047] text-right pr-2 border-r border-black font-mono">
                           {group.totalProjectedAchieved.toLocaleString('vi-VN')}
                         </td>
-                        <td className="p-2 text-center border-r border-white/20">
+                        <td className="p-1.5 bg-[#fde047] text-center border-r border-black">
                           {group.totalProjectedRate.toFixed(1)}%
                         </td>
-                        <td className="p-2 text-center border-r border-white/20">
+                        <td className="p-1.5 bg-[#fbb040] text-center border-r border-black">
                           {group.totalQdEff.toFixed(1)}%
                         </td>
-                        <td className="p-2 text-center">
+                        <td className="p-1.5 bg-[#fdbb84] text-center">
                           {group.totalTcRatio.toFixed(1)}%
                         </td>
                       </tr>
@@ -1487,51 +1486,47 @@ ${botLines || 'Đang cập nhật'}
                         return (
                           <tr
                             key={s.id || s.sieuthi}
-                            className={`hover:bg-amber-50/40 transition-colors border-b border-slate-200 ${
-                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
-                            }`}
+                            className="bg-white hover:bg-slate-50 transition-colors border-b border-black"
                           >
-                            <td className="p-2 text-center border-r border-slate-200 font-black bg-amber-100/90 text-amber-950 w-10">
+                            <td className="p-1.5 text-center border-r border-black font-black bg-[#fde047] text-black w-8">
                               {idx + 1}
                             </td>
-                            <td className="p-2 text-left pl-2.5 border-r border-slate-200 font-extrabold text-orange-600 truncate max-w-[120px]" title={s.boss}>
+                            <td className="p-1.5 text-left pl-2 border-r border-black font-black text-black truncate max-w-[120px]" title={s.boss}>
                               {s.boss || '-'}
                             </td>
-                            <td className="p-2 text-left pl-2.5 border-r border-slate-200 font-bold text-slate-950 truncate max-w-[320px]" title={s.sieuthi}>
-                              {formatStoreDisplayName(s.sieuthi)}
+                            <td className="p-1.5 text-left pl-2 border-r border-black font-black text-black truncate max-w-[320px]" title={s.sieuthi}>
+                              {s.sieuthi}
                             </td>
-                            <td className="p-2 text-right pr-2 border-r border-slate-200 font-mono font-bold text-amber-600">
+                            <td className="p-1.5 text-right pr-2 border-r border-black font-mono font-black text-black">
                               {s.targetDt.toLocaleString('vi-VN')}
                             </td>
-                            <td className="p-2 text-right pr-2 border-r border-slate-200 font-mono font-bold text-slate-800">
+                            <td className="p-1.5 text-right pr-2 border-r border-black font-mono font-black text-black">
                               {s.achievedDt.toLocaleString('vi-VN')}
                             </td>
-                            <td className={`p-2 text-center border-r border-slate-200 font-bold ${
-                              isNegative ? 'text-rose-600 font-black' : isCurrentPink ? 'text-rose-600 font-black' : 'text-slate-900'
+                            <td className={`p-1.5 text-center border-r border-black font-black ${
+                              isNegative || isCurrentPink ? 'text-red-600' : 'text-black'
                             }`}>
                               {s.rateDt.toFixed(1)}%
                             </td>
-                            <td className="p-2 text-right pr-2 border-r border-slate-200 font-mono font-bold text-slate-800">
+                            <td className="p-1.5 text-right pr-2 border-r border-black font-mono font-black text-black">
                               {projAchieved.toLocaleString('vi-VN')}
                             </td>
-                            <td className="p-2 text-center border-r border-slate-200">
-                              <span className={`inline-block px-2 py-0.5 rounded font-black ${
-                                isProjGreen
-                                  ? 'bg-emerald-100 text-emerald-800 shadow-2xs'
-                                  : isNegative || isProjPink
-                                  ? 'bg-rose-100 text-rose-800 shadow-2xs'
-                                  : 'text-slate-900 font-bold'
-                              }`}>
-                                {projRate.toFixed(1)}%
-                              </span>
+                            <td className={`p-1.5 text-center border-r border-black font-black ${
+                              isProjGreen
+                                ? 'bg-[#dcfce7] text-[#15803d]'
+                                : isNegative || isProjPink
+                                ? 'text-red-600'
+                                : 'text-black'
+                            }`}>
+                              {projRate.toFixed(1)}%
                             </td>
-                            <td className={`p-2 text-center border-r border-slate-200 font-black ${
-                              isQdRed ? 'text-rose-600' : 'text-slate-800'
+                            <td className={`p-1.5 text-center border-r border-black font-black ${
+                              isQdRed ? 'text-red-600' : 'text-black'
                             }`}>
                               {(s.rateDt > 0 ? Math.min(333.3, Math.max(0.0, 50.0 + (s.rateDt - 20) * 0.9)) : 0.0).toFixed(1)}%
                             </td>
-                            <td className={`p-2 text-center font-black ${
-                              isTcRed ? 'text-rose-600' : 'text-slate-800'
+                            <td className={`p-1.5 text-center font-black ${
+                              isTcRed ? 'text-red-600' : 'text-black'
                             }`}>
                               {s.tcRatio.toFixed(1)}%
                             </td>
@@ -1542,29 +1537,29 @@ ${botLines || 'Đang cập nhật'}
                   ))}
 
                   {/* BOTTOM TOTAL SUMMARY ROW */}
-                  <tr className="font-black text-white bg-slate-900 border-t-2 border-slate-400 text-xs">
-                    <td colSpan={3} className="p-2.5 sm:p-3 text-left pl-3 sm:pl-4 border-r border-slate-800 text-sm text-amber-300 uppercase tracking-wide">
-                      {currentProvinceTitle} ({totalSummary.totalStores} Siêu thị)
+                  <tr className="font-black text-black border-t-2 border-black text-xs">
+                    <td colSpan={3} className="p-2 bg-[#00c08b] text-left pl-3 border-r border-black text-xs uppercase tracking-wide">
+                      {currentProvinceTitle}
                     </td>
-                    <td className="p-2.5 sm:p-3 text-right pr-2 font-mono border-r border-slate-800 text-amber-400">
+                    <td className="p-2 bg-[#fbb040] text-right pr-2 font-mono border-r border-black">
                       {totalSummary.totalTargetDt.toLocaleString('vi-VN')}
                     </td>
-                    <td className="p-2.5 sm:p-3 text-right pr-2 font-mono border-r border-slate-800 text-white">
+                    <td className="p-2 bg-[#fbb040] text-right pr-2 font-mono border-r border-black">
                       {totalSummary.totalAchievedDt.toLocaleString('vi-VN')}
                     </td>
-                    <td className="p-2.5 sm:p-3 text-center border-r border-slate-800 text-amber-300">
+                    <td className="p-2 bg-[#fbb040] text-center border-r border-black">
                       {totalSummary.totalRateDt.toFixed(1)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 text-right pr-2 font-mono border-r border-slate-800 text-white">
+                    <td className="p-2 bg-[#fde047] text-right pr-2 font-mono border-r border-black">
                       {(thoiGianSdPercent > 0 ? Math.round(totalSummary.totalAchievedDt / (thoiGianSdPercent / 100)) : totalSummary.totalAchievedDt).toLocaleString('vi-VN')}
                     </td>
-                    <td className="p-2.5 sm:p-3 text-center border-r border-slate-800 text-emerald-300">
+                    <td className="p-2 bg-[#fde047] text-center border-r border-black">
                       {(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt).toFixed(1)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-amber-500 text-center border-r border-amber-600 font-black text-slate-950">
+                    <td className="p-2 bg-[#fbb040] text-center border-r border-black">
                       {(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0).toFixed(1)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-orange-500 text-center font-black text-slate-950">
+                    <td className="p-2 bg-[#fdbb84] text-center">
                       {totalSummary.totalTcRatio.toFixed(1)}%
                     </td>
                   </tr>
