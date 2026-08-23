@@ -1786,7 +1786,7 @@ ${botLines || 'Đang cập nhật'}
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
-                            {Math.round(s.dtQd || s.achievedDt || 0)}
+                            {Math.round(s.dtQd || s.achievedDt || 0).toLocaleString('vi-VN')}
                           </td>
                         </tr>
                       ))}
@@ -1807,7 +1807,7 @@ ${botLines || 'Đang cập nhật'}
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
-                            {Math.round(s.dtQd || s.achievedDt || 0)}
+                            {Math.round(s.dtQd || s.achievedDt || 0).toLocaleString('vi-VN')}
                           </td>
                         </tr>
                       ))}
