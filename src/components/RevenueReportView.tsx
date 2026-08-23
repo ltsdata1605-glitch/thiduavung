@@ -334,7 +334,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   const filteredItems = useMemo(() => {
     return mergedItems.filter((item) => {
       if (selectedChannels.length > 0 && !selectedChannels.includes(item.kenh as Channel)) return false;
-      if (entityScope !== 'tong') {
+      if (entityScope !== 'tong' && entityScope !== 'sieuthi') {
         if (selectedProvince !== 'ALL' && item.tinh !== selectedProvince) return false;
         if (selectedBoss !== 'ALL' && item.boss !== selectedBoss) return false;
         if (selectedPhanLoaiShop !== 'ALL' && item.phanLoaiShop !== selectedPhanLoaiShop) return false;
@@ -1091,7 +1091,12 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => setEntityScope('sieuthi')}
+                onClick={() => {
+                  setEntityScope('sieuthi');
+                  setSelectedProvince('ALL');
+                  setSelectedTinhMoi('ALL');
+                  setSelectedPhanLoaiShop('ALL');
+                }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'sieuthi'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-200/60 shadow-2xs'
@@ -1265,7 +1270,7 @@ ${botLines || 'Đang cập nhật'}
               })}
             </div>
 
-            {entityScope !== 'tong' && (
+            {entityScope !== 'tong' && entityScope !== 'sieuthi' && (
               <>
                 <div className="h-4 w-px bg-slate-200 mx-0.5"></div>
 
