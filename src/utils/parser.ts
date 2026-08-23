@@ -1141,52 +1141,59 @@ export function parseRevenuePastedData(
 
     let tinh = col0;
     let sieuthi = col1;
+    let colOffset = 1;
 
     // In case province column is missing and store is in col0
-    if (!sieuthi && col0) {
+    if (/\d+\s*-\s*/.test(col0) || (!sieuthi && col0)) {
       sieuthi = col0;
       tinh = 'Khác';
+      colOffset = 0;
+    } else {
+      tinh = col0;
+      sieuthi = col1;
+      colOffset = 1;
     }
 
     let target = 0;
     let achieved = 0;
     let rate = 0;
+    let dtThuc = 0;
+    let dtQd = 0;
 
     if (dataType === 'tracham') {
       // Trả Chậm table structure:
-      // Col 0: Tỉnh / Tên miền
+      // Col 0: Tỉnh / Tên miền (if offset=1)
       // Col 1: Tên siêu thị
       // Col 2: DT Siêu thị (*) (Base Target / Store Revenue)
       // Col 3: Tổng DT Trả Chậm (*) (Achieved Installment Revenue)
       // Col 4: Tỷ Trọng Trả Chậm (%) (Installment Rate)
-      const valDtStore = parseNum(cells[2]);
-      const valTraCham = parseNum(cells[3]);
-      const valRate = parseRate(cells[4]);
+      const valDtStore = parseNum(cells[colOffset + 1]);
+      const valTraCham = parseNum(cells[colOffset + 2]);
+      const valRate = parseRate(cells[colOffset + 3]);
 
       target = valDtStore;
       achieved = valTraCham;
       rate = valRate > 0 ? valRate : target > 0 ? (achieved / target) * 100 : 0;
     } else {
       // Doanh Thu table structure:
-      // Format with QĐ:
-      // Col 0: Tỉnh / Khu vực
+      // Col 0: Tỉnh / Khu vực (if offset=1)
       // Col 1: Tên siêu thị
       // Col 2: % HT Target Ngày (Standard Rate)
-      // Col 3: DT Realtime (Standard Achieved)
+      // Col 3: DT Realtime (Standard Achieved / DTLK)
       // Col 4: Target Ngày (Standard Target)
       // Col 5: % HT Target Ngày (QĐ)
-      // Col 6: DT Realtime (QĐ)
+      // Col 6: DT Realtime (QĐ) / DTQĐ
       // Col 7: Target Ngày (QĐ)
-      const valRateRaw = parseRate(cells[2]);
-      const valDtRaw = parseNum(cells[3]);
-      const valTargetRaw = parseNum(cells[4]);
+      const valRateRaw = parseRate(cells[colOffset + 1]);
+      const valDtRaw = parseNum(cells[colOffset + 2]);
+      const valTargetRaw = parseNum(cells[colOffset + 3]);
 
-      const valRateQd = parseRate(cells[5]);
-      const valDtQd = parseNum(cells[6]);
-      const valTargetQd = parseNum(cells[7]);
+      const valRateQd = parseRate(cells[colOffset + 4]);
+      const valDtQd = parseNum(cells[colOffset + 5]);
+      const valTargetQd = parseNum(cells[colOffset + 6]);
 
-      var dtThuc = valDtRaw;
-      var dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
+      dtThuc = valDtRaw;
+      dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
 
       if (valTargetQd > 0 || valDtQd > 0) {
         achieved = valDtQd;
