@@ -1304,7 +1304,7 @@ ${botLines || 'Đang cập nhật'}
               </div>
             )}
 
-            {entityScope !== 'tong' && entityScope !== 'sieuthi' && (
+            {entityScope !== 'tong' && entityScope !== 'sieuthi' && entityScope !== 'topbot' && (
               <>
                 <div className="h-4 w-px bg-slate-200 mx-0.5"></div>
 
@@ -1735,12 +1735,12 @@ ${botLines || 'Đang cập nhật'}
             </div>
           </div>
         ) : entityScope === 'topbot' ? (
-          /* TAB TOP/BOT: EXACT MATCH DESIGN WITH SPLIT CHANNEL HEADER AND TWO TABLES */
-          <div className="max-w-6xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none sm:rounded-lg">
-            {/* Header: Left Channel Name Block & Right Time Info */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-0 border-b border-slate-300 bg-white">
-              {/* Left Channel Name Block */}
-              <div className="md:col-span-6 bg-[#1e40af] text-white flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-slate-300 min-h-[120px]">
+          /* TAB TOP/BOT: EXACT MATCH DESIGN WITH 2 SEPARATE COLUMNS (GAP IN BETWEEN) */
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-4 my-2 select-none">
+            {/* LEFT COLUMN: CHANNEL HEADER & TOP/BOT D.THU TABLE */}
+            <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
+              {/* Channel Big Banner */}
+              <div className="bg-[#1e40af] text-white flex items-center justify-center p-6 border-b border-slate-300 min-h-[120px]">
                 <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
                   {selectedChannels.length === 1
                     ? (selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0] === 'TGD' ? 'TGD' : 'TOPZONE')
@@ -1750,8 +1750,77 @@ ${botLines || 'Đang cập nhật'}
                 </h1>
               </div>
 
+              {/* Table: Top & Bottom DTQD */}
+              <div className="overflow-x-auto grow flex flex-col justify-between">
+                <div>
+                  <div className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
+                    TOP &amp; BOTTOM D.THU QUY ĐỔI
+                  </div>
+                  <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
+                    <thead>
+                      <tr className="bg-[#00b074] text-black font-black text-xs sm:text-sm">
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
+                        <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
+                          <div>D.THU</div>
+                          <div className="text-[10px]">THỰC HIỆN</div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-black font-sans">
+                      {/* Top 20 D.Thu */}
+                      {topBotData.top20DtQd.map((s) => (
+                        <tr key={`top_dt_${s.id || s.sieuthi}`} className="font-bold">
+                          <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
+                            {s.rank}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                            {s.boss || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
+                            {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                            {s.sieuthi}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
+                            {Math.round(s.dtQd || s.achievedDt || 0)}
+                          </td>
+                        </tr>
+                      ))}
+
+                      {/* Bottom 20 D.Thu */}
+                      {topBotData.bot20DtQd.map((s) => (
+                        <tr key={`bot_dt_${s.id || s.sieuthi}`} className="font-bold">
+                          <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
+                            {s.rank}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                            {s.boss || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
+                            {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                            {s.sieuthi}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
+                            {Math.round(s.dtQd || s.achievedDt || 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: TIME INFO & TOP/BOT % HT TABLE */}
+            <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
               {/* Right Time Info Block */}
-              <div className="md:col-span-6 flex flex-col justify-center bg-white">
+              <div className="flex flex-col justify-center bg-white min-h-[120px] border-b border-slate-300">
                 <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300">
                   <div className="p-2.5 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
                     {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'}
@@ -1766,7 +1835,7 @@ ${botLines || 'Đang cập nhật'}
                     THỜI GIAN SỬ DỤNG
                   </div>
                   <div className="p-2.5 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
-                    {timeMode === 'realtime' ? `${thoiGianSdPercent.toFixed(1)}%` : `${Math.round(thoiGianSdPercent)}%`}
+                    {Math.round(thoiGianSdPercent)}%
                   </div>
                 </div>
 
@@ -1774,148 +1843,83 @@ ${botLines || 'Đang cập nhật'}
                   {targetHeaderStr}
                 </div>
               </div>
-            </div>
 
-            {/* TWO SIDE-BY-SIDE TABLES */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-slate-300">
-              {/* LEFT TABLE: TOP & BOTTOM D.THU QUY ĐỔI */}
-              <div className="overflow-x-auto">
-                <div className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
-                  TOP &amp; BOTTOM D.THU QUY ĐỔI
+              {/* Table: Top & Bottom % HT */}
+              <div className="overflow-x-auto grow flex flex-col justify-between">
+                <div>
+                  <div className="bg-[#fcd34d] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
+                    TOP &amp; BOTTOM TỈ LỆ HOÀN THÀNH
+                  </div>
+                  <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
+                    <thead>
+                      <tr className="bg-[#fcd34d] text-black font-black text-xs sm:text-sm">
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
+                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
+                        <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
+                          <div>TỈ LỆ</div>
+                          <div className="text-[10px]">HOÀN THÀNH</div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-black font-sans">
+                      {/* Top 20 % HT */}
+                      {topBotData.top20Rate.map((s) => (
+                        <tr key={`top_rate_${s.id || s.sieuthi}`} className="font-bold">
+                          <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
+                            {s.rank}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                            {s.boss || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
+                            {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                            {s.sieuthi}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
+                            {Math.round(s.rateDt)}%
+                          </td>
+                        </tr>
+                      ))}
+
+                      {/* Bottom 20 % HT */}
+                      {topBotData.bot20Rate.map((s) => (
+                        <tr key={`bot_rate_${s.id || s.sieuthi}`} className="font-bold">
+                          <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
+                            {s.rank}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                            {s.boss || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
+                            {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                            {s.sieuthi}
+                          </td>
+                          <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
+                            {Math.round(s.rateDt)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-[#fcd34d] font-black text-black">
+                        <td colSpan={4} className="p-2 text-center uppercase tracking-wide border-r border-t border-slate-300 font-black text-xs sm:text-sm">
+                          {selectedChannels.length === 1
+                            ? `KÊNH ${selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0]}`
+                            : 'TỔNG CỘNG KÊNH'}
+                        </td>
+                        <td className="p-2 text-center font-black font-mono border-t border-slate-300 text-xs sm:text-sm">
+                          {Math.round(totalSummary.totalRateDt)}%
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
-                <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
-                  <thead>
-                    <tr className="bg-[#00b074] text-black font-black text-xs sm:text-sm">
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
-                      <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
-                        <div>D.THU</div>
-                        <div className="text-[10px]">THỰC HIỆN</div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-black font-sans">
-                    {/* Top 20 D.Thu */}
-                    {topBotData.top20DtQd.map((s) => (
-                      <tr key={`top_dt_${s.id || s.sieuthi}`} className="font-bold">
-                        <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
-                          {s.rank}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
-                          {s.boss || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
-                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
-                          {s.sieuthi}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
-                          {Math.round(s.dtQd || s.achievedDt || 0)}
-                        </td>
-                      </tr>
-                    ))}
-
-                    {/* Bottom 20 D.Thu */}
-                    {topBotData.bot20DtQd.map((s) => (
-                      <tr key={`bot_dt_${s.id || s.sieuthi}`} className="font-bold">
-                        <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
-                          {s.rank}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
-                          {s.boss || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
-                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
-                          {s.sieuthi}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
-                          {Math.round(s.dtQd || s.achievedDt || 0)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* RIGHT TABLE: TOP & BOTTOM TỈ LỆ HOÀN THÀNH */}
-              <div className="overflow-x-auto">
-                <div className="bg-[#fcd34d] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
-                  TOP &amp; BOTTOM TỈ LỆ HOÀN THÀNH
-                </div>
-                <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
-                  <thead>
-                    <tr className="bg-[#fcd34d] text-black font-black text-xs sm:text-sm">
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
-                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
-                      <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
-                        <div>TỈ LỆ</div>
-                        <div className="text-[10px]">HOÀN THÀNH</div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-black font-sans">
-                    {/* Top 20 % HT */}
-                    {topBotData.top20Rate.map((s) => (
-                      <tr key={`top_rate_${s.id || s.sieuthi}`} className="font-bold">
-                        <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
-                          {s.rank}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
-                          {s.boss || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
-                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
-                          {s.sieuthi}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
-                          {s.rateDt.toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-
-                    {/* Bottom 20 % HT */}
-                    {topBotData.bot20Rate.map((s) => (
-                      <tr key={`bot_rate_${s.id || s.sieuthi}`} className="font-bold">
-                        <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
-                          {s.rank}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
-                          {s.boss || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
-                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
-                          {s.sieuthi}
-                        </td>
-                        <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
-                          {s.rateDt.toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-[#fcd34d] font-black text-black">
-                      <td colSpan={4} className="p-2 text-center uppercase tracking-wide border-r border-t border-slate-300 font-black text-xs sm:text-sm">
-                        {selectedChannels.length === 1
-                          ? `KÊNH ${selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0]}`
-                          : 'TỔNG CỘNG KÊNH'}
-                      </td>
-                      <td className="p-2 text-center font-black font-mono border-t border-slate-300 text-xs sm:text-sm">
-                        {totalSummary.totalRateDt.toFixed(1)}%
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
               </div>
             </div>
           </div>
