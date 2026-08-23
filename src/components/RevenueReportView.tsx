@@ -1199,17 +1199,17 @@ ${botLines || 'Đang cập nhật'}
 
         {/* 3. TABLE RENDERING: TỔNG vs VÙNG (TỈNH) vs SIÊU THỊ */}
         {entityScope === 'tong' ? (
-          /* TAB TỔNG: EXECUTIVE EXACT MATCH DESIGN (IMAGE 2) */
-          <div className="max-w-xl mx-auto bg-white border-2 border-black font-sans select-none overflow-hidden my-2 shadow-lg">
+          /* TAB TỔNG: EXACT MATCH DESIGN WITH THIN LIGHT GRAY BORDERS */
+          <div className="max-w-xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none sm:rounded-lg">
             {/* Header: Main Title */}
-            <div className="py-4 px-4 text-center bg-white border-b-2 border-black">
+            <div className="py-4 px-4 text-center bg-white border-b border-slate-300">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase text-black font-sans">
                 {mainTitleStr}
               </h1>
             </div>
 
             {/* Sub-Header Bar: REALTIME / LUỸ KẾ & THỜI GIAN SD */}
-            <div className="grid grid-cols-4 border-b-2 border-black bg-white text-center text-xs sm:text-sm divide-x-2 divide-black font-sans font-black">
+            <div className="grid grid-cols-4 border-b border-slate-300 bg-white text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans font-black">
               <div className="py-2.5 px-2 uppercase text-black flex items-center justify-center font-black">
                 {infoTimeLabel}
               </div>
@@ -1229,16 +1229,16 @@ ${botLines || 'Đang cập nhật'}
               <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
                 <thead>
                   {/* Top Banner Row */}
-                  <tr className="border-b border-black">
+                  <tr className="border-b border-slate-300">
                     <th
                       colSpan={3}
-                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-black text-xs sm:text-sm uppercase tracking-wide leading-tight"
+                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-black text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
+                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-slate-300 text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
                     >
                       <div className="font-black text-black">HIỆU QUẢ</div>
                       <div className="font-black text-black">QUY ĐỔI</div>
@@ -1257,15 +1257,15 @@ ${botLines || 'Đang cập nhật'}
                   </tr>
 
                   {/* Sub Header Row */}
-                  <tr className="border-b border-black bg-[#00b074] text-black font-black text-xs sm:text-sm">
-                    <th className="p-2 sm:p-2.5 border-r border-black text-left w-24 sm:w-28 pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                  <tr className="border-b border-slate-300 bg-[#00b074] text-black font-black text-xs sm:text-sm">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-left w-24 sm:w-28 pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-black text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider font-black text-black leading-tight">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-black text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider font-black text-black leading-tight">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -1316,19 +1316,19 @@ ${botLines || 'Đang cập nhật'}
                   })}
 
                   {/* Channel Summary Row */}
-                  <tr className="font-black text-black border-t-2 border-black">
-                    <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-black">
+                  <tr className="font-black text-black border-t border-slate-300">
+                    <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-slate-300">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-black font-mono">
+                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-slate-300 font-mono">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-black font-mono">
+                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-slate-300 font-mono">
                       {timeMode === 'realtime'
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#fcd34d] text-black font-black border-r border-black font-mono">
+                    <td className="p-2 sm:p-2.5 text-center bg-[#fcd34d] text-black font-black border-r border-slate-300 font-mono">
                       {timeMode === 'realtime'
                         ? `${(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)).toFixed(1)}%`
                         : `${Math.round(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0))}%`}
@@ -1342,23 +1342,23 @@ ${botLines || 'Đang cập nhật'}
             </div>
 
             {/* DIVIDER SPACE BETWEEN TABLES */}
-            <div className="h-2 bg-white border-y-2 border-black" />
+            <div className="h-2 bg-slate-50 border-y border-slate-300" />
 
             {/* TABLE 2: THEO TỈNH */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
                 <thead>
                   {/* Top Banner Row */}
-                  <tr className="border-b border-black">
+                  <tr className="border-b border-slate-300">
                     <th
                       colSpan={3}
-                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-black text-xs sm:text-sm uppercase tracking-wide leading-tight"
+                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-black text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
+                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-slate-300 text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
                     >
                       <div className="font-black text-black">HIỆU QUẢ</div>
                       <div className="font-black text-black">QUY ĐỔI</div>
@@ -1377,15 +1377,15 @@ ${botLines || 'Đang cập nhật'}
                   </tr>
 
                   {/* Sub Header Row */}
-                  <tr className="border-b border-black bg-[#00b074] text-black font-black text-xs sm:text-sm">
-                    <th className="p-2 sm:p-2.5 border-r border-black text-left w-24 sm:w-28 pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                  <tr className="border-b border-slate-300 bg-[#00b074] text-black font-black text-xs sm:text-sm">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-left w-24 sm:w-28 pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-black text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider font-black text-black leading-tight">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-black text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider font-black text-black leading-tight">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -1436,19 +1436,19 @@ ${botLines || 'Đang cập nhật'}
                   })}
 
                   {/* Province Summary Row at Bottom */}
-                  <tr className="font-black text-black border-t-2 border-black">
-                    <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-black">
+                  <tr className="font-black text-black border-t border-slate-300">
+                    <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-slate-300">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-black font-mono">
+                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-slate-300 font-mono">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-black font-mono">
+                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-slate-300 font-mono">
                       {timeMode === 'realtime'
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#fcd34d] text-black font-black border-r border-black font-mono">
+                    <td className="p-2 sm:p-2.5 text-center bg-[#fcd34d] text-black font-black border-r border-slate-300 font-mono">
                       {timeMode === 'realtime'
                         ? `${(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)).toFixed(1)}%`
                         : `${Math.round(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0))}%`}
