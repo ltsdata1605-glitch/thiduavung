@@ -1013,16 +1013,22 @@ ${botLines || 'Đang cập nhật'}
                     >
                       {targetHeaderStr}
                     </th>
-                    <th className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r-2 border-slate-300 text-xs leading-tight w-28">
+                    <th
+                      rowSpan={2}
+                      className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r-2 border-slate-300 text-xs leading-tight w-28 align-middle"
+                    >
                       <div>HIỆU QUẢ</div>
                       <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-bold mt-0.5 opacity-90">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
                       <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
                     </th>
-                    <th className="bg-[#fcd34d] text-slate-950 font-black p-2 text-center text-xs leading-tight w-28">
+                    <th
+                      rowSpan={2}
+                      className="bg-[#fcd34d] text-slate-950 font-black p-2 text-center text-xs leading-tight w-28 align-middle"
+                    >
                       <div>TỈ TRỌNG</div>
                       <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-bold mt-0.5 opacity-90">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
                       <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
                     </th>
                   </tr>
@@ -1040,8 +1046,6 @@ ${botLines || 'Đang cập nhật'}
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
-                    <th className="p-0 border-r-2 border-slate-300 bg-[#fbb040]" />
-                    <th className="p-0 bg-[#fcd34d]" />
                   </tr>
                 </thead>
 
@@ -1114,16 +1118,22 @@ ${botLines || 'Đang cập nhật'}
                     >
                       {targetHeaderStr}
                     </th>
-                    <th className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r-2 border-slate-300 text-xs leading-tight w-28">
+                    <th
+                      rowSpan={2}
+                      className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r-2 border-slate-300 text-xs leading-tight w-28 align-middle"
+                    >
                       <div>HIỆU QUẢ</div>
                       <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-bold mt-0.5 opacity-90">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
                       <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
                     </th>
-                    <th className="bg-[#fcd34d] text-slate-950 font-black p-2 text-center text-xs leading-tight w-28">
+                    <th
+                      rowSpan={2}
+                      className="bg-[#fcd34d] text-slate-950 font-black p-2 text-center text-xs leading-tight w-28 align-middle"
+                    >
                       <div>TỈ TRỌNG</div>
                       <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-bold mt-0.5 opacity-90">MỤC TIÊU</div>
+                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
                       <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
                     </th>
                   </tr>
@@ -1141,8 +1151,6 @@ ${botLines || 'Đang cập nhật'}
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
-                    <th className="p-0 border-r-2 border-slate-300 bg-[#fbb040]" />
-                    <th className="p-0 bg-[#fcd34d]" />
                   </tr>
                 </thead>
 
