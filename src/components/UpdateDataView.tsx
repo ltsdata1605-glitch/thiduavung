@@ -68,6 +68,7 @@ interface UpdateDataViewProps {
   lastUpdateLuyKe?: string;
   // Only Super Admin / Admin may see the DT QĐ TB column in the BOSS list.
   canViewDtQdTb?: boolean;
+  currentUser?: UserAccount | null;
 }
 
 interface MultiSelectFilterProps {
@@ -99,25 +100,22 @@ const MultiSelectFilter: React.FC<MultiSelectFilterProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredOptions = useMemo(() => {
-    if (!search) return options;
-    return options.filter((o) => String(o).toLowerCase().includes(search.toLowerCase().trim()));
-  }, [options, search]);
-
-  const toggleOption = (val: string) => {
-    if (selectedValues.includes(val)) {
-      onChange(selectedValues.filter((v) => v !== val));
-    } else {
-      onChange([...selectedValues, val]);
-    }
-  };
+  const filteredOptions = options.filter((opt) => opt.toLowerCase().includes(search.toLowerCase()));
 
   const isAllSelected = selectedValues.length === 0;
+
+  const toggleOption = (opt: string) => {
+    if (selectedValues.includes(opt)) {
+      onChange(selectedValues.filter((v) => v !== opt));
+    } else {
+      onChange([...selectedValues, opt]);
+    }
+  };
 
   const getDisplayText = () => {
     if (selectedValues.length === 0) return allLabel;
     if (selectedValues.length === 1) return selectedValues[0];
-    return `${selectedValues[0]} (+${selectedValues.length - 1})`;
+    return `${selectedValues.length} ${label}`;
   };
 
   return (
@@ -184,9 +182,11 @@ const MultiSelectFilter: React.FC<MultiSelectFilterProps> = ({
                       checked ? 'bg-blue-50 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
                     }`}
                   >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                      checked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
-                    }`}>
+                    <div
+                      className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                        checked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
+                      }`}
+                    >
                       {checked && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
                     <span className="truncate">{opt}</span>
@@ -194,7 +194,7 @@ const MultiSelectFilter: React.FC<MultiSelectFilterProps> = ({
                 );
               })
             ) : (
-              <div className="text-center py-2 text-xs text-slate-400 italic">Không tìm thấy</div>
+              <div className="py-2 text-center text-xs text-slate-400">Không tìm thấy {label}</div>
             )}
           </div>
         </div>
@@ -238,7 +238,14 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   lastUpdateRealtime,
   lastUpdateLuyKe,
   canViewDtQdTb = true,
+  currentUser,
 }) => {
+  const isUser3717 =
+    currentUser?.accountId === '3717' ||
+    currentUser?.username === '3717' ||
+    currentUser?.username?.toLowerCase().includes('3717') ||
+    currentUser?.accountId?.toLowerCase().includes('3717');
+
   const bookmarkletRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
@@ -1361,9 +1368,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       </div>
       </div>
 
-      {/* KHU VỰC 2B: CẬP NHẬT DOANH THU & TRẢ CHẬM TỪ BI */}
-      <div className="space-y-4">
-        {/* Header bar with Link BI Doanh Thu */}
+      {/* KHU VỰC 2B: CẬP NHẬT DOANH THU & TRẢ CHẬM TỪ BI (Chỉ hiển thị cho tài khoản 3717) */}
+      {isUser3717 && (
+        <div className="space-y-4">
+          {/* Header bar with Link BI Doanh Thu */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold shadow-xs shrink-0">
@@ -1707,7 +1715,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* KHU VỰC 3: DANH SÁCH BOSS & EXCEL IMPORT */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">

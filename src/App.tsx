@@ -1536,6 +1536,7 @@ function AppInner() {
                 lastUpdateRealtime={settings.lastUpdateRealtime}
                 lastUpdateLuyKe={settings.lastUpdateLuyKe}
                 canViewDtQdTb={canViewDtQdTb}
+                currentUser={currentUser}
               />
             </React.Suspense>
           )}
