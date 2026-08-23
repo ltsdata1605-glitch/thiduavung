@@ -159,6 +159,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
+  const [exportMode, setExportMode] = useState<'quick' | 'group' | 'all'>('all');
 
   // Selected Active Stores based on Time Mode
   const activeDtStores = timeMode === 'realtime' ? realtimeDtStores : luykeDtStores;
@@ -727,10 +728,11 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       alert('Không tìm thấy bảng báo cáo để xuất ảnh!');
       return;
     }
+    setExportMode(mode);
     setIsExporting(true);
     try {
       await new Promise((r) => setTimeout(r, 250));
-      const filename = `Bao_Cao_Doanh_Thu_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+      const filename = `Bao_Cao_Doanh_Thu_${mode === 'quick' ? 'Nhanh_' : ''}${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
       const remarkText = generateRevenueRemarks('template_1', 'user');
       const blob = await exportElementAsImage(el, filename, {
         remarkTextToCopy: remarkText,
@@ -740,6 +742,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       }
     } finally {
       setIsExporting(false);
+      setExportMode('all');
     }
   };
 
@@ -1186,6 +1189,18 @@ ${botLines || 'Đang cập nhật'}
               >
                 <Coins className="w-3.5 h-3.5" />
                 <span>Xuất theo nhóm</span>
+              </button>
+            )}
+
+            {/* Xuất Nhanh Button (Only for TAB VÙNG) */}
+            {entityScope === 'sieuthi' && (
+              <button
+                onClick={() => handleExport('quick')}
+                disabled={isExporting}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                <span>Xuất nhanh</span>
               </button>
             )}
 
@@ -1724,12 +1739,12 @@ ${botLines || 'Đang cập nhật'}
                     TỈNH
                   </th>
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                    <th colSpan={3} className="bg-[#f59e0b] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
+                    <th colSpan={isExporting && exportMode === 'quick' ? 1 : 3} className="bg-[#f59e0b] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
                       NHÓM DOANH THU THUẦN
                     </th>
                   )}
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                    <th colSpan={2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 border-r border-emerald-500/40 uppercase tracking-wide">
+                    <th colSpan={isExporting && exportMode === 'quick' ? 1 : 2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 border-r border-emerald-500/40 uppercase tracking-wide">
                       NHÓM TRẢ CHẬM
                     </th>
                   )}
@@ -1745,14 +1760,20 @@ ${botLines || 'Đang cập nhật'}
                   <th className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">SỐ ST</th>
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                     <>
-                      <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">TARGET DT</th>
-                      <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC ĐẠT DT</th>
+                      {!(isExporting && exportMode === 'quick') && (
+                        <>
+                          <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">TARGET DT</th>
+                          <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC ĐẠT DT</th>
+                        </>
+                      )}
                       <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">% HT DT</th>
                     </>
                   )}
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                     <>
-                      <th className="p-2 border-r border-emerald-200 text-right bg-emerald-100 text-emerald-950 font-black">TRẢ CHẬM</th>
+                      {!(isExporting && exportMode === 'quick') && (
+                        <th className="p-2 border-r border-emerald-200 text-right bg-emerald-100 text-emerald-950 font-black">TRẢ CHẬM</th>
+                      )}
                       <th className="p-2 border-r border-emerald-200 text-center bg-emerald-100 text-emerald-950 font-black">% TRẢ CHẬM / DT</th>
                     </>
                   )}
@@ -1774,8 +1795,12 @@ ${botLines || 'Đang cập nhật'}
                       <td className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-200">{row.storesCount} ST</td>
                       {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                         <>
-                          <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{formatVND(row.targetDt)}</td>
-                          <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{formatVND(row.achievedDt)}</td>
+                          {!(isExporting && exportMode === 'quick') && (
+                            <>
+                              <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{formatVND(row.targetDt)}</td>
+                              <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{formatVND(row.achievedDt)}</td>
+                            </>
+                          )}
                           <td className="p-2.5 text-center border-r border-slate-200">
                             <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${row.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : row.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
                               {row.rateDt}%
@@ -1785,7 +1810,9 @@ ${botLines || 'Đang cập nhật'}
                       )}
                       {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                         <>
-                          <td className="p-2.5 text-right font-mono font-black text-amber-700 border-r border-slate-200">{formatVND(row.achievedTc)}</td>
+                          {!(isExporting && exportMode === 'quick') && (
+                            <td className="p-2.5 text-right font-mono font-black text-amber-700 border-r border-slate-200">{formatVND(row.achievedTc)}</td>
+                          )}
                           <td className="p-2.5 text-center border-r border-slate-200 font-bold text-amber-900">
                             {row.tcRatio}%
                           </td>
@@ -1813,8 +1840,12 @@ ${botLines || 'Đang cập nhật'}
                     <td className="p-3 text-center border-r border-slate-700 text-slate-200 font-bold">{totalSummary.totalStores} ST</td>
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                       <>
-                        <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{formatVND(totalSummary.totalTargetDt)}</td>
-                        <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{formatVND(totalSummary.totalAchievedDt)}</td>
+                        {!(isExporting && exportMode === 'quick') && (
+                          <>
+                            <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{formatVND(totalSummary.totalTargetDt)}</td>
+                            <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{formatVND(totalSummary.totalAchievedDt)}</td>
+                          </>
+                        )}
                         <td className="p-3 text-center border-r border-slate-700">
                           <span className={`px-2.5 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
                             {totalSummary.totalRateDt}%
@@ -1824,7 +1855,9 @@ ${botLines || 'Đang cập nhật'}
                     )}
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                       <>
-                        <td className="p-3 text-right font-mono text-amber-300 border-r border-slate-700">{formatVND(totalSummary.totalAchievedTc)}</td>
+                        {!(isExporting && exportMode === 'quick') && (
+                          <td className="p-3 text-right font-mono text-amber-300 border-r border-slate-700">{formatVND(totalSummary.totalAchievedTc)}</td>
+                        )}
                         <td className="p-3 text-center border-r border-slate-700">
                           <span className="px-2 py-0.5 rounded-md bg-teal-500 text-slate-950 font-black">
                             {totalSummary.totalTcRatio}%
