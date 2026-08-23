@@ -197,7 +197,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       const targetTc = matchedTc?.target || 0;
       const achievedTc = matchedTc?.achieved || 0;
       const rateTc = matchedTc?.rate ?? (targetTc > 0 ? (achievedTc / targetTc) * 100 : 0);
-      const tcRatio = achievedDt > 0 ? (achievedTc / achievedDt) * 100 : 0;
+      const tcRatio = matchedTc?.rate !== undefined && matchedTc.rate > 0 ? matchedTc.rate : (achievedDt > 0 ? (achievedTc / achievedDt) * 100 : 0);
 
       items.push({
         stt: idx + 1,

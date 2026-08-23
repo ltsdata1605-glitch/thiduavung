@@ -1067,7 +1067,7 @@ const baseTarget = currentCategoryIsRevenue ? target : 0;
  */
 export function parseRevenuePastedData(
   text: string,
-  _isRealtime: boolean = false,
+  isRealtime: boolean = false,
   dataType: 'doanhthu' | 'tracham' = 'doanhthu'
 ): StoreRecord[] {
   if (!text || !text.trim()) return [];
@@ -1167,7 +1167,7 @@ export function parseRevenuePastedData(
     let dtQd = 0;
 
     if (dataType === 'tracham') {
-      // Trả Chậm table structure:
+      // Trả Chậm table structure (BI BCTCK):
       // Col 0: Tỉnh / Tên miền (if offset=1)
       // Col 1: Tên siêu thị
       // Col 2: DT Siêu thị (*) (Base Target / Store Revenue)
@@ -1182,33 +1182,60 @@ export function parseRevenuePastedData(
       rate = valRate > 0 ? valRate : target > 0 ? (achieved / target) * 100 : 0;
     } else {
       // Doanh Thu table structure:
-      // Col 0: Tỉnh / Khu vực (if offset=1)
-      // Col 1: Tên siêu thị
-      // Col 2: % HT Target Ngày (Standard Rate)
-      // Col 3: DT Realtime (Standard Achieved / DTLK)
-      // Col 4: Target Ngày (Standard Target)
-      // Col 5: % HT Target Ngày (QĐ)
-      // Col 6: DT Realtime (QĐ) / DTQĐ
-      // Col 7: Target Ngày (QĐ)
-      const valRateRaw = parseRate(cells[colOffset + 1]);
-      const valDtRaw = parseNum(cells[colOffset + 2]);
-      const valTargetRaw = parseNum(cells[colOffset + 3]);
+      // Check if Luỹ Kế format (contains +/- DTCK Tháng column, length >= 8) or Realtime format
+      const isLuyKeStructure = !isRealtime || cells.length >= colOffset + 8;
 
-      const valRateQd = parseRate(cells[colOffset + 4]);
-      const valDtQd = parseNum(cells[colOffset + 5]);
-      const valTargetQd = parseNum(cells[colOffset + 6]);
+      if (isLuyKeStructure && cells.length >= colOffset + 7) {
+        // Luỹ Kế Doanh Thu (BI BCDTST Luỹ kế):
+        // Col offset + 1: % HT Target Dự Kiến (e.g. 91.64%)
+        // Col offset + 2: DTLK (DT Thực e.g. 14,400)
+        // Col offset + 3: Target Tháng (e.g. 21,789)
+        // Col offset + 4: +/- DTCK Tháng (e.g. 23.72%)
+        // Col offset + 5: % HT Target Dự Kiến (QĐ) (e.g. 100.22%)
+        // Col offset + 6: DTQĐ (THỰC HIỆN e.g. 22,269)
+        // Col offset + 7: Target (QĐ) (MỤC TIÊU e.g. 30,809)
+        const valRateRaw = parseRate(cells[colOffset + 1]);
+        const valDtRaw = parseNum(cells[colOffset + 2]);
+        const valTargetRaw = parseNum(cells[colOffset + 3]);
 
-      dtThuc = valDtRaw;
-      dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
+        const valRateQd = parseRate(cells[colOffset + 5]);
+        const valDtQd = parseNum(cells[colOffset + 6]);
+        const valTargetQd = parseNum(cells[colOffset + 7]);
 
-      if (valTargetQd > 0 || valDtQd > 0) {
-        achieved = valDtQd;
-        target = valTargetQd;
-        rate = valRateQd > 0 ? valRateQd : target > 0 ? (achieved / target) * 100 : 0;
+        dtThuc = valDtRaw;
+        dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
+
+        achieved = dtQd;
+        target = valTargetQd > 0 ? valTargetQd : valTargetRaw;
+        rate = target > 0 ? (achieved / target) * 100 : (valRateQd > 0 ? valRateQd : valRateRaw);
       } else {
-        achieved = valDtRaw;
-        target = valTargetRaw;
-        rate = valRateRaw > 0 ? valRateRaw : target > 0 ? (achieved / target) * 100 : 0;
+        // Realtime Doanh Thu (BI BCDTST Realtime):
+        // Col offset + 1: % HT Target Ngày (e.g. 53.43%)
+        // Col offset + 2: DT Realtime (DT Thực e.g. 482)
+        // Col offset + 3: Target Ngày (e.g. 902)
+        // Col offset + 4: % HT Target Ngày (QĐ) (e.g. 57.27%)
+        // Col offset + 5: DT Realtime (QĐ) (THỰC HIỆN e.g. 730)
+        // Col offset + 6: Target Ngày (QĐ) (MỤC TIÊU e.g. 1,275)
+        const valRateRaw = parseRate(cells[colOffset + 1]);
+        const valDtRaw = parseNum(cells[colOffset + 2]);
+        const valTargetRaw = parseNum(cells[colOffset + 3]);
+
+        const valRateQd = parseRate(cells[colOffset + 4]);
+        const valDtQd = parseNum(cells[colOffset + 5]);
+        const valTargetQd = parseNum(cells[colOffset + 6]);
+
+        dtThuc = valDtRaw;
+        dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
+
+        if (valTargetQd > 0 || valDtQd > 0) {
+          achieved = valDtQd;
+          target = valTargetQd;
+          rate = target > 0 ? (achieved / target) * 100 : (valRateQd > 0 ? valRateQd : 0);
+        } else {
+          achieved = valDtRaw;
+          target = valTargetRaw;
+          rate = target > 0 ? (achieved / target) * 100 : (valRateRaw > 0 ? valRateRaw : 0);
+        }
       }
     }
 
