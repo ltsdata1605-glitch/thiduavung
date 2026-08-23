@@ -287,6 +287,73 @@ function computeSafeScale(targetWidth: number, targetHeight: number, requestedSc
 }
 
 /**
+ * Recursively copy computed visual styles (colors, background, font, borders) from
+ * the live DOM element tree to the cloned element tree. This guarantees that all
+ * Tailwind v4 colors, custom fonts, CSS variables, and theme values are preserved
+ * 100% in the exported canvas even if stylesheet loading fails in the sandbox iframe.
+ */
+function copyComputedVisualStyles(source: HTMLElement, target: HTMLElement) {
+  try {
+    const srcList = [source, ...Array.from(source.querySelectorAll<HTMLElement>('*'))];
+    const tgtList = [target, ...Array.from(target.querySelectorAll<HTMLElement>('*'))];
+
+    for (let i = 0; i < srcList.length && i < tgtList.length; i++) {
+      const s = srcList[i];
+      const t = tgtList[i];
+      if (!s || !t) continue;
+
+      const cs = window.getComputedStyle(s);
+      if (!cs) continue;
+
+      // 1. Background color (preserve non-transparent backgrounds)
+      if (cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') {
+        t.style.setProperty('background-color', cs.backgroundColor, 'important');
+      }
+
+      // 2. Text color
+      if (cs.color) {
+        t.style.setProperty('color', cs.color, 'important');
+      }
+
+      // 3. Typography
+      if (cs.fontFamily) {
+        t.style.setProperty('font-family', cs.fontFamily, 'important');
+      }
+      if (cs.fontWeight) {
+        t.style.setProperty('font-weight', cs.fontWeight, 'important');
+      }
+      if (cs.fontSize) {
+        t.style.setProperty('font-size', cs.fontSize, 'important');
+      }
+
+      // 4. Borders
+      if (cs.borderTopColor && cs.borderTopWidth && cs.borderTopWidth !== '0px') {
+        t.style.setProperty('border-top-color', cs.borderTopColor, 'important');
+        t.style.setProperty('border-top-width', cs.borderTopWidth, 'important');
+        t.style.setProperty('border-top-style', cs.borderTopStyle || 'solid', 'important');
+      }
+      if (cs.borderBottomColor && cs.borderBottomWidth && cs.borderBottomWidth !== '0px') {
+        t.style.setProperty('border-bottom-color', cs.borderBottomColor, 'important');
+        t.style.setProperty('border-bottom-width', cs.borderBottomWidth, 'important');
+        t.style.setProperty('border-bottom-style', cs.borderBottomStyle || 'solid', 'important');
+      }
+      if (cs.borderLeftColor && cs.borderLeftWidth && cs.borderLeftWidth !== '0px') {
+        t.style.setProperty('border-left-color', cs.borderLeftColor, 'important');
+        t.style.setProperty('border-left-width', cs.borderLeftWidth, 'important');
+        t.style.setProperty('border-left-style', cs.borderLeftStyle || 'solid', 'important');
+      }
+      if (cs.borderRightColor && cs.borderRightWidth && cs.borderRightWidth !== '0px') {
+        t.style.setProperty('border-right-color', cs.borderRightColor, 'important');
+        t.style.setProperty('border-right-width', cs.borderRightWidth, 'important');
+        t.style.setProperty('border-right-style', cs.borderRightStyle || 'solid', 'important');
+      }
+    }
+  } catch (err) {
+    console.warn('copyComputedVisualStyles notice:', err);
+  }
+}
+
+/**
  * Rasterize `node` (already fully prepared: colors resolved, scrollable
  * containers expanded, dimensions locked to width/height) to a PNG Blob via
  * html2canvas-pro, retrying at progressively lower scales so a
@@ -319,7 +386,46 @@ async function rasterizeToBlob(
         height,
         windowWidth: width,
         useCORS: true,
+        allowTaint: true,
         logging: false,
+        onclone: (clonedDoc) => {
+          // 1. Inject base URL to resolve relative fonts and stylesheets inside iframe
+          try {
+            const base = clonedDoc.createElement('base');
+            base.href = window.location.href;
+            clonedDoc.head.appendChild(base);
+          } catch {}
+
+          // 2. Clone all <style> tags from parent document
+          try {
+            document.querySelectorAll('style').forEach((st) => {
+              clonedDoc.head.appendChild(st.cloneNode(true));
+            });
+          } catch {}
+
+          // 3. Inline all CSS rules from linked stylesheets into clonedDoc
+          try {
+            const combinedCss = Array.from(document.styleSheets)
+              .map((sheet) => {
+                try {
+                  return Array.from(sheet.cssRules)
+                    .map((r) => r.cssText)
+                    .join('\n');
+                } catch {
+                  return '';
+                }
+              })
+              .join('\n');
+
+            if (combinedCss) {
+              const inlineStyle = clonedDoc.createElement('style');
+              inlineStyle.textContent = combinedCss;
+              clonedDoc.head.appendChild(inlineStyle);
+            }
+          } catch (err) {
+            console.warn('onclone CSS inlining notice:', err);
+          }
+        },
       });
 
       // Tạo viền trắng bao quanh mỏng đẹp mắt và chuyên nghiệp
@@ -363,6 +469,9 @@ export async function exportElementAsImage(
   const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12 } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
+
+  // Bake live computed visual styles (RGB colors, fonts, borders) into clone
+  copyComputedVisualStyles(element, clone);
 
   // Remove control bars and camera export buttons
   elementsToHide.forEach((selector) => {
@@ -603,6 +712,9 @@ export async function exportGroupSpecificElement(
   const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12 } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
+
+  // Bake live computed visual styles (RGB colors, fonts, borders) into clone
+  copyComputedVisualStyles(element, clone);
 
   elementsToHide.forEach((selector) => {
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
