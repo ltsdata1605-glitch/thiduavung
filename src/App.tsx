@@ -12,6 +12,9 @@ import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView'
 const UpdateDataView = React.lazy(() =>
   import('./components/UpdateDataView').then((m) => ({ default: m.UpdateDataView }))
 );
+const RevenueReportView = React.lazy(() =>
+  import('./components/RevenueReportView').then((m) => ({ default: m.RevenueReportView }))
+);
 import { SettingsView } from './components/SettingsView';
 import { TagBossModal, generateReportRemarksText } from './components/TagBossModal';
 import { LoginView } from './components/LoginView';
@@ -74,6 +77,9 @@ function AppInner() {
     if (cleanHash === 'report') {
       return { tab: 'report', scope: 'sieuthi' };
     }
+    if (cleanHash === 'revenue' || cleanHash === 'doanh-thu') {
+      return { tab: 'revenue' };
+    }
     if (cleanHash === 'update' || cleanHash === 'cap-nhat') {
       return { tab: 'update' };
     }
@@ -84,6 +90,7 @@ function AppInner() {
   };
 
   const getHashFromRoute = (tab: ViewTab, scope: EntityScope): string => {
+    if (tab === 'revenue') return '#/revenue';
     if (tab === 'update') return '#/update';
     if (tab === 'settings') return '#/settings';
     if (scope === 'tong') return '#/tong';
@@ -95,6 +102,7 @@ function AppInner() {
 
   const getTitleFromRoute = (tab: ViewTab, scope: EntityScope, sysName?: string): string => {
     const prefix = sysName || 'THI ĐUA TNB';
+    if (tab === 'revenue') return `Báo cáo Doanh thu & Trả chậm | ${prefix}`;
     if (tab === 'update') return `Cập nhật Dữ liệu | ${prefix}`;
     if (tab === 'settings') return `Cài đặt Hệ thống | ${prefix}`;
     if (scope === 'tong') return `Tổng quan TGD & ĐMX | ${prefix}`;
@@ -162,6 +170,16 @@ function AppInner() {
   const [realtimeStoresVung, setRealtimeStoresVung] = useState<StoreRecord[]>(cachedData.realtimeStoresVung?.length ? cachedData.realtimeStoresVung : []);
   const [luykeStoresTinh, setLuyKeStoresTinh] = useState<StoreRecord[]>(cachedData.luykeStoresTinh?.length ? cachedData.luykeStoresTinh : []);
   const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : []);
+
+  // Revenue & Installment (Doanh thu & Trả chậm) Data
+  const [realtimeDtStores] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
+  const [realtimeTcStores] = usePersistedState<StoreRecord[]>('tnb_realtime_tracham', []);
+  const [luykeDtStores] = usePersistedState<StoreRecord[]>('tnb_luyke_doanhthu', []);
+  const [luykeTcStores] = usePersistedState<StoreRecord[]>('tnb_luyke_tracham', []);
+  const [lastUpdateRealtimeDt] = usePersistedState<string>('tnb_last_update_realtime_dt', '');
+  const [lastUpdateRealtimeTc] = usePersistedState<string>('tnb_last_update_realtime_tc', '');
+  const [lastUpdateLuyKeDt] = usePersistedState<string>('tnb_last_update_luyke_dt', '');
+  const [lastUpdateLuyKeTc] = usePersistedState<string>('tnb_last_update_luyke_tc', '');
 
   // BOSS assignment list, hydrated from local cache first
   const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
@@ -1450,6 +1468,36 @@ function AppInner() {
             </ErrorBoundary>
           )}
 
+          {activeTab === 'revenue' && (
+            <React.Suspense
+              fallback={
+                <div className="flex items-center justify-center py-24 text-slate-400 text-sm font-semibold">
+                  Đang tải báo cáo doanh thu &amp; trả chậm...
+                </div>
+              }
+            >
+              <ErrorBoundary>
+                <RevenueReportView
+                  realtimeDtStores={realtimeDtStores}
+                  realtimeTcStores={realtimeTcStores}
+                  luykeDtStores={luykeDtStores}
+                  luykeTcStores={luykeTcStores}
+                  bossAssignments={bossAssignments}
+                  lastUpdateRealtimeDt={lastUpdateRealtimeDt}
+                  lastUpdateRealtimeTc={lastUpdateRealtimeTc}
+                  lastUpdateLuyKeDt={lastUpdateLuyKeDt}
+                  lastUpdateLuyKeTc={lastUpdateLuyKeTc}
+                  timeMode={timeMode}
+                  setTimeMode={setTimeMode}
+                  entityScope={entityScope}
+                  setEntityScope={setEntityScope}
+                  currentUser={currentUser}
+                  onNavigateToUpdate={() => setActiveTab('update')}
+                />
+              </ErrorBoundary>
+            </React.Suspense>
+          )}
+
           {activeTab === 'update' && canUpdateData && (
             <React.Suspense
               fallback={
@@ -1462,6 +1510,10 @@ function AppInner() {
                 onUpdateRealtimeData={handleUpdateRealtimeData}
                 onUpdateLuyKeData={handleUpdateLuyKeData}
                 onUpdateBossData={handleUpdateBossData}
+                onUpdateRealtimeDt={setRealtimeDtStores}
+                onUpdateRealtimeTc={setRealtimeTcStores}
+                onUpdateLuyKeDt={setLuyKeDtStores}
+                onUpdateLuyKeTc={setLuyKeTcStores}
                 currentRealtimeStoresTinh={realtimeStoresTinh}
                 currentRealtimeStoresVung={realtimeStoresVung}
                 currentLuyKeStoresTinh={luykeStoresTinh}

@@ -1,4 +1,4 @@
-export type ViewTab = 'report' | 'update' | 'settings';
+export type ViewTab = 'report' | 'revenue' | 'update' | 'settings';
 
 export type TimeMode = 'realtime' | 'luyke';
 

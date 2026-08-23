@@ -12,7 +12,8 @@ import {
   LogOut,
   Users,
   Shield,
-  KeyRound
+  KeyRound,
+  Coins
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -52,6 +53,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: BarChart3,
       badge: 'HOT',
       badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+    },
+    {
+      id: 'revenue' as ViewTab,
+      label: 'Doanh thu',
+      subLabel: 'Doanh thu & Trả chậm',
+      icon: Coins,
+      badge: 'MỚI',
+      badgeColor: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
     },
     ...(canUpdateData
       ? [

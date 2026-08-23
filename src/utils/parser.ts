@@ -1017,9 +1017,7 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
         };
       }
     } else {
-      // Only seed the top-level (Trieu VND) totals from revenue-based categories; quantity-based
-      // (SLLK) categories are still kept in categoryMap but must not pollute this VND total.
-      const baseTarget = currentCategoryIsRevenue ? target : 0;
+const baseTarget = currentCategoryIsRevenue ? target : 0;
       const baseAchieved = currentCategoryIsRevenue ? achieved : 0;
       const baseRate = currentCategoryIsRevenue ? rate : 0;
       const catMap: Record<string, { target: number; achieved: number; rate: number }> = {};
@@ -1059,11 +1057,164 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
 }
 
 /**
- * "HH:MM:SS NGÀY DD/M/YYYY" for the current moment — the shared fallback
- * used whenever a real `lastUpdated` timestamp isn't available yet (e.g. a
- * fresh deploy or a remarks template built before any data synced). Several
- * call sites used to hardcode a fixed past date/time string here instead,
- * which looked increasingly wrong the further it got from when it was written.
+ * Parses revenue and installment (trả chậm) pasted TSV/CSV data from BI BCDTST sheet:
+ * https://bi.thegioididong.com/khoi-ban-hang-sub?id=8126&tab=bcdtst&rt=1&dm=1
+ */
+export function parseRevenuePastedData(
+  text: string,
+  _isRealtime: boolean = false,
+  dataType: 'doanhthu' | 'tracham' = 'doanhthu'
+): StoreRecord[] {
+  if (!text || !text.trim()) return [];
+
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+  if (rawLines.length === 0) return [];
+
+  const parseNum = (val: string | undefined): number => {
+    if (!val) return 0;
+    const clean = val.replace(/,/g, '').replace(/[^0-9.-]/g, '');
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const parseRate = (val: string | undefined): number => {
+    if (!val) return 0;
+    const clean = val.replace(/%/g, '').replace(/,/g, '.').trim();
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const kenhFromSieuThi = (sieuthi: string): Channel | string => {
+    const u = normVN(sieuthi).toUpperCase();
+    if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
+    if (u.includes('OFF') || u.includes('OFFLINE')) return 'OFF';
+    if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
+    if (u.includes('ĐMM') || u.includes('DMM')) return 'DMM';
+    if (u.includes('ĐMS') || u.includes('DMS')) return 'DMS';
+    if (u.includes('TGD')) return 'TGD';
+    return 'DML';
+  };
+
+  const results: StoreRecord[] = [];
+
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    const cells = (line.includes('\t') ? line.split('\t') : line.includes(',') ? line.split(',') : line.split(/\s{2,}/))
+      .map((c) => c.trim().replace(/^["']|["']$/g, ''));
+
+    if (cells.length < 2) continue;
+
+    const col0 = cells[0] || '';
+    const col1 = cells[1] || '';
+    const c0Upper = col0.toUpperCase();
+    const c1Upper = col1.toUpperCase();
+
+    // Skip general non-store headers
+    if (
+      c0Upper === 'TỔNG' ||
+      c0Upper === 'TONG' ||
+      c1Upper === 'TỔNG' ||
+      c1Upper === 'TONG' ||
+      c0Upper.includes('KHU VỰC') ||
+      c0Upper.includes('TÊN MIỀN') ||
+      c1Upper.includes('TÊN SIÊU THỊ') ||
+      c0Upper.includes('DT SIÊU THỊ') ||
+      c0Upper.includes('DT TRẢ CHẬM') ||
+      c1Upper.includes('TỶ TRỌNG') ||
+      c0Upper.includes('TRANG CHỦ') ||
+      c0Upper.includes('BÁO CÁO') ||
+      c0Upper.includes('KHỐI KINH DOANH') ||
+      c0Upper.includes('HỖ TRỢ BI') ||
+      c0Upper.includes('ĐANG CHỌN VÀ SAO CHÉP') ||
+      c0Upper.startsWith('(*')
+    ) {
+      continue;
+    }
+
+    // Identify if this row is a valid store row (has store code \d+ - or standard store naming)
+    const isStore =
+      /\d+\s*-\s*/.test(col1) ||
+      /\d+\s*-\s*/.test(col0) ||
+      (col1.length > 5 && (col0.length >= 3 || col1.includes('_') || col1.includes('Kho chứa')));
+
+    if (!isStore) continue;
+
+    let tinh = col0;
+    let sieuthi = col1;
+
+    // In case province column is missing and store is in col0
+    if (!sieuthi && col0) {
+      sieuthi = col0;
+      tinh = 'Khác';
+    }
+
+    let target = 0;
+    let achieved = 0;
+    let rate = 0;
+
+    if (dataType === 'tracham') {
+      // Trả Chậm table structure:
+      // Col 0: Tỉnh / Tên miền
+      // Col 1: Tên siêu thị
+      // Col 2: DT Siêu thị (*) (Base Target / Store Revenue)
+      // Col 3: Tổng DT Trả Chậm (*) (Achieved Installment Revenue)
+      // Col 4: Tỷ Trọng Trả Chậm (%) (Installment Rate)
+      const valDtStore = parseNum(cells[2]);
+      const valTraCham = parseNum(cells[3]);
+      const valRate = parseRate(cells[4]);
+
+      target = valDtStore;
+      achieved = valTraCham;
+      rate = valRate > 0 ? valRate : target > 0 ? (achieved / target) * 100 : 0;
+    } else {
+      // Doanh Thu table structure:
+      // Format with QĐ:
+      // Col 0: Tỉnh / Khu vực
+      // Col 1: Tên siêu thị
+      // Col 2: % HT Target Ngày (Standard Rate)
+      // Col 3: DT Realtime (Standard Achieved)
+      // Col 4: Target Ngày (Standard Target)
+      // Col 5: % HT Target Ngày (QĐ)
+      // Col 6: DT Realtime (QĐ)
+      // Col 7: Target Ngày (QĐ)
+      const valRateRaw = parseRate(cells[2]);
+      const valDtRaw = parseNum(cells[3]);
+      const valTargetRaw = parseNum(cells[4]);
+
+      const valRateQd = parseRate(cells[5]);
+      const valDtQd = parseNum(cells[6]);
+      const valTargetQd = parseNum(cells[7]);
+
+      if (valTargetQd > 0 || valDtQd > 0) {
+        achieved = valDtQd;
+        target = valTargetQd;
+        rate = valRateQd > 0 ? valRateQd : target > 0 ? (achieved / target) * 100 : 0;
+      } else {
+        achieved = valDtRaw;
+        target = valTargetRaw;
+        rate = valRateRaw > 0 ? valRateRaw : target > 0 ? (achieved / target) * 100 : 0;
+      }
+    }
+
+    const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+
+    results.push({
+      id: mst,
+      sieuthi,
+      tinh: tinh || 'Khác',
+      target: Math.round(target * 100) / 100,
+      achieved: Math.round(achieved * 100) / 100,
+      rate: Number(rate.toFixed(1)),
+      kenh: kenhFromSieuThi(sieuthi),
+      boss: '',
+      categoryMap: {},
+    });
+  }
+
+  return results;
+}
+
+/**
  */
 export function getFormattedNow(): string {
   const now = new Date();

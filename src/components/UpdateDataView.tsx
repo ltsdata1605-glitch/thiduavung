@@ -2,15 +2,18 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { StoreRecord } from '../types';
 import {
   parsePastedData,
+  parseRevenuePastedData,
   parseBossPastedData,
   validateStoreHeaders,
   BossAssignmentRecord,
   BossValidationResult,
   cleanKenhValue,
-  extractMst
+  extractMst,
+  getFormattedNow
 } from '../utils/parser';
 import { 
   ClipboardPaste, 
+  Trophy, 
   Zap, 
   TrendingUp, 
   CheckCircle, 
@@ -41,7 +44,9 @@ import {
   Eye,
   EyeOff,
   BookmarkPlus,
-  ExternalLink
+  ExternalLink,
+  Coins,
+  CreditCard
 } from 'lucide-react';
 import { copyTextToClipboard } from '../services/imageExport';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -50,6 +55,10 @@ interface UpdateDataViewProps {
   onUpdateRealtimeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
   onUpdateLuyKeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
   onUpdateBossData?: (bossAssignments: BossAssignmentRecord[]) => Promise<void> | void;
+  onUpdateRealtimeDt?: (data: StoreRecord[]) => void;
+  onUpdateRealtimeTc?: (data: StoreRecord[]) => void;
+  onUpdateLuyKeDt?: (data: StoreRecord[]) => void;
+  onUpdateLuyKeTc?: (data: StoreRecord[]) => void;
   currentRealtimeStoresTinh: StoreRecord[];
   currentRealtimeStoresVung: StoreRecord[];
   currentLuyKeStoresTinh: StoreRecord[];
@@ -217,6 +226,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   onUpdateRealtimeData,
   onUpdateLuyKeData,
   onUpdateBossData,
+  onUpdateRealtimeDt,
+  onUpdateRealtimeTc,
+  onUpdateLuyKeDt,
+  onUpdateLuyKeTc,
   currentRealtimeStoresTinh,
   currentRealtimeStoresVung,
   currentLuyKeStoresTinh,
@@ -241,12 +254,96 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const [isLuyKeLockedTinh, setIsLuyKeLockedTinh] = useState(true);
   const [isLuyKeLockedVung, setIsLuyKeLockedVung] = useState(true);
 
+  // Lock / Unlock states for Doanh Thu & Trả Chậm (Realtime & Luỹ Kế)
+  const [isRealtimeDtLocked, setIsRealtimeDtLocked] = useState(true);
+  const [isRealtimeTcLocked, setIsRealtimeTcLocked] = useState(true);
+  const [isLuyKeDtLocked, setIsLuyKeDtLocked] = useState(true);
+  const [isLuyKeTcLocked, setIsLuyKeTcLocked] = useState(true);
+
   // Input text states for Tỉnh & Vùng
   const [realtimeTextTinh, setRealtimeTextTinh] = useState('');
   const [realtimeTextVung, setRealtimeTextVung] = useState('');
   const [luykeTextTinh, setLuyKeTextTinh] = useState('');
   const [luykeTextVung, setLuyKeTextVung] = useState('');
+
+  // Input text states for Doanh Thu & Trả Chậm
+  const [realtimeDtText, setRealtimeDtText] = useState('');
+  const [realtimeTcText, setRealtimeTcText] = useState('');
+  const [luykeDtText, setLuyKeDtText] = useState('');
+  const [luykeTcText, setLuyKeTcText] = useState('');
+
+  // Persisted state for Doanh Thu & Trả Chậm
+  const [parsedRealtimeDt, setParsedRealtimeDt] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
+  const [parsedRealtimeTc, setParsedRealtimeTc] = usePersistedState<StoreRecord[]>('tnb_realtime_tracham', []);
+  const [parsedLuyKeDt, setParsedLuyKeDt] = usePersistedState<StoreRecord[]>('tnb_luyke_doanhthu', []);
+  const [parsedLuyKeTc, setParsedLuyKeTc] = usePersistedState<StoreRecord[]>('tnb_luyke_tracham', []);
+
+  // Update timestamps for Doanh Thu & Trả Chậm
+  const [lastUpdateRealtimeDt, setLastUpdateRealtimeDt] = usePersistedState<string>('tnb_last_update_realtime_dt', '');
+  const [lastUpdateRealtimeTc, setLastUpdateRealtimeTc] = usePersistedState<string>('tnb_last_update_realtime_tc', '');
+  const [lastUpdateLuyKeDt, setLastUpdateLuyKeDt] = usePersistedState<string>('tnb_last_update_luyke_dt', '');
+  const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = usePersistedState<string>('tnb_last_update_luyke_tc', '');
+
   const [bossText, setBossText] = useState('');
+
+  // Revenue & Installment Processing Helper
+  const processRevenueData = async (
+    title: string,
+    dataType: 'doanhthu' | 'tracham',
+    isRealtime: boolean,
+    text: string,
+    setLocked: (l: boolean) => void,
+    setText: (t: string) => void,
+    setParsed: (records: StoreRecord[]) => void,
+    setLastUpdated: (ts: string) => void
+  ) => {
+    if (!text || !text.trim()) return;
+
+    setText(text);
+    setLocked(true);
+
+    setProcessingState({
+      title: `ĐANG XỬ LÝ DỮ LIỆU ${title.toUpperCase()}`,
+      stepText: `⚡ 1. Đang đọc và phân tích cấu trúc dữ liệu ${title}...`,
+      progress: 30,
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    const parsed = parseRevenuePastedData(text, isRealtime, dataType);
+
+    if (parsed.length === 0) {
+      setProcessingState(null);
+      alert(`⚠️ Không đọc được dữ liệu nào từ nội dung đã dán (${title}). Vui lòng kiểm tra lại nội dung copy từ trang BI!`);
+      return;
+    }
+
+    setProcessingState({
+      title: `ĐANG LƯU TRỮ ${title.toUpperCase()}`,
+      stepText: `📊 2. Đã đọc thành công ${parsed.length} dòng dữ liệu ${title}...`,
+      progress: 75,
+    });
+
+    setParsed(parsed);
+    const nowStr = getFormattedNow();
+    setLastUpdated(nowStr);
+
+    if (isRealtime && dataType === 'doanhthu') onUpdateRealtimeDt?.(parsed);
+    if (isRealtime && dataType === 'tracham') onUpdateRealtimeTc?.(parsed);
+    if (!isRealtime && dataType === 'doanhthu') onUpdateLuyKeDt?.(parsed);
+    if (!isRealtime && dataType === 'tracham') onUpdateLuyKeTc?.(parsed);
+
+    await new Promise((r) => setTimeout(r, 30));
+
+    setProcessingState({
+      title: `HOÀN TẤT ĐỒNG BỘ`,
+      stepText: `✨ 3. Đã lưu thành công ${parsed.length} dòng ${title}!`,
+      progress: 100,
+    });
+
+    await new Promise((r) => setTimeout(r, 150));
+    setProcessingState(null);
+  };
 
   // File input ref for BOSS Excel import & Backup JSON import
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -541,6 +638,24 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   };
 
 
+
+  const processRealtimeDt = (text: string) => {
+    processRevenueData('Doanh Thu Realtime', 'doanhthu', true, text, setIsRealtimeDtLocked, setRealtimeDtText, setParsedRealtimeDt, setLastUpdateRealtimeDt);
+  };
+
+  const processRealtimeTc = (text: string) => {
+    processRevenueData('Trả Chậm Realtime', 'tracham', true, text, setIsRealtimeTcLocked, setRealtimeTcText, setParsedRealtimeTc, setLastUpdateRealtimeTc);
+  };
+
+  const processLuyKeDt = (text: string) => {
+    processRevenueData('Doanh Thu Luỹ Kế', 'doanhthu', false, text, setIsLuyKeDtLocked, setLuyKeDtText, setParsedLuyKeDt, setLastUpdateLuyKeDt);
+  };
+
+  const processLuyKeTc = (text: string) => {
+    processRevenueData('Trả Chậm Luỹ Kế', 'tracham', false, text, setIsLuyKeTcLocked, setLuyKeTcText, setParsedLuyKeTc, setLastUpdateLuyKeTc);
+  };
+
+
   // Handle Excel File Upload for BOSS List & auto apply
   const handleBossFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -703,6 +818,14 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       realtimeStoresVung: currentRealtimeStoresVung,
       luykeStoresTinh: currentLuyKeStoresTinh,
       luykeStoresVung: currentLuyKeStoresVung,
+      realtimeDt: parsedRealtimeDt,
+      realtimeTc: parsedRealtimeTc,
+      luykeDt: parsedLuyKeDt,
+      luykeTc: parsedLuyKeTc,
+      lastUpdateRealtimeDt,
+      lastUpdateRealtimeTc,
+      lastUpdateLuyKeDt,
+      lastUpdateLuyKeTc,
       bossAssignments: currentBossAssignments,
     };
     const jsonStr = JSON.stringify(data, null, 2);
@@ -710,7 +833,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `tnb_backup_4_boxes_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `tnb_backup_full_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -740,10 +863,30 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
           onUpdateLuyKeData(data.luykeStoresVung, '', 'vung');
           count++;
         }
+        if (Array.isArray(data.realtimeDt) && data.realtimeDt.length > 0) {
+          setParsedRealtimeDt(data.realtimeDt);
+          if (data.lastUpdateRealtimeDt) setLastUpdateRealtimeDt(data.lastUpdateRealtimeDt);
+          count++;
+        }
+        if (Array.isArray(data.realtimeTc) && data.realtimeTc.length > 0) {
+          setParsedRealtimeTc(data.realtimeTc);
+          if (data.lastUpdateRealtimeTc) setLastUpdateRealtimeTc(data.lastUpdateRealtimeTc);
+          count++;
+        }
+        if (Array.isArray(data.luykeDt) && data.luykeDt.length > 0) {
+          setParsedLuyKeDt(data.luykeDt);
+          if (data.lastUpdateLuyKeDt) setLastUpdateLuyKeDt(data.lastUpdateLuyKeDt);
+          count++;
+        }
+        if (Array.isArray(data.luykeTc) && data.luykeTc.length > 0) {
+          setParsedLuyKeTc(data.luykeTc);
+          if (data.lastUpdateLuyKeTc) setLastUpdateLuyKeTc(data.lastUpdateLuyKeTc);
+          count++;
+        }
         if (Array.isArray(data.bossAssignments) && data.bossAssignments.length > 0 && onUpdateBossData) {
           onUpdateBossData(data.bossAssignments);
         }
-        alert('✅ Đã phục hồi thành công dữ liệu cả 4 ô từ file backup!');
+        alert('✅ Đã phục hồi thành công toàn bộ dữ liệu từ file backup!');
       } catch (err) {
         alert('❌ File backup không hợp lệ. Vui lòng chọn file .json đã xuất từ ứng dụng!');
       }
@@ -847,16 +990,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
               </div>
             )}
           </div>
-          <a
-            href="https://bi.thegioididong.com/thi-dua?id=-1&tab=1&rt=1&dm=2&mt=2"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Mở trang thi đua trên BI ở tab mới"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer"
-          >
-            <ExternalLink className="w-4 h-4 text-slate-600" />
-            Link BI
-          </a>
           <button
             type="button"
             onClick={handleExportFullBackup}
@@ -878,8 +1011,38 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         </div>
       </div>
 
-      {/* SIDE-BY-SIDE 2 COMPACT COLUMNS: REALTIME & LUỸ KẾ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* KHU VỰC 1: CẬP NHẬT DỮ LIỆU THI ĐUA TỪ BI */}
+      <div className="space-y-4">
+        {/* Header bar with Link BI Thi Đua */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Trophy className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <span>CẬP NHẬT THI ĐUA TỈNH &amp; SIÊU THỊ TỪ BI</span>
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Mở khóa để dán dữ liệu Ctrl+V =&gt; Hệ thống tự động phân tích, đồng bộ &amp; tính điểm thi đua
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://bi.thegioididong.com/thi-dua?id=-1&tab=1&rt=1&dm=2&mt=2"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Mở trang thi đua trên BI ở tab mới"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer shrink-0"
+          >
+            <ExternalLink className="w-4 h-4 text-slate-600" />
+            <span>Link BI Thi Đua</span>
+          </a>
+        </div>
+
+        {/* SIDE-BY-SIDE 2 COMPACT COLUMNS: REALTIME & LUỸ KẾ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* KHU VỰC 1: REALTIME */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
@@ -1193,6 +1356,355 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+      </div>
+
+      {/* KHU VỰC 2B: CẬP NHẬT DOANH THU & TRẢ CHẬM TỪ BI */}
+      <div className="space-y-4">
+        {/* Header bar with Link BI Doanh Thu */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Coins className="w-4 h-4 text-teal-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                <span>CẬP NHẬT DOANH THU &amp; TRẢ CHẬM TỪ BI</span>
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Mở khóa để dán dữ liệu Ctrl+V =&gt; Hệ thống tự động phân tích và lưu trữ dữ liệu doanh thu
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://bi.thegioididong.com/khoi-ban-hang-sub?id=8126&tab=bcdtst&rt=1&dm=1"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Mở trang Báo Cáo Doanh Thu Siêu Thị trên BI ở tab mới"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer shrink-0"
+          >
+            <ExternalLink className="w-4 h-4 text-slate-600" />
+            <span>Link BI Doanh Thu</span>
+          </a>
+        </div>
+
+        {/* 2 Compact Columns: Realtime & Luỹ Kế */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* REALTIME (DOANH THU & TRẢ CHẬM) */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+                  <Zap className="w-4 h-4 text-teal-600 fill-teal-100" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-sm">
+                    REALTIME
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Gồm 2 ô dán dữ liệu: Doanh thu (trên) &amp; Trả chậm (dưới)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* SUB-BOX 1: DOANH THU (REALTIME) */}
+            <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+                <span className="flex items-center gap-1.5 text-teal-700">
+                  <Coins className="w-3.5 h-3.5 text-teal-600" />
+                  Doanh Thu
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {lastUpdateRealtimeDt && (
+                    <span className="text-[10px] bg-teal-50 text-teal-900 border border-teal-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-teal-600 shrink-0" />
+                      Cập nhật: {lastUpdateRealtimeDt}
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-teal-100 text-teal-800 px-2 py-0.5 rounded-md font-bold">
+                    {parsedRealtimeDt.length} dòng
+                  </span>
+                </div>
+              </div>
+
+              {isRealtimeDtLocked ? (
+                <div
+                  onClick={() => {
+                    setRealtimeDtText('');
+                    setIsRealtimeDtLocked(false);
+                  }}
+                  className="h-[52px] bg-teal-50 hover:bg-teal-100/80 border border-teal-200 hover:border-teal-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                  title="Bấm vào đây để dán dữ liệu mới"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Lock className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                    <span className="text-xs font-bold text-teal-950 truncate">
+                      Đã khóa dữ liệu Doanh Thu Realtime ({parsedRealtimeDt.length} dòng)
+                    </span>
+                  </div>
+                  <button className="px-2.5 py-1 bg-teal-600 group-hover:bg-teal-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <Unlock className="w-3 h-3" />
+                    Mở dán mới
+                  </button>
+                </div>
+              ) : (
+                <div className="h-[52px] relative rounded-xl overflow-hidden">
+                  <textarea
+                    autoFocus
+                    rows={2}
+                    value={realtimeDtText}
+                    onChange={(e) => processRealtimeDt(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text && text.trim()) {
+                        e.preventDefault();
+                        processRealtimeDt(text);
+                        setIsRealtimeDtLocked(true);
+                      }
+                    }}
+                    onBlur={() => setIsRealtimeDtLocked(true)}
+                    placeholder="Bấm Ctrl+V để dán dữ liệu Doanh Thu Realtime mới tại đây..."
+                    className="w-full h-full bg-white border-2 border-teal-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-teal-200 resize-none shadow-inner leading-normal"
+                  />
+                  <button
+                    onClick={() => setIsRealtimeDtLocked(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                  >
+                    Khóa
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* SUB-BOX 2: TRẢ CHẬM (REALTIME) */}
+            <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+                <span className="flex items-center gap-1.5 text-amber-700">
+                  <CreditCard className="w-3.5 h-3.5 text-amber-600" />
+                  Trả Chậm
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {lastUpdateRealtimeTc && (
+                    <span className="text-[10px] bg-amber-50 text-amber-900 border border-amber-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                      Cập nhật: {lastUpdateRealtimeTc}
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
+                    {parsedRealtimeTc.length} dòng
+                  </span>
+                </div>
+              </div>
+
+              {isRealtimeTcLocked ? (
+                <div
+                  onClick={() => {
+                    setRealtimeTcText('');
+                    setIsRealtimeTcLocked(false);
+                  }}
+                  className="h-[52px] bg-amber-50 hover:bg-amber-100/80 border border-amber-200 hover:border-amber-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                  title="Bấm vào đây để dán dữ liệu mới"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span className="text-xs font-bold text-amber-950 truncate">
+                      Đã khóa dữ liệu Trả Chậm Realtime ({parsedRealtimeTc.length} dòng)
+                    </span>
+                  </div>
+                  <button className="px-2.5 py-1 bg-amber-600 group-hover:bg-amber-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <Unlock className="w-3 h-3" />
+                    Mở dán mới
+                  </button>
+                </div>
+              ) : (
+                <div className="h-[52px] relative rounded-xl overflow-hidden">
+                  <textarea
+                    autoFocus
+                    rows={2}
+                    value={realtimeTcText}
+                    onChange={(e) => processRealtimeTc(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text && text.trim()) {
+                        e.preventDefault();
+                        processRealtimeTc(text);
+                        setIsRealtimeTcLocked(true);
+                      }
+                    }}
+                    onBlur={() => setIsRealtimeTcLocked(true)}
+                    placeholder="Bấm Ctrl+V để dán dữ liệu Trả Chậm Realtime mới tại đây..."
+                    className="w-full h-full bg-white border-2 border-amber-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-amber-200 resize-none shadow-inner leading-normal"
+                  />
+                  <button
+                    onClick={() => setIsRealtimeTcLocked(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                  >
+                    Khóa
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* LUỸ KẾ (DOANH THU & TRẢ CHẬM) */}
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+                  <TrendingUp className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-sm">
+                    LUỸ KẾ
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Gồm 2 ô dán dữ liệu: Doanh thu (trên) &amp; Trả chậm (dưới)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* SUB-BOX 1: DOANH THU (LUỸ KẾ) */}
+            <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+                <span className="flex items-center gap-1.5 text-purple-700">
+                  <Coins className="w-3.5 h-3.5 text-purple-600" />
+                  Doanh Thu
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {lastUpdateLuyKeDt && (
+                    <span className="text-[10px] bg-purple-50 text-purple-900 border border-purple-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-purple-600 shrink-0" />
+                      Cập nhật: {lastUpdateLuyKeDt}
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md font-bold">
+                    {parsedLuyKeDt.length} dòng
+                  </span>
+                </div>
+              </div>
+
+              {isLuyKeDtLocked ? (
+                <div
+                  onClick={() => {
+                    setLuyKeDtText('');
+                    setIsLuyKeDtLocked(false);
+                  }}
+                  className="h-[52px] bg-purple-50 hover:bg-purple-100/80 border border-purple-200 hover:border-purple-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                  title="Bấm vào đây để dán dữ liệu mới"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Lock className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <span className="text-xs font-bold text-purple-950 truncate">
+                      Đã khóa dữ liệu Doanh Thu Luỹ Kế ({parsedLuyKeDt.length} dòng)
+                    </span>
+                  </div>
+                  <button className="px-2.5 py-1 bg-purple-600 group-hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <Unlock className="w-3 h-3" />
+                    Mở dán mới
+                  </button>
+                </div>
+              ) : (
+                <div className="h-[52px] relative rounded-xl overflow-hidden">
+                  <textarea
+                    autoFocus
+                    rows={2}
+                    value={luykeDtText}
+                    onChange={(e) => processLuyKeDt(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text && text.trim()) {
+                        e.preventDefault();
+                        processLuyKeDt(text);
+                        setIsLuyKeDtLocked(true);
+                      }
+                    }}
+                    onBlur={() => setIsLuyKeDtLocked(true)}
+                    placeholder="Bấm Ctrl+V để dán dữ liệu Doanh Thu Luỹ Kế mới tại đây..."
+                    className="w-full h-full bg-white border-2 border-purple-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-purple-200 resize-none shadow-inner leading-normal"
+                  />
+                  <button
+                    onClick={() => setIsLuyKeDtLocked(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                  >
+                    Khóa
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* SUB-BOX 2: TRẢ CHẬM (LUỸ KẾ) */}
+            <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
+                <span className="flex items-center gap-1.5 text-rose-700">
+                  <CreditCard className="w-3.5 h-3.5 text-rose-600" />
+                  Trả Chậm
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {lastUpdateLuyKeTc && (
+                    <span className="text-[10px] bg-rose-50 text-rose-900 border border-rose-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-rose-600 shrink-0" />
+                      Cập nhật: {lastUpdateLuyKeTc}
+                    </span>
+                  )}
+                  <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md font-bold">
+                    {parsedLuyKeTc.length} dòng
+                  </span>
+                </div>
+              </div>
+
+              {isLuyKeTcLocked ? (
+                <div
+                  onClick={() => {
+                    setLuyKeTcText('');
+                    setIsLuyKeTcLocked(false);
+                  }}
+                  className="h-[52px] bg-rose-50 hover:bg-rose-100/80 border border-rose-200 hover:border-rose-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
+                  title="Bấm vào đây để dán dữ liệu mới"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Lock className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span className="text-xs font-bold text-rose-950 truncate">
+                      Đã khóa dữ liệu Trả Chậm Luỹ Kế ({parsedLuyKeTc.length} dòng)
+                    </span>
+                  </div>
+                  <button className="px-2.5 py-1 bg-rose-600 group-hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
+                    <Unlock className="w-3 h-3" />
+                    Mở dán mới
+                  </button>
+                </div>
+              ) : (
+                <div className="h-[52px] relative rounded-xl overflow-hidden">
+                  <textarea
+                    autoFocus
+                    rows={2}
+                    value={luykeTcText}
+                    onChange={(e) => processLuyKeTc(e.target.value)}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData('text');
+                      if (text && text.trim()) {
+                        e.preventDefault();
+                        processLuyKeTc(text);
+                        setIsLuyKeTcLocked(true);
+                      }
+                    }}
+                    onBlur={() => setIsLuyKeTcLocked(true)}
+                    placeholder="Bấm Ctrl+V để dán dữ liệu Trả Chậm Luỹ Kế mới tại đây..."
+                    className="w-full h-full bg-white border-2 border-rose-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-rose-200 resize-none shadow-inner leading-normal"
+                  />
+                  <button
+                    onClick={() => setIsLuyKeTcLocked(true)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
+                  >
+                    Khóa
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
