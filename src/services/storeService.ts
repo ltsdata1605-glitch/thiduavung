@@ -237,13 +237,25 @@ function firestoreErrorMessage(error: unknown): string {
 async function saveChunkedStoreDataset(
   docKey: DocKey,
   stores: StoreRecord[],
-  updatedBy: string
+  updatedBy: string,
+  customLastUpdated?: string
 ): Promise<{ success: boolean; error?: string }> {
   const field = FIELD_BY_DOC[docKey];
   const lastUpdated = new Date().toISOString();
 
+  const tsField =
+    docKey === 'realtime_revenue_dt' ? 'lastUpdateRealtimeDt' :
+    docKey === 'realtime_revenue_tc' ? 'lastUpdateRealtimeTc' :
+    docKey === 'luyke_revenue_dt' ? 'lastUpdateLuyKeDt' :
+    docKey === 'luyke_revenue_tc' ? 'lastUpdateLuyKeTc' : undefined;
+
+  const localPayload: any = { [field]: stores, lastUpdated, updatedBy };
+  if (tsField && customLastUpdated) {
+    localPayload[tsField] = customLastUpdated;
+  }
+
   if (!db) {
-    writeLocalCache({ [field]: stores, lastUpdated, updatedBy } as Partial<FirebaseDataPayload>);
+    writeLocalCache(localPayload as Partial<FirebaseDataPayload>);
     return { success: false, error: 'Chưa kết nối được Firebase — dữ liệu chỉ lưu tạm trên trình duyệt này.' };
   }
 
@@ -257,16 +269,6 @@ async function saveChunkedStoreDataset(
     const chunksRef = collection(db, COLLECTION, docKey, 'chunks');
     const batch = writeBatch(db);
 
-    // A BOSS-file reassignment (see App.tsx's handleUpdateBossData) touches
-    // only the handful of stores whose boss/tinh/kenh actually changed, but
-    // used to rewrite ALL ~9 chunks per dataset regardless — x4 datasets,
-    // every single BOSS import, even when 95% of stores were untouched.
-    // handleUpdateBossData now keeps the exact same object reference for an
-    // unchanged store, so a chunk whose 100 store references are identical
-    // to what's already synced doesn't need to be rewritten at all. Only
-    // meaningful (and only safe) when the store COUNT hasn't changed — any
-    // insert/remove shifts every later chunk's boundary, making a positional
-    // comparison meaningless, so that case falls back to writing every chunk.
     const previousStores = (getLocalCache()[field] as StoreRecord[] | undefined) || [];
     const canSkipUnchangedChunks = previousStores.length === stores.length;
 
@@ -279,38 +281,23 @@ async function saveChunkedStoreDataset(
       }
       batch.set(doc(chunksRef, String(index)), sanitizeForFirestore({ data: chunk, index }));
     });
-    // Clear out any stale chunks left over from a previous, larger save.
-    // Deleting a doc that doesn't exist is a harmless no-op in Firestore, so
-    // this skips the getDocs() read-before-write round trip entirely. Used to
-    // always append a blind 100-delete lookahead on top of the real chunk
-    // writes — tripling+ the batch's operation count on every single save
-    // (every save has stale-chunk deletes appended, virtually none of which
-    // are ever needed since store counts rarely shrink between pastes), which
-    // adds real server-side processing (security rule evaluation + write
-    // validation per operation) on top of the actual data upload. The local
-    // cache already knows how many chunks the last save for this exact
-    // docKey produced — bound the lookahead to that plus a generous margin
-    // instead of a fixed 100, with zero added network round trips.
+
     const previousChunkCount = previousStores.length > 0 ? Math.ceil(previousStores.length / STORE_CHUNK_SIZE) : 0;
     const STALE_CHUNK_SAFETY_MARGIN = 10; // covers this device's local cache being a few saves behind
     const staleChunkLookaheadEnd = Math.max(newChunks.length, previousChunkCount) + STALE_CHUNK_SAFETY_MARGIN;
     for (let i = newChunks.length; i < staleChunkLookaheadEnd; i++) {
       batch.delete(doc(chunksRef, String(i)));
     }
-    // Server-resolved timestamp in Firestore itself (immune to the writing
-    // device's own clock being wrong) — the client's own `lastUpdated` ISO
-    // string above is still what goes into the local cache immediately below,
-    // since serverTimestamp() only resolves to a real value after the round
-    // trip completes.
-    batch.set(doc(db, COLLECTION, docKey), { chunkCount: newChunks.length, lastUpdated: serverTimestamp(), updatedBy });
 
-    // Issue the network write first, then use the in-flight wait time to do
-    // the local cache write (localStorage.setItem of a multi-MB payload isn't
-    // free) — the two have no dependency on each other, so overlapping them
-    // shaves the local write's cost off the total instead of paying for it
-    // sequentially on top of the round trip.
+    batch.set(doc(db, COLLECTION, docKey), {
+      chunkCount: newChunks.length,
+      lastUpdated: serverTimestamp(),
+      customLastUpdated: customLastUpdated || null,
+      updatedBy,
+    });
+
     const commitPromise = batch.commit();
-    writeLocalCache({ [field]: stores, lastUpdated, updatedBy } as Partial<FirebaseDataPayload>);
+    writeLocalCache(localPayload as Partial<FirebaseDataPayload>);
     await commitPromise;
     return { success: true };
   } catch (error) {
@@ -338,8 +325,6 @@ async function saveDataset(
   try {
     const docRef = doc(db, COLLECTION, docKey);
     const sanitized = { ...sanitizeForFirestore({ data: value, updatedBy }), lastUpdated: serverTimestamp() };
-    // Overlap the local cache write with the in-flight network write instead
-    // of paying for both sequentially — see saveChunkedStoreDataset for why.
     const setPromise = setDoc(docRef, sanitized);
     writeLocalCache({ [field]: value, lastUpdated, updatedBy } as Partial<FirebaseDataPayload>);
     await setPromise;
@@ -356,6 +341,22 @@ export async function saveRealtimeStoresToFirebase(stores: StoreRecord[], update
 
 export async function saveLuyKeStoresToFirebase(stores: StoreRecord[], updatedBy: string = 'Super Admin', scope: 'tinh' | 'vung' = 'tinh') {
   return saveChunkedStoreDataset(scope === 'vung' ? 'luyke_stores_vung' : 'luyke_stores_tinh', stores, updatedBy);
+}
+
+export async function saveRealtimeDtToFirebase(stores: StoreRecord[], lastUpdated: string, updatedBy: string = 'Super Admin') {
+  return saveChunkedStoreDataset('realtime_revenue_dt', stores, updatedBy, lastUpdated);
+}
+
+export async function saveRealtimeTcToFirebase(stores: StoreRecord[], lastUpdated: string, updatedBy: string = 'Super Admin') {
+  return saveChunkedStoreDataset('realtime_revenue_tc', stores, updatedBy, lastUpdated);
+}
+
+export async function saveLuyKeDtToFirebase(stores: StoreRecord[], lastUpdated: string, updatedBy: string = 'Super Admin') {
+  return saveChunkedStoreDataset('luyke_revenue_dt', stores, updatedBy, lastUpdated);
+}
+
+export async function saveLuyKeTcToFirebase(stores: StoreRecord[], lastUpdated: string, updatedBy: string = 'Super Admin') {
+  return saveChunkedStoreDataset('luyke_revenue_tc', stores, updatedBy, lastUpdated);
 }
 
 export async function saveBossAssignmentsToFirebase(bossItems: BossAssignmentRecord[], updatedBy: string = 'Super Admin') {
@@ -500,9 +501,23 @@ export function subscribeToFirebaseData(
             })
             .sort((a, b) => a.index - b.index);
           const merged = chunks.flatMap((c) => c.data);
-          const partial: Partial<FirebaseDataPayload> = { [field]: merged } as Partial<FirebaseDataPayload>;
-          writeLocalCache(partial);
-          onDataReceived(partial, { isInitial, docKey });
+
+          const tsField =
+            docKey === 'realtime_revenue_dt' ? 'lastUpdateRealtimeDt' :
+            docKey === 'realtime_revenue_tc' ? 'lastUpdateRealtimeTc' :
+            docKey === 'luyke_revenue_dt' ? 'lastUpdateLuyKeDt' :
+            docKey === 'luyke_revenue_tc' ? 'lastUpdateLuyKeTc' : undefined;
+
+          void getDoc(doc(db!, COLLECTION, docKey)).then((metaDoc) => {
+            const metaData = metaDoc.exists() ? metaDoc.data() : null;
+            const customTs = metaData?.customLastUpdated as string | undefined;
+            const partial: Partial<FirebaseDataPayload> = { [field]: merged } as Partial<FirebaseDataPayload>;
+            if (tsField && customTs) {
+              (partial as any)[tsField] = customTs;
+            }
+            writeLocalCache(partial);
+            onDataReceived(partial, { isInitial, docKey });
+          });
         },
         (error) => {
           console.warn(`Firestore subscription notice [${docKey}] (using local cache):`, error);

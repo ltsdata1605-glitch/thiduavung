@@ -31,6 +31,10 @@ import {
   subscribeToFirebaseData,
   saveRealtimeStoresToFirebase,
   saveLuyKeStoresToFirebase,
+  saveRealtimeDtToFirebase,
+  saveRealtimeTcToFirebase,
+  saveLuyKeDtToFirebase,
+  saveLuyKeTcToFirebase,
   saveBossAssignmentsToFirebase,
   saveSettingsToFirebase,
   saveUserPreferencesToFirebase,
@@ -410,6 +414,10 @@ function AppInner() {
     realtime_stores_vung: 'Realtime Vùng',
     luyke_stores_tinh: 'Luỹ Kế Tỉnh',
     luyke_stores_vung: 'Luỹ Kế Vùng',
+    realtime_revenue_dt: 'Doanh thu Realtime',
+    realtime_revenue_tc: 'Trả chậm Realtime',
+    luyke_revenue_dt: 'Doanh thu Luỹ kế',
+    luyke_revenue_tc: 'Trả chậm Luỹ kế',
     boss_assignments: 'Danh sách BOSS',
   };
 
@@ -461,6 +469,30 @@ function AppInner() {
       }
       if (payload.luykeStoresVung && payload.luykeStoresVung.length > 0) {
         setLuyKeStoresVung(payload.luykeStoresVung);
+      }
+      if (payload.realtimeDtStores && payload.realtimeDtStores.length > 0) {
+        setRealtimeDtStores(payload.realtimeDtStores);
+      }
+      if (payload.realtimeTcStores && payload.realtimeTcStores.length > 0) {
+        setRealtimeTcStores(payload.realtimeTcStores);
+      }
+      if (payload.luykeDtStores && payload.luykeDtStores.length > 0) {
+        setLuyKeDtStores(payload.luykeDtStores);
+      }
+      if (payload.luykeTcStores && payload.luykeTcStores.length > 0) {
+        setLuyKeTcStores(payload.luykeTcStores);
+      }
+      if (payload.lastUpdateRealtimeDt) {
+        setLastUpdateRealtimeDt(payload.lastUpdateRealtimeDt);
+      }
+      if (payload.lastUpdateRealtimeTc) {
+        setLastUpdateRealtimeTc(payload.lastUpdateRealtimeTc);
+      }
+      if (payload.lastUpdateLuyKeDt) {
+        setLastUpdateLuyKeDt(payload.lastUpdateLuyKeDt);
+      }
+      if (payload.lastUpdateLuyKeTc) {
+        setLastUpdateLuyKeTc(payload.lastUpdateLuyKeTc);
       }
       if (payload.bossAssignments && payload.bossAssignments.length > 0) {
         setBossAssignments(payload.bossAssignments);
@@ -995,6 +1027,55 @@ function AppInner() {
     showToast(`Đã đồng bộ phân công BOSS thành công lên Firebase cho ${newBossAssignments.length} siêu thị!`);
   };
 
+  // Handlers to update & sync Revenue & Installment (Doanh thu & Trả chậm) to Firebase
+  const handleUpdateRealtimeDt = async (newStores: StoreRecord[], timestamp: string = '') => {
+    setRealtimeDtStores(newStores);
+    if (timestamp) setLastUpdateRealtimeDt(timestamp);
+    const ts = timestamp || lastUpdateRealtimeDt || '';
+    const res = await saveRealtimeDtToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    if (!res.success) {
+      showErrorToast(res.error || 'Đồng bộ Doanh thu Realtime lên Firebase thất bại!');
+      return;
+    }
+    showToast(`Đã đồng bộ ${newStores.length} dòng Doanh thu Realtime lên Firebase!`);
+  };
+
+  const handleUpdateRealtimeTc = async (newStores: StoreRecord[], timestamp: string = '') => {
+    setRealtimeTcStores(newStores);
+    if (timestamp) setLastUpdateRealtimeTc(timestamp);
+    const ts = timestamp || lastUpdateRealtimeTc || '';
+    const res = await saveRealtimeTcToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    if (!res.success) {
+      showErrorToast(res.error || 'Đồng bộ Trả chậm Realtime lên Firebase thất bại!');
+      return;
+    }
+    showToast(`Đã đồng bộ ${newStores.length} dòng Trả chậm Realtime lên Firebase!`);
+  };
+
+  const handleUpdateLuyKeDt = async (newStores: StoreRecord[], timestamp: string = '') => {
+    setLuyKeDtStores(newStores);
+    if (timestamp) setLastUpdateLuyKeDt(timestamp);
+    const ts = timestamp || lastUpdateLuyKeDt || '';
+    const res = await saveLuyKeDtToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    if (!res.success) {
+      showErrorToast(res.error || 'Đồng bộ Doanh thu Luỹ kế lên Firebase thất bại!');
+      return;
+    }
+    showToast(`Đã đồng bộ ${newStores.length} dòng Doanh thu Luỹ kế lên Firebase!`);
+  };
+
+  const handleUpdateLuyKeTc = async (newStores: StoreRecord[], timestamp: string = '') => {
+    setLuyKeTcStores(newStores);
+    if (timestamp) setLastUpdateLuyKeTc(timestamp);
+    const ts = timestamp || lastUpdateLuyKeTc || '';
+    const res = await saveLuyKeTcToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    if (!res.success) {
+      showErrorToast(res.error || 'Đồng bộ Trả chậm Luỹ kế lên Firebase thất bại!');
+      return;
+    }
+    showToast(`Đã đồng bộ ${newStores.length} dòng Trả chậm Luỹ kế lên Firebase!`);
+  };
+
   const showToast = (msg: string) => {
     setToastBanner({ type: 'success', text: msg });
     confetti({ particleCount: 60, spread: 60, origin: { y: 0.2 } });
@@ -1524,10 +1605,10 @@ function AppInner() {
                 onUpdateRealtimeData={handleUpdateRealtimeData}
                 onUpdateLuyKeData={handleUpdateLuyKeData}
                 onUpdateBossData={handleUpdateBossData}
-                onUpdateRealtimeDt={setRealtimeDtStores}
-                onUpdateRealtimeTc={setRealtimeTcStores}
-                onUpdateLuyKeDt={setLuyKeDtStores}
-                onUpdateLuyKeTc={setLuyKeTcStores}
+                onUpdateRealtimeDt={handleUpdateRealtimeDt}
+                onUpdateRealtimeTc={handleUpdateRealtimeTc}
+                onUpdateLuyKeDt={handleUpdateLuyKeDt}
+                onUpdateLuyKeTc={handleUpdateLuyKeTc}
                 currentRealtimeStoresTinh={realtimeStoresTinh}
                 currentRealtimeStoresVung={realtimeStoresVung}
                 currentLuyKeStoresTinh={luykeStoresTinh}

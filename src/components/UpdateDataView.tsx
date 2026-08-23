@@ -55,10 +55,10 @@ interface UpdateDataViewProps {
   onUpdateRealtimeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
   onUpdateLuyKeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
   onUpdateBossData?: (bossAssignments: BossAssignmentRecord[]) => Promise<void> | void;
-  onUpdateRealtimeDt?: (data: StoreRecord[]) => void;
-  onUpdateRealtimeTc?: (data: StoreRecord[]) => void;
-  onUpdateLuyKeDt?: (data: StoreRecord[]) => void;
-  onUpdateLuyKeTc?: (data: StoreRecord[]) => void;
+  onUpdateRealtimeDt?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
+  onUpdateRealtimeTc?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
+  onUpdateLuyKeDt?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
+  onUpdateLuyKeTc?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
   currentRealtimeStoresTinh: StoreRecord[];
   currentRealtimeStoresVung: StoreRecord[];
   currentLuyKeStoresTinh: StoreRecord[];
@@ -335,10 +335,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     const nowStr = getFormattedNow();
     setLastUpdated(nowStr);
 
-    if (isRealtime && dataType === 'doanhthu') onUpdateRealtimeDt?.(parsed);
-    if (isRealtime && dataType === 'tracham') onUpdateRealtimeTc?.(parsed);
-    if (!isRealtime && dataType === 'doanhthu') onUpdateLuyKeDt?.(parsed);
-    if (!isRealtime && dataType === 'tracham') onUpdateLuyKeTc?.(parsed);
+    if (isRealtime && dataType === 'doanhthu') onUpdateRealtimeDt?.(parsed, nowStr);
+    if (isRealtime && dataType === 'tracham') onUpdateRealtimeTc?.(parsed, nowStr);
+    if (!isRealtime && dataType === 'doanhthu') onUpdateLuyKeDt?.(parsed, nowStr);
+    if (!isRealtime && dataType === 'tracham') onUpdateLuyKeTc?.(parsed, nowStr);
 
     await new Promise((r) => setTimeout(r, 30));
 
@@ -872,22 +872,30 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         }
         if (Array.isArray(data.realtimeDt) && data.realtimeDt.length > 0) {
           setParsedRealtimeDt(data.realtimeDt);
-          if (data.lastUpdateRealtimeDt) setLastUpdateRealtimeDt(data.lastUpdateRealtimeDt);
+          const ts = data.lastUpdateRealtimeDt || getFormattedNow();
+          setLastUpdateRealtimeDt(ts);
+          onUpdateRealtimeDt?.(data.realtimeDt, ts);
           count++;
         }
         if (Array.isArray(data.realtimeTc) && data.realtimeTc.length > 0) {
           setParsedRealtimeTc(data.realtimeTc);
-          if (data.lastUpdateRealtimeTc) setLastUpdateRealtimeTc(data.lastUpdateRealtimeTc);
+          const ts = data.lastUpdateRealtimeTc || getFormattedNow();
+          setLastUpdateRealtimeTc(ts);
+          onUpdateRealtimeTc?.(data.realtimeTc, ts);
           count++;
         }
         if (Array.isArray(data.luykeDt) && data.luykeDt.length > 0) {
           setParsedLuyKeDt(data.luykeDt);
-          if (data.lastUpdateLuyKeDt) setLastUpdateLuyKeDt(data.lastUpdateLuyKeDt);
+          const ts = data.lastUpdateLuyKeDt || getFormattedNow();
+          setLastUpdateLuyKeDt(ts);
+          onUpdateLuyKeDt?.(data.luykeDt, ts);
           count++;
         }
         if (Array.isArray(data.luykeTc) && data.luykeTc.length > 0) {
           setParsedLuyKeTc(data.luykeTc);
-          if (data.lastUpdateLuyKeTc) setLastUpdateLuyKeTc(data.lastUpdateLuyKeTc);
+          const ts = data.lastUpdateLuyKeTc || getFormattedNow();
+          setLastUpdateLuyKeTc(ts);
+          onUpdateLuyKeTc?.(data.luykeTc, ts);
           count++;
         }
         if (Array.isArray(data.bossAssignments) && data.bossAssignments.length > 0 && onUpdateBossData) {
