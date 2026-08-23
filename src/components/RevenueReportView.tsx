@@ -97,6 +97,8 @@ export interface RevenueReportViewProps {
   setEntityScope: (scope: EntityScope) => void;
   currentUser?: UserAccount | null;
   onNavigateToUpdate?: () => void;
+  savedUserFilters?: Record<string, any>;
+  onSaveRevenueProvince?: (province: string) => void;
 }
 
 export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
@@ -115,6 +117,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   setEntityScope,
   currentUser,
   onNavigateToUpdate,
+  savedUserFilters,
+  onSaveRevenueProvince,
 }) => {
   // Value display mode: 'percent' (% HT) | 'value' (Giá trị Triệu VND)
   const [valueDisplayMode, setValueDisplayMode] = useState<'percent' | 'value'>('percent');
@@ -124,11 +128,16 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
   // Filters
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>(['DML', 'DMM', 'DMS', 'TGD']);
-  const [selectedProvince, setSelectedProvince] = useState<string>('ALL');
+  const [selectedProvince, setSelectedProvince] = useState<string>(() => {
+    const saved = savedUserFilters?.revenueProvince || localStorage.getItem('revenue_selected_province');
+    return saved || 'ALL';
+  });
   const [selectedBoss, setSelectedBoss] = useState<string>('ALL');
   const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = useState<string>('ALL');
   const [selectedTinhMoi, setSelectedTinhMoi] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const isInitialProvinceLoadedRef = useRef(false);
 
   // Sorting
   const [sortField, setSortField] = useState<string>('rateDt');
@@ -277,15 +286,36 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     [mergedItems]
   );
 
-  // Mặc định chỉ chọn 1 tỉnh khi ở Tab Siêu Thị Mới
+  // Mặc định chỉ chọn 1 tỉnh đầu tiên nếu mới mở lần đầu, lần sau sẽ dựa vào lựa chọn đã lưu trên firebase/localstorage
   useEffect(() => {
-    if (entityScope === 'sieuthimoi') {
-      if (selectedProvince === 'ALL' && uniqueProvinces.length > 0) {
-        const defaultProv = uniqueProvinces.includes('Sóc Trăng') ? 'Sóc Trăng' : uniqueProvinces[0];
-        setSelectedProvince(defaultProv);
+    if (uniqueProvinces.length === 0) return;
+
+    const savedProv = savedUserFilters?.revenueProvince || localStorage.getItem('revenue_selected_province');
+
+    if (savedProv && (uniqueProvinces.includes(savedProv) || (entityScope !== 'sieuthimoi' && savedProv === 'ALL'))) {
+      if (!isInitialProvinceLoadedRef.current || (selectedProvince === 'ALL' && entityScope === 'sieuthimoi')) {
+        setSelectedProvince(savedProv);
+        isInitialProvinceLoadedRef.current = true;
+      }
+    } else {
+      // Lần đầu mở: Mặc định chọn 1 tỉnh đầu tiên trong danh sách
+      if (selectedProvince === 'ALL' || !uniqueProvinces.includes(selectedProvince)) {
+        const firstProv = uniqueProvinces[0];
+        if (firstProv) {
+          setSelectedProvince(firstProv);
+          localStorage.setItem('revenue_selected_province', firstProv);
+          onSaveRevenueProvince?.(firstProv);
+          isInitialProvinceLoadedRef.current = true;
+        }
       }
     }
-  }, [entityScope, uniqueProvinces, selectedProvince]);
+  }, [uniqueProvinces, savedUserFilters?.revenueProvince, entityScope]);
+
+  const handleProvinceChange = (newProvince: string) => {
+    setSelectedProvince(newProvince);
+    localStorage.setItem('revenue_selected_province', newProvince);
+    onSaveRevenueProvince?.(newProvince);
+  };
 
   // Filtered Store Items
   const filteredItems = useMemo(() => {
@@ -1018,7 +1048,7 @@ ${botLines || 'Đang cập nhật'}
               <span className="text-[11px] font-bold text-slate-400 uppercase">TỈNH:</span>
               <select
                 value={selectedProvince}
-                onChange={(e) => setSelectedProvince(e.target.value)}
+                onChange={(e) => handleProvinceChange(e.target.value)}
                 className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
               >
                 {entityScope !== 'sieuthimoi' && <option value="ALL">Tất cả</option>}

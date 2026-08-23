@@ -1076,6 +1076,16 @@ function AppInner() {
     showToast(`Đã đồng bộ ${newStores.length} dòng Trả chậm Luỹ kế lên Firebase!`);
   };
 
+  const handleSaveRevenueProvince = (province: string) => {
+    if (!currentUser) return;
+    setUserFiltersMap((prev) => {
+      const userPrev = prev[currentUser.accountId] || {};
+      const next = { ...prev, [currentUser.accountId]: { ...userPrev, revenueProvince: province } };
+      void saveUserFiltersToFirebase(next, currentUser.name);
+      return next;
+    });
+  };
+
   const showToast = (msg: string) => {
     setToastBanner({ type: 'success', text: msg });
     confetti({ particleCount: 60, spread: 60, origin: { y: 0.2 } });
@@ -1595,6 +1605,8 @@ function AppInner() {
                   setEntityScope={setEntityScope}
                   currentUser={currentUser}
                   onNavigateToUpdate={() => setActiveTab('update')}
+                  savedUserFilters={currentUser ? userFiltersMap[currentUser.accountId] : undefined}
+                  onSaveRevenueProvince={handleSaveRevenueProvince}
                 />
               </ErrorBoundary>
             </React.Suspense>
