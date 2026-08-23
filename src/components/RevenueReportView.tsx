@@ -519,13 +519,14 @@ ${botLines || 'Đang cập nhật'}
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* 1. STICKY TOP HEADER BANNER (Exact same 2-row design & styling as Report's HeaderBanner) */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs relative space-y-3 transition-all">
-        {/* Pink/Rose/Amber Accent Indicator Line */}
-        <div className="absolute top-0 left-0 w-2 h-full rounded-l-2xl bg-gradient-to-b from-rose-300 via-pink-300 to-amber-300"></div>
+      {/* 1. STICKY TOP HEADER BANNER with bottom divider separator (Matching Report HeaderBanner 1:1) */}
+      <div className="sticky -top-4 md:-top-6 -mx-4 md:-mx-6 px-4 md:px-6 pt-4 md:pt-6 pb-2.5 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/80 z-30 shadow-2xs mb-2">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs relative space-y-3 transition-all">
+          {/* Pink/Rose/Amber Accent Indicator Line */}
+          <div className="absolute top-0 left-0 w-2 h-full rounded-l-2xl bg-gradient-to-b from-rose-300 via-pink-300 to-amber-300"></div>
 
-        {/* ROW 1: Scope Tabs, Freshness Badge & Time Mode Controls */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pl-2">
+          {/* ROW 1: Scope Tabs, Freshness Badge & Time Mode Controls */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pl-2">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             {/* Scope Selector: TỔNG / VÙNG / SIÊU THỊ */}
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shrink-0">
@@ -780,6 +781,7 @@ ${botLines || 'Đang cập nhật'}
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {/* 2. MAIN REPORT CARD CONTAINER & EXPORT ROOT */}
