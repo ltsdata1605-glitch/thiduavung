@@ -172,14 +172,14 @@ function AppInner() {
   const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : []);
 
   // Revenue & Installment (Doanh thu & Trả chậm) Data
-  const [realtimeDtStores] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
-  const [realtimeTcStores] = usePersistedState<StoreRecord[]>('tnb_realtime_tracham', []);
-  const [luykeDtStores] = usePersistedState<StoreRecord[]>('tnb_luyke_doanhthu', []);
-  const [luykeTcStores] = usePersistedState<StoreRecord[]>('tnb_luyke_tracham', []);
-  const [lastUpdateRealtimeDt] = usePersistedState<string>('tnb_last_update_realtime_dt', '');
-  const [lastUpdateRealtimeTc] = usePersistedState<string>('tnb_last_update_realtime_tc', '');
-  const [lastUpdateLuyKeDt] = usePersistedState<string>('tnb_last_update_luyke_dt', '');
-  const [lastUpdateLuyKeTc] = usePersistedState<string>('tnb_last_update_luyke_tc', '');
+  const [realtimeDtStores, setRealtimeDtStores] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
+  const [realtimeTcStores, setRealtimeTcStores] = usePersistedState<StoreRecord[]>('tnb_realtime_tracham', []);
+  const [luykeDtStores, setLuyKeDtStores] = usePersistedState<StoreRecord[]>('tnb_luyke_doanhthu', []);
+  const [luykeTcStores, setLuyKeTcStores] = usePersistedState<StoreRecord[]>('tnb_luyke_tracham', []);
+  const [lastUpdateRealtimeDt, setLastUpdateRealtimeDt] = usePersistedState<string>('tnb_last_update_realtime_dt', '');
+  const [lastUpdateRealtimeTc, setLastUpdateRealtimeTc] = usePersistedState<string>('tnb_last_update_realtime_tc', '');
+  const [lastUpdateLuyKeDt, setLastUpdateLuyKeDt] = usePersistedState<string>('tnb_last_update_luyke_dt', '');
+  const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = usePersistedState<string>('tnb_last_update_luyke_tc', '');
 
   // BOSS assignment list, hydrated from local cache first
   const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
