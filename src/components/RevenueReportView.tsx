@@ -39,6 +39,7 @@ import {
   Copy,
   Tv,
   Sparkles,
+  MapPin,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { exportElementAsImage, copyTextToClipboard } from '../services/imageExport';
@@ -159,7 +160,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
-  const [exportMode, setExportMode] = useState<'quick' | 'group' | 'all'>('all');
+  const [exportMode, setExportMode] = useState<'quick' | 'group' | 'all' | 'province' | 'tinhmoi'>('all');
 
   // Selected Active Stores based on Time Mode
   const activeDtStores = timeMode === 'realtime' ? realtimeDtStores : luykeDtStores;
@@ -722,7 +723,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     }
   };
 
-  const handleExport = async (mode: 'quick' | 'group' | 'all') => {
+  const handleExport = async (mode: 'quick' | 'group' | 'all' | 'province' | 'tinhmoi') => {
     const el = document.getElementById('revenue-report-export-root');
     if (!el) {
       alert('Không tìm thấy bảng báo cáo để xuất ảnh!');
@@ -731,14 +732,68 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     setExportMode(mode);
     setIsExporting(true);
     try {
-      await new Promise((r) => setTimeout(r, 250));
-      const filename = `Bao_Cao_Doanh_Thu_${mode === 'quick' ? 'Nhanh_' : ''}${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const remarkText = generateRevenueRemarks('template_1', 'user');
-      const blob = await exportElementAsImage(el, filename, {
-        remarkTextToCopy: remarkText,
-      });
-      if (blob) {
-        confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+      if (mode === 'province') {
+        const prevProv = selectedProvince;
+        const prevTinhMoi = selectedTinhMoi;
+        const provsToExport = uniqueProvinces.filter((p) => p && p !== 'ALL');
+        let exportedCount = 0;
+
+        for (const prov of provsToExport) {
+          setSelectedProvince(prov);
+          setSelectedTinhMoi('ALL');
+          await new Promise((r) => setTimeout(r, 400));
+          const targetEl = document.getElementById('revenue-report-export-root');
+          if (targetEl) {
+            const cleanProv = prov.replace(/[^a-zA-Z0-9]/g, '_');
+            const filename = `Bao_Cao_Doanh_Thu_Tinh_${cleanProv}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+            const remarkText = generateRevenueRemarks('template_1', 'user');
+            const blob = await exportElementAsImage(targetEl, filename, {
+              remarkTextToCopy: remarkText,
+            });
+            if (blob) exportedCount++;
+          }
+        }
+        setSelectedProvince(prevProv);
+        setSelectedTinhMoi(prevTinhMoi);
+        if (exportedCount > 0) {
+          confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+        }
+      } else if (mode === 'tinhmoi') {
+        const prevProv = selectedProvince;
+        const prevTinhMoi = selectedTinhMoi;
+        const tinhMoisToExport = uniqueTinhMois.filter((tm) => tm && tm !== 'ALL');
+        let exportedCount = 0;
+
+        for (const tm of tinhMoisToExport) {
+          setSelectedTinhMoi(tm);
+          setSelectedProvince('ALL');
+          await new Promise((r) => setTimeout(r, 400));
+          const targetEl = document.getElementById('revenue-report-export-root');
+          if (targetEl) {
+            const cleanTm = tm.replace(/[^a-zA-Z0-9]/g, '_');
+            const filename = `Bao_Cao_Doanh_Thu_TinhMoi_${cleanTm}_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+            const remarkText = generateRevenueRemarks('template_1', 'user');
+            const blob = await exportElementAsImage(targetEl, filename, {
+              remarkTextToCopy: remarkText,
+            });
+            if (blob) exportedCount++;
+          }
+        }
+        setSelectedProvince(prevProv);
+        setSelectedTinhMoi(prevTinhMoi);
+        if (exportedCount > 0) {
+          confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+        }
+      } else {
+        await new Promise((r) => setTimeout(r, 250));
+        const filename = `Bao_Cao_Doanh_Thu_${mode === 'quick' ? 'Nhanh_' : ''}${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
+        const remarkText = generateRevenueRemarks('template_1', 'user');
+        const blob = await exportElementAsImage(el, filename, {
+          remarkTextToCopy: remarkText,
+        });
+        if (blob) {
+          confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+        }
       }
     } finally {
       setIsExporting(false);
@@ -1180,8 +1235,31 @@ ${botLines || 'Đang cập nhật'}
               <span>Nhận xét</span>
             </button>
 
-            {/* Xuất Theo Nhóm Button (Only for TAB SIÊU THỊ & TAB SIÊU THỊ MỚI) */}
-            {(entityScope === 'vung' || entityScope === 'sieuthimoi') && (
+            {/* TAB SIÊU THỊ MỚI: Xuất Theo Tỉnh & Xuất Theo Tỉnh Mới */}
+            {entityScope === 'sieuthimoi' && (
+              <>
+                <button
+                  onClick={() => handleExport('province')}
+                  disabled={isExporting}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Xuất theo tỉnh</span>
+                </button>
+
+                <button
+                  onClick={() => handleExport('tinhmoi')}
+                  disabled={isExporting}
+                  className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Xuất theo tỉnh mới</span>
+                </button>
+              </>
+            )}
+
+            {/* TAB SIÊU THỊ: Xuất Theo Nhóm */}
+            {entityScope === 'vung' && (
               <button
                 onClick={() => handleExport('group')}
                 disabled={isExporting}
@@ -1192,7 +1270,7 @@ ${botLines || 'Đang cập nhật'}
               </button>
             )}
 
-            {/* Xuất Nhanh Button (Only for TAB VÙNG) */}
+            {/* TAB VÙNG: Xuất Nhanh Button */}
             {entityScope === 'sieuthi' && (
               <button
                 onClick={() => handleExport('quick')}
