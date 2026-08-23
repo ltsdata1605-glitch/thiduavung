@@ -55,6 +55,12 @@ export function getChannelHeaderBg(kenh: string): string {
   return 'bg-amber-400 text-slate-950 font-black';
 }
 
+export function formatBillionsOnly(num: number): string {
+  if (!num || num === 0) return '0';
+  const val = num / 1_000_000_000;
+  return val.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function getChannelBadgeStyle(kenh: string): string {
   const u = (kenh || '').toUpperCase();
   if (u.includes('DML')) return 'bg-teal-100 text-teal-800 border border-teal-300';
@@ -2202,13 +2208,13 @@ ${botLines || 'Đang cập nhật'}
                         <>
                           {!(isExporting && exportMode === 'quick') && (
                             <>
-                              <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{formatVND(row.targetDt)}</td>
-                              <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{formatVND(row.achievedDt)}</td>
+                              <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{formatBillionsOnly(row.targetDt)}</td>
+                              <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{formatBillionsOnly(row.achievedDt)}</td>
                             </>
                           )}
                           <td className="p-2.5 text-center border-r border-slate-200">
                             <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${row.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : row.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
-                              {row.rateDt}%
+                              {Math.round(row.rateDt)}%
                             </span>
                           </td>
                         </>
@@ -2216,10 +2222,10 @@ ${botLines || 'Đang cập nhật'}
                       {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                         <>
                           {!(isExporting && exportMode === 'quick') && (
-                            <td className="p-2.5 text-right font-mono font-black text-amber-700 border-r border-slate-200">{formatVND(row.achievedTc)}</td>
+                            <td className="p-2.5 text-right font-mono font-black text-amber-700 border-r border-slate-200">{formatBillionsOnly(row.achievedTc)}</td>
                           )}
                           <td className="p-2.5 text-center border-r border-slate-200 font-bold text-amber-900">
-                            {row.tcRatio}%
+                            {Math.round(row.tcRatio)}%
                           </td>
                         </>
                       )}
@@ -2247,13 +2253,13 @@ ${botLines || 'Đang cập nhật'}
                       <>
                         {!(isExporting && exportMode === 'quick') && (
                           <>
-                            <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{formatVND(totalSummary.totalTargetDt)}</td>
-                            <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{formatVND(totalSummary.totalAchievedDt)}</td>
+                            <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{formatBillionsOnly(totalSummary.totalTargetDt)}</td>
+                            <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{formatBillionsOnly(totalSummary.totalAchievedDt)}</td>
                           </>
                         )}
                         <td className="p-3 text-center border-r border-slate-700">
                           <span className={`px-2.5 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
-                            {totalSummary.totalRateDt}%
+                            {Math.round(totalSummary.totalRateDt)}%
                           </span>
                         </td>
                       </>
@@ -2261,11 +2267,11 @@ ${botLines || 'Đang cập nhật'}
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                       <>
                         {!(isExporting && exportMode === 'quick') && (
-                          <td className="p-3 text-right font-mono text-amber-300 border-r border-slate-700">{formatVND(totalSummary.totalAchievedTc)}</td>
+                          <td className="p-3 text-right font-mono text-amber-300 border-r border-slate-700">{formatBillionsOnly(totalSummary.totalAchievedTc)}</td>
                         )}
                         <td className="p-3 text-center border-r border-slate-700">
                           <span className="px-2 py-0.5 rounded-md bg-teal-500 text-slate-950 font-black">
-                            {totalSummary.totalTcRatio}%
+                            {Math.round(totalSummary.totalTcRatio)}%
                           </span>
                         </td>
                       </>
