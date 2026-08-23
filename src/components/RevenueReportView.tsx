@@ -520,6 +520,34 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       });
   }, [filteredItems]);
 
+  // TOP & BOTTOM Data for Tab TOP/BOT
+  const topBotData = useMemo(() => {
+    const items = filteredItems;
+
+    // Sort by DTQĐ for Left Table (descending)
+    const byDtQd = [...items].sort((a, b) => (b.dtQd || b.achievedDt || 0) - (a.dtQd || a.achievedDt || 0));
+    const top20DtQd = byDtQd.slice(0, 20).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const bot20DtQd =
+      byDtQd.length > 20
+        ? byDtQd.slice(-20).map((item, idx) => ({ ...item, rank: byDtQd.length - 20 + idx + 1 }))
+        : [];
+
+    // Sort by % HT (rateDt) for Right Table (descending)
+    const byRate = [...items].sort((a, b) => (b.rateDt || 0) - (a.rateDt || 0));
+    const top20Rate = byRate.slice(0, 20).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const bot20Rate =
+      byRate.length > 20
+        ? byRate.slice(-20).map((item, idx) => ({ ...item, rank: byRate.length - 20 + idx + 1 }))
+        : [];
+
+    return {
+      top20DtQd,
+      bot20DtQd,
+      top20Rate,
+      bot20Rate,
+    };
+  }, [filteredItems]);
+
   const { infoTimeLabel, realtimeTimeStr, realtimeTimeAndDateStr, thoiGianSdPercent } = useMemo(() => {
     let day = new Date().getDate();
     let month = new Date().getMonth() + 1;
@@ -835,6 +863,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         let filename = `${timePrefix}_Bao_Cao.png`;
         if (entityScope === 'tong') {
           filename = `${timePrefix}_Tong.png`;
+        } else if (entityScope === 'topbot') {
+          const chName = selectedChannels.length === 1 ? selectedChannels[0] : selectedChannels.length === 5 ? 'DMX' : selectedChannels.join('_');
+          filename = `${timePrefix}_TopBot_${removeVietnameseTones(chName)}.png`;
         } else if (entityScope === 'sieuthi') {
           filename = mode === 'quick' ? `${timePrefix}_Nhanh_Vung.png` : `${timePrefix}_Vung.png`;
         } else {
@@ -1095,6 +1126,18 @@ ${botLines || 'Đang cập nhật'}
               >
                 <Sparkles className={`w-3.5 h-3.5 ${entityScope === 'sieuthimoi' ? 'text-purple-600' : 'text-slate-500'}`} />
                 SIÊU THỊ MỚI
+              </button>
+
+              <button
+                onClick={() => setEntityScope('topbot')}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  entityScope === 'topbot'
+                    ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-200/60 shadow-2xs'
+                    : 'bg-white/80 text-slate-600 border-slate-200/80 hover:bg-white hover:text-slate-900'
+                }`}
+              >
+                <Flame className={`w-3.5 h-3.5 ${entityScope === 'topbot' ? 'text-rose-600' : 'text-slate-500'}`} />
+                TOP/BOT
               </button>
             </div>
 
@@ -1635,6 +1678,191 @@ ${botLines || 'Đang cập nhật'}
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        ) : entityScope === 'topbot' ? (
+          /* TAB TOP/BOT: EXACT MATCH DESIGN WITH SPLIT CHANNEL HEADER AND TWO TABLES */
+          <div className="max-w-6xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none sm:rounded-lg">
+            {/* Header: Left Channel Name Block & Right Time Info */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-0 border-b border-slate-300 bg-white">
+              {/* Left Channel Name Block */}
+              <div className="md:col-span-6 bg-[#1e40af] text-white flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-slate-300 min-h-[120px]">
+                <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
+                  {selectedChannels.length === 1
+                    ? (selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0] === 'TGD' ? 'TGD' : 'TOPZONE')
+                    : selectedChannels.length === 5
+                    ? 'KÊNH ĐMX'
+                    : selectedChannels.map((c) => (c === 'DML' ? 'ĐML' : c === 'DMM' ? 'ĐMM' : c === 'DMS' ? 'ĐMS' : c === 'TGD' ? 'TGD' : 'TOPZONE')).join(', ')}
+                </h1>
+              </div>
+
+              {/* Right Time Info Block */}
+              <div className="md:col-span-6 flex flex-col justify-center bg-white">
+                <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300">
+                  <div className="p-2.5 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
+                    {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'}
+                  </div>
+                  <div className="p-2.5 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
+                    {realtimeTimeAndDateStr || realtimeTimeStr}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300">
+                  <div className="p-2.5 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
+                    THỜI GIAN SỬ DỤNG
+                  </div>
+                  <div className="p-2.5 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
+                    {timeMode === 'realtime' ? `${thoiGianSdPercent.toFixed(1)}%` : `${Math.round(thoiGianSdPercent)}%`}
+                  </div>
+                </div>
+
+                <div className="p-2.5 text-center font-black text-black text-xs sm:text-sm uppercase tracking-wide">
+                  {targetHeaderStr}
+                </div>
+              </div>
+            </div>
+
+            {/* TWO SIDE-BY-SIDE TABLES */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-slate-300">
+              {/* LEFT TABLE: TOP & BOTTOM D.THU QUY ĐỔI */}
+              <div className="overflow-x-auto">
+                <div className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
+                  TOP &amp; BOTTOM D.THU QUY ĐỔI
+                </div>
+                <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
+                  <thead>
+                    <tr className="bg-[#00b074] text-black font-black text-xs sm:text-sm">
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
+                      <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
+                        <div>D.THU</div>
+                        <div className="text-[10px]">THỰC HIỆN</div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-black font-sans">
+                    {/* Top 20 D.Thu */}
+                    {topBotData.top20DtQd.map((s) => (
+                      <tr key={`top_dt_${s.id || s.sieuthi}`} className="font-bold">
+                        <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
+                          {s.rank}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          {s.boss || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
+                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          {s.sieuthi}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
+                          {Math.round(s.dtQd || s.achievedDt || 0)}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* Bottom 20 D.Thu */}
+                    {topBotData.bot20DtQd.map((s) => (
+                      <tr key={`bot_dt_${s.id || s.sieuthi}`} className="font-bold">
+                        <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
+                          {s.rank}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          {s.boss || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center bg-[#93c5fd] font-bold border-r border-b border-slate-300 text-black text-xs">
+                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          {s.sieuthi}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
+                          {Math.round(s.dtQd || s.achievedDt || 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* RIGHT TABLE: TOP & BOTTOM TỈ LỆ HOÀN THÀNH */}
+              <div className="overflow-x-auto">
+                <div className="bg-[#fcd34d] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
+                  TOP &amp; BOTTOM TỈ LỆ HOÀN THÀNH
+                </div>
+                <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
+                  <thead>
+                    <tr className="bg-[#fcd34d] text-black font-black text-xs sm:text-sm">
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
+                      <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
+                      <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
+                        <div>TỈ LỆ</div>
+                        <div className="text-[10px]">HOÀN THÀNH</div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-black font-sans">
+                    {/* Top 20 % HT */}
+                    {topBotData.top20Rate.map((s) => (
+                      <tr key={`top_rate_${s.id || s.sieuthi}`} className="font-bold">
+                        <td className="p-1 sm:p-1.5 text-center bg-[#fef08a] font-black border-r border-b border-slate-300 text-xs">
+                          {s.rank}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          {s.boss || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
+                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          {s.sieuthi}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
+                          {s.rateDt.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* Bottom 20 % HT */}
+                    {topBotData.bot20Rate.map((s) => (
+                      <tr key={`bot_rate_${s.id || s.sieuthi}`} className="font-bold">
+                        <td className="p-1 sm:p-1.5 text-center bg-white font-bold border-r border-b border-slate-300 text-slate-800 text-xs">
+                          {s.rank}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[100px] text-xs">
+                          {s.boss || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center border-r border-b border-slate-300 text-black font-bold text-xs">
+                          {s.kenh === 'DML' ? 'ĐML' : s.kenh === 'DMM' ? 'ĐMM' : s.kenh === 'DMS' ? 'ĐMS' : s.kenh || '-'}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-left pl-2 border-r border-b border-slate-300 text-black font-bold truncate max-w-[200px] text-xs" title={s.sieuthi}>
+                          {s.sieuthi}
+                        </td>
+                        <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
+                          {s.rateDt.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-[#fcd34d] font-black text-black">
+                      <td colSpan={4} className="p-2 text-center uppercase tracking-wide border-r border-t border-slate-300 font-black text-xs sm:text-sm">
+                        {selectedChannels.length === 1
+                          ? `KÊNH ${selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0]}`
+                          : 'TỔNG CỘNG KÊNH'}
+                      </td>
+                      <td className="p-2 text-center font-black font-mono border-t border-slate-300 text-xs sm:text-sm">
+                        {totalSummary.totalRateDt.toFixed(1)}%
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </div>
         ) : entityScope === 'sieuthimoi' ? (
