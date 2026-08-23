@@ -286,30 +286,28 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     [mergedItems]
   );
 
-  // Mặc định chỉ chọn 1 tỉnh đầu tiên nếu mới mở lần đầu, lần sau sẽ dựa vào lựa chọn đã lưu trên firebase/localstorage
+  // Khi mới mở ứng dụng lần đầu tiên: Khôi phục tỉnh từ Firebase / LocalStorage, nếu chưa từng chọn bao giờ thì mới lấy tỉnh đầu tiên
   useEffect(() => {
+    if (isInitialProvinceLoadedRef.current) return;
     if (uniqueProvinces.length === 0) return;
 
-    const savedProv = savedUserFilters?.revenueProvince || localStorage.getItem('revenue_selected_province');
+    const savedProv = savedUserFilters?.revenueProvince ?? localStorage.getItem('revenue_selected_province');
 
-    if (savedProv && (uniqueProvinces.includes(savedProv) || (entityScope !== 'sieuthimoi' && savedProv === 'ALL'))) {
-      if (!isInitialProvinceLoadedRef.current || (selectedProvince === 'ALL' && entityScope === 'sieuthimoi')) {
+    if (savedProv !== null && savedProv !== undefined && savedProv !== '') {
+      if (savedProv === 'ALL' || uniqueProvinces.includes(savedProv)) {
         setSelectedProvince(savedProv);
         isInitialProvinceLoadedRef.current = true;
-      }
-    } else {
-      // Lần đầu mở: Mặc định chọn 1 tỉnh đầu tiên trong danh sách
-      if (selectedProvince === 'ALL' || !uniqueProvinces.includes(selectedProvince)) {
-        const firstProv = uniqueProvinces[0];
-        if (firstProv) {
-          setSelectedProvince(firstProv);
-          localStorage.setItem('revenue_selected_province', firstProv);
-          onSaveRevenueProvince?.(firstProv);
-          isInitialProvinceLoadedRef.current = true;
-        }
+        return;
       }
     }
-  }, [uniqueProvinces, savedUserFilters?.revenueProvince, entityScope]);
+
+    // Chưa từng chọn hoặc mới mở lần đầu: mặc định 1 tỉnh đầu tiên
+    const firstProv = uniqueProvinces[0] || 'ALL';
+    setSelectedProvince(firstProv);
+    localStorage.setItem('revenue_selected_province', firstProv);
+    onSaveRevenueProvince?.(firstProv);
+    isInitialProvinceLoadedRef.current = true;
+  }, [uniqueProvinces, savedUserFilters?.revenueProvince]);
 
   const handleProvinceChange = (newProvince: string) => {
     setSelectedProvince(newProvince);
