@@ -330,6 +330,15 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     isInitialProvinceLoadedRef.current = true;
   }, [uniqueProvinces, savedUserFilters?.revenueProvince]);
 
+  // When switching to TOP/BOT: Ensure exactly 1 channel is selected
+  useEffect(() => {
+    if (entityScope === 'topbot') {
+      if (selectedChannels.length !== 1) {
+        setSelectedChannels(['DML']);
+      }
+    }
+  }, [entityScope]);
+
   const handleProvinceChange = (newProvince: string) => {
     setSelectedProvince(newProvince);
     localStorage.setItem('revenue_selected_province', newProvince);
@@ -1242,39 +1251,58 @@ ${botLines || 'Đang cập nhật'}
         <div className="pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 pl-2">
           {/* Left Filters */}
           <div className="flex flex-wrap items-center gap-3">
-            {/* Channel Checkboxes */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">KÊNH:</span>
-              {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((ch) => {
-                const isChecked = selectedChannels.includes(ch);
-                return (
-                  <button
-                    key={ch}
-                    onClick={() => toggleChannel(ch)}
-                    className={`px-2 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
-                      isChecked
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span
-                      className={`w-3.5 h-3.5 ${entityScope === 'topbot' ? 'rounded-full' : 'rounded-xs'} border flex items-center justify-center transition-all ${
-                        isChecked ? 'bg-white border-white text-blue-600' : 'border-slate-400 bg-white'
+            {/* Channel Selection */}
+            {entityScope === 'topbot' ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">KÊNH:</span>
+                <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200 shadow-2xs">
+                  {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((ch) => {
+                    const isSelected = selectedChannels.length === 1 && selectedChannels[0] === ch;
+                    const displayLabel = ch === 'DML' ? 'ĐML' : ch === 'DMM' ? 'ĐMM' : ch === 'DMS' ? 'ĐMS' : ch;
+                    return (
+                      <button
+                        key={ch}
+                        onClick={() => setSelectedChannels([ch])}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
+                        }`}
+                      >
+                        {displayLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-400 uppercase mr-1">KÊNH:</span>
+                {(['DML', 'DMM', 'DMS', 'TGD', 'TopZone'] as Channel[]).map((ch) => {
+                  const isChecked = selectedChannels.includes(ch);
+                  return (
+                    <button
+                      key={ch}
+                      onClick={() => toggleChannel(ch)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5 ${
+                        isChecked
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                          : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
                       }`}
                     >
-                      {isChecked && (
-                        entityScope === 'topbot' ? (
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                        ) : (
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        )
-                      )}
-                    </span>
-                    <span>{ch}</span>
-                  </button>
-                );
-              })}
-            </div>
+                      <span
+                        className={`w-3.5 h-3.5 rounded-xs border flex items-center justify-center transition-all ${
+                          isChecked ? 'bg-white border-white text-blue-600' : 'border-slate-400 bg-white'
+                        }`}
+                      >
+                        {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                      </span>
+                      <span>{ch === 'DML' ? 'ĐML' : ch === 'DMM' ? 'ĐMM' : ch === 'DMS' ? 'ĐMS' : ch}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {entityScope !== 'tong' && entityScope !== 'sieuthi' && (
               <>
