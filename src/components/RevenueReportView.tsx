@@ -1386,7 +1386,7 @@ ${botLines || 'Đang cập nhật'}
                 THỜI GIAN ĐÃ SỬ DỤNG :
               </div>
               <div className="py-2 px-3 flex items-center justify-start pl-4 font-mono whitespace-nowrap">
-                {thoiGianSdPercent}%
+                {Math.round(thoiGianSdPercent)}%
               </div>
             </div>
 
@@ -1485,19 +1485,19 @@ ${botLines || 'Đang cập nhật'}
                           {group.totalAchievedDt.toLocaleString('vi-VN')}
                         </td>
                         <td className="p-1.5 bg-[#fbb040] text-center border-r border-slate-300 text-slate-950 whitespace-nowrap">
-                          {group.totalRateDt.toFixed(1)}%
+                          {Math.round(group.totalRateDt)}%
                         </td>
                         <td className="p-1.5 bg-[#fde047] text-right pr-2 border-r border-slate-300 font-mono text-slate-950 whitespace-nowrap">
                           {group.totalProjectedAchieved.toLocaleString('vi-VN')}
                         </td>
                         <td className="p-1.5 bg-[#fde047] text-center border-r border-slate-300 text-slate-950 whitespace-nowrap">
-                          {group.totalProjectedRate.toFixed(1)}%
+                          {Math.round(group.totalProjectedRate)}%
                         </td>
                         <td className="p-1.5 bg-[#fbb040] text-center border-r border-slate-300 text-slate-950 whitespace-nowrap">
-                          {group.totalQdEff.toFixed(1)}%
+                          {Math.round(group.totalQdEff)}%
                         </td>
                         <td className="p-1.5 bg-[#fdbb84] text-center text-slate-950 whitespace-nowrap">
-                          {group.totalTcRatio.toFixed(1)}%
+                          {Math.round(group.totalTcRatio)}%
                         </td>
                       </tr>
 
@@ -1535,7 +1535,7 @@ ${botLines || 'Đang cập nhật'}
                             <td className={`p-1.5 text-center border-r border-slate-300 font-black whitespace-nowrap ${
                               isNegative || isCurrentPink ? 'text-red-600' : 'text-slate-950'
                             }`}>
-                              {s.rateDt.toFixed(1)}%
+                              {Math.round(s.rateDt)}%
                             </td>
                             <td className="p-1.5 text-right pr-2 border-r border-slate-300 font-mono font-black text-slate-950 whitespace-nowrap">
                               {projAchieved.toLocaleString('vi-VN')}
@@ -1547,17 +1547,17 @@ ${botLines || 'Đang cập nhật'}
                                 ? 'text-red-600'
                                 : 'text-slate-950'
                             }`}>
-                              {projRate.toFixed(1)}%
+                              {Math.round(projRate)}%
                             </td>
                             <td className={`p-1.5 text-center border-r border-slate-300 font-black whitespace-nowrap ${
                               isQdRed ? 'text-red-600' : 'text-slate-950'
                             }`}>
-                              {(s.rateDt > 0 ? Math.min(333.3, Math.max(0.0, 50.0 + (s.rateDt - 20) * 0.9)) : 0.0).toFixed(1)}%
+                              {Math.round(s.rateDt > 0 ? Math.min(333.3, Math.max(0.0, 50.0 + (s.rateDt - 20) * 0.9)) : 0.0)}%
                             </td>
                             <td className={`p-1.5 text-center font-black whitespace-nowrap ${
                               isTcRed ? 'text-red-600' : 'text-slate-950'
                             }`}>
-                              {s.tcRatio.toFixed(1)}%
+                              {Math.round(s.tcRatio)}%
                             </td>
                           </tr>
                         );
@@ -1577,19 +1577,19 @@ ${botLines || 'Đang cập nhật'}
                       {totalSummary.totalAchievedDt.toLocaleString('vi-VN')}
                     </td>
                     <td className="p-2 bg-[#fbb040] text-center border-r border-slate-300 whitespace-nowrap">
-                      {totalSummary.totalRateDt.toFixed(1)}%
+                      {Math.round(totalSummary.totalRateDt)}%
                     </td>
                     <td className="p-2 bg-[#fde047] text-right pr-2 font-mono border-r border-slate-300 whitespace-nowrap">
                       {(thoiGianSdPercent > 0 ? Math.round(totalSummary.totalAchievedDt / (thoiGianSdPercent / 100)) : totalSummary.totalAchievedDt).toLocaleString('vi-VN')}
                     </td>
                     <td className="p-2 bg-[#fde047] text-center border-r border-slate-300 whitespace-nowrap">
-                      {(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt).toFixed(1)}%
+                      {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt)}%
                     </td>
                     <td className="p-2 bg-[#fbb040] text-center border-r border-slate-300 whitespace-nowrap">
-                      {(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0).toFixed(1)}%
+                      {Math.round(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)}%
                     </td>
                     <td className="p-2 bg-[#fdbb84] text-center whitespace-nowrap">
-                      {totalSummary.totalTcRatio.toFixed(1)}%
+                      {Math.round(totalSummary.totalTcRatio)}%
                     </td>
                   </tr>
                 </tbody>
