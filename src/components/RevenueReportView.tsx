@@ -40,6 +40,7 @@ import {
   Tv,
   Sparkles,
   MapPin,
+  Boxes,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { exportElementAsImage, copyTextToClipboard } from '../services/imageExport';
@@ -160,7 +161,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
   // Export State
   const [isExporting, setIsExporting] = useState(false);
-  const [exportMode, setExportMode] = useState<'quick' | 'group' | 'all' | 'province' | 'tinhmoi'>('all');
+  const [exportMode, setExportMode] = useState<'quick' | 'group' | 'all' | 'province' | 'tinhmoi' | 'size'>('all');
 
   // Selected Active Stores based on Time Mode
   const activeDtStores = timeMode === 'realtime' ? realtimeDtStores : luykeDtStores;
@@ -735,7 +736,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       .replace(/[^a-zA-Z0-9_]/g, '');
   };
 
-  const handleExport = async (mode: 'quick' | 'group' | 'all' | 'province' | 'tinhmoi') => {
+  const handleExport = async (mode: 'quick' | 'group' | 'all' | 'province' | 'tinhmoi' | 'size') => {
     const el = document.getElementById('revenue-report-export-root');
     if (!el) {
       alert('Không tìm thấy bảng báo cáo để xuất ảnh!');
@@ -795,6 +796,30 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         }
         setSelectedProvince(prevProv);
         setSelectedTinhMoi(prevTinhMoi);
+        if (exportedCount > 0) {
+          confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
+        }
+      } else if (mode === 'size') {
+        const prevPhanLoai = selectedPhanLoaiShop;
+        const sizesToExport = uniquePhanLoais.filter((s) => s && s !== 'ALL');
+        let exportedCount = 0;
+
+        for (const sz of sizesToExport) {
+          setSelectedPhanLoaiShop(sz);
+          await new Promise((r) => setTimeout(r, 400));
+          const targetEl = document.getElementById('revenue-report-export-root');
+          if (targetEl) {
+            const cleanSz = removeVietnameseTones(sz);
+            const cleanProv = selectedProvince !== 'ALL' ? `_${removeVietnameseTones(selectedProvince)}` : '';
+            const filename = `${timePrefix}_Size_${cleanSz}${cleanProv}.png`;
+            const remarkText = generateRevenueRemarks('template_1', 'user');
+            const blob = await exportElementAsImage(targetEl, filename, {
+              remarkTextToCopy: remarkText,
+            });
+            if (blob) exportedCount++;
+          }
+        }
+        setSelectedPhanLoaiShop(prevPhanLoai);
         if (exportedCount > 0) {
           confetti({ particleCount: 80, spread: 90, origin: { y: 0.6 } });
         }
@@ -1179,9 +1204,9 @@ ${botLines || 'Đang cập nhật'}
               <>
                 <div className="h-4 w-px bg-slate-200 mx-0.5"></div>
 
-                {/* Phân loại Shop */}
+                {/* Size / Phân loại Shop */}
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">PHÂN LOẠI:</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase">SIZE:</span>
                   <select
                     value={selectedPhanLoaiShop}
                     onChange={(e) => setSelectedPhanLoaiShop(e.target.value)}
@@ -1273,9 +1298,18 @@ ${botLines || 'Đang cập nhật'}
               <span>Nhận xét</span>
             </button>
 
-            {/* TAB SIÊU THỊ MỚI: Xuất Theo Tỉnh & Xuất Theo Tỉnh Mới */}
+            {/* TAB SIÊU THỊ MỚI: Xuất Theo Size, Xuất Theo Tỉnh & Xuất Theo Tỉnh Mới */}
             {entityScope === 'sieuthimoi' && (
               <>
+                <button
+                  onClick={() => handleExport('size')}
+                  disabled={isExporting}
+                  className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
+                >
+                  <Boxes className="w-3.5 h-3.5" />
+                  <span>Xuất theo size</span>
+                </button>
+
                 <button
                   onClick={() => handleExport('province')}
                   disabled={isExporting}
