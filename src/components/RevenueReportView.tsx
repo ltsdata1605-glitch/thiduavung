@@ -518,9 +518,9 @@ ${botLines || 'Đang cập nhật'}
   const formattedUpdateStr = freshness.displayText.replace(/\s*NGÀY\s*/i, ' - ');
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="animate-fade-in">
       {/* 1. STICKY TOP HEADER BANNER with bottom divider separator (Matching Report HeaderBanner 1:1) */}
-      <div className="sticky -top-4 md:-top-6 -mx-4 md:-mx-6 px-4 md:px-6 pt-4 md:pt-6 pb-2.5 bg-slate-100/90 backdrop-blur-md border-b border-slate-200/80 z-30 shadow-2xs mb-2">
+      <div className="sticky top-0 z-50 bg-slate-100/90 backdrop-blur-md px-4 md:px-6 pt-4 pb-2 border-b border-slate-200/60 shrink-0 shadow-2xs">
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs relative space-y-3 transition-all">
           {/* Pink/Rose/Amber Accent Indicator Line */}
           <div className="absolute top-0 left-0 w-2 h-full rounded-l-2xl bg-gradient-to-b from-rose-300 via-pink-300 to-amber-300"></div>
@@ -784,11 +784,13 @@ ${botLines || 'Đang cập nhật'}
       </div>
       </div>
 
-      {/* 2. MAIN REPORT CARD CONTAINER & EXPORT ROOT */}
-      <div
-        id="revenue-report-export-root"
-        className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4"
-      >
+      {/* Main Content Area matching Report View padding and layout */}
+      <div className="p-4 md:p-6 space-y-6">
+        {/* 2. MAIN REPORT CARD CONTAINER & EXPORT ROOT */}
+        <div
+          id="revenue-report-export-root"
+          className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4"
+        >
         {/* Title Header Bar (Styled matching ReportView title header 1:1) */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
@@ -1246,6 +1248,7 @@ ${botLines || 'Đang cập nhật'}
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
