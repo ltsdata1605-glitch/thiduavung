@@ -12,6 +12,14 @@ export interface FirebaseDataPayload {
   realtimeStoresVung?: StoreRecord[];
   luykeStoresTinh?: StoreRecord[];
   luykeStoresVung?: StoreRecord[];
+  realtimeDtStores?: StoreRecord[];
+  realtimeTcStores?: StoreRecord[];
+  luykeDtStores?: StoreRecord[];
+  luykeTcStores?: StoreRecord[];
+  lastUpdateRealtimeDt?: string;
+  lastUpdateRealtimeTc?: string;
+  lastUpdateLuyKeDt?: string;
+  lastUpdateLuyKeTc?: string;
   bossAssignments?: BossAssignmentRecord[];
   settings?: AppSettings;
   userPreferences?: Record<string, any>;
@@ -35,6 +43,10 @@ export type DocKey =
   | 'realtime_stores_vung'
   | 'luyke_stores_tinh'
   | 'luyke_stores_vung'
+  | 'realtime_revenue_dt'
+  | 'realtime_revenue_tc'
+  | 'luyke_revenue_dt'
+  | 'luyke_revenue_tc'
   | 'boss_assignments'
   | 'settings'
   | 'user_preferences'
@@ -50,6 +62,10 @@ const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
   realtime_stores_vung: 'realtimeStoresVung',
   luyke_stores_tinh: 'luykeStoresTinh',
   luyke_stores_vung: 'luykeStoresVung',
+  realtime_revenue_dt: 'realtimeDtStores',
+  realtime_revenue_tc: 'realtimeTcStores',
+  luyke_revenue_dt: 'luykeDtStores',
+  luyke_revenue_tc: 'luykeTcStores',
   boss_assignments: 'bossAssignments',
   settings: 'settings',
   user_preferences: 'userPreferences',
@@ -67,7 +83,7 @@ const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
 // 1MiB-per-document hard limit (711 stores measured at ~2.4MB — 2.4x over)
 // — setDoc then throws, the write silently never lands, and the *previous*
 // (smaller, successfully-saved) snapshot re-syncs back down over the local
-// state next time the listener fires. These 4 store datasets are therefore
+// state next time the listener fires. These store datasets are therefore
 // stored as chunked subcollections instead of one big document; everything
 // else (BOSS list, settings, preferences, filters) stays well under the
 // limit and keeps the simple single-document form.
@@ -76,6 +92,10 @@ const CHUNKED_STORE_DOC_KEYS = new Set<DocKey>([
   'realtime_stores_vung',
   'luyke_stores_tinh',
   'luyke_stores_vung',
+  'realtime_revenue_dt',
+  'realtime_revenue_tc',
+  'luyke_revenue_dt',
+  'luyke_revenue_tc',
 ]);
 const STORE_CHUNK_SIZE = 100; // ~350KB/chunk at the ~3.5KB/record measured above — comfortable margin under 1MiB
 
