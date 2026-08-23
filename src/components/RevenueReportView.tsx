@@ -1720,56 +1720,56 @@ ${botLines || 'Đang cập nhật'}
               <thead>
                 {/* Group Band Headers */}
                 <tr>
-                  <th colSpan={3} className="bg-slate-900 text-white font-black text-xs text-center p-2 border-r border-slate-800">
+                  <th colSpan={3} className="bg-slate-800 text-white font-black text-xs text-center p-2.5 border-r border-slate-700 uppercase tracking-wide">
                     THÔNG TIN TỈNH
                   </th>
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                    <th colSpan={3} className="bg-amber-300 text-amber-900 font-black text-xs text-center p-2 border-r border-amber-400/60 uppercase">
+                    <th colSpan={3} className="bg-[#f59e0b] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
                       NHÓM DOANH THU THUẦN
                     </th>
                   )}
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                    <th colSpan={2} className="bg-green-300 text-green-900 font-black text-xs text-center p-2 border-r border-green-400/60 uppercase">
+                    <th colSpan={2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 border-r border-emerald-500/40 uppercase tracking-wide">
                       NHÓM TRẢ CHẬM
                     </th>
                   )}
-                  <th className="bg-slate-900 text-white font-black text-xs text-center p-2">
+                  <th className="bg-slate-800 text-white font-black text-xs text-center p-2.5 uppercase tracking-wide">
                     TIẾN ĐỘ
                   </th>
                 </tr>
 
                 {/* Sub Headers */}
-                <tr className="bg-slate-900 text-white font-black text-center text-[11px] uppercase tracking-wider">
-                  <th className="p-2.5 border-r border-slate-800 w-12">STT</th>
-                  <th className="p-2.5 border-r border-slate-800 text-left">TỈNH</th>
-                  <th className="p-2.5 border-r border-slate-800">SỐ ST</th>
+                <tr className="bg-slate-700 text-white font-black text-center text-[11px] uppercase tracking-wider">
+                  <th className="p-2 border-r border-slate-600 w-12 text-slate-200">STT</th>
+                  <th className="p-2 border-r border-slate-600 text-left text-slate-200">TỈNH</th>
+                  <th className="p-2 border-r border-slate-600 text-slate-200">SỐ ST</th>
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                     <>
-                      <th className="p-2.5 border-r border-slate-800 text-right bg-amber-200 text-amber-950 font-black">TARGET DT</th>
-                      <th className="p-2.5 border-r border-slate-800 text-right bg-amber-200 text-amber-950 font-black">THỰC ĐẠT DT</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center bg-amber-200 text-amber-950 font-black">% HT DT</th>
+                      <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">TARGET DT</th>
+                      <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC ĐẠT DT</th>
+                      <th className="p-2 border-r border-amber-300 text-center bg-amber-200 text-amber-950 font-black">% HT DT</th>
                     </>
                   )}
                   {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                     <>
-                      <th className="p-2.5 border-r border-slate-800 text-right bg-green-200 text-green-950 font-black">TRẢ CHẬM</th>
-                      <th className="p-2.5 border-r border-slate-800 text-center bg-green-200 text-green-950 font-black">% TRẢ CHẬM / DT</th>
+                      <th className="p-2 border-r border-emerald-200 text-right bg-emerald-100 text-emerald-950 font-black">TRẢ CHẬM</th>
+                      <th className="p-2 border-r border-emerald-200 text-center bg-emerald-200 text-emerald-950 font-black">% TRẢ CHẬM / DT</th>
                     </>
                   )}
-                  <th className="p-2.5 text-center">ST ĐẠT TARGET</th>
+                  <th className="p-2 text-center text-slate-200">ST ĐẠT TARGET</th>
                 </tr>
 
                 {/* PINNED SUMMARY TOTAL ROW AT TOP */}
                 {provinceSummaryRows.length > 0 && (
-                  <tr className="bg-slate-900 text-white font-black text-xs border-b-2 border-slate-950">
-                    <td colSpan={2} className="p-3 text-center uppercase tracking-wider text-amber-300">TỔNG CỘNG TOÀN VÙNG</td>
-                    <td className="p-3 text-center">{totalSummary.totalStores} ST</td>
+                  <tr className="bg-slate-900 text-white font-black text-xs border-b border-slate-800 shadow-xs">
+                    <td colSpan={2} className="p-2.5 text-center uppercase tracking-wider text-amber-400">TỔNG CỘNG TOÀN VÙNG</td>
+                    <td className="p-2.5 text-center border-r border-slate-800 text-slate-200">{totalSummary.totalStores} ST</td>
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                       <>
-                        <td className="p-3 text-right font-mono">{formatVND(totalSummary.totalTargetDt)}</td>
-                        <td className="p-3 text-right font-mono text-emerald-300">{formatVND(totalSummary.totalAchievedDt)}</td>
-                        <td className="p-3 text-center">
-                          <span className={`px-2.5 py-0.5 rounded-md ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
+                        <td className="p-2.5 text-right font-mono text-slate-200 border-r border-slate-800">{formatVND(totalSummary.totalTargetDt)}</td>
+                        <td className="p-2.5 text-right font-mono text-emerald-400 font-black border-r border-slate-800">{formatVND(totalSummary.totalAchievedDt)}</td>
+                        <td className="p-2.5 text-center border-r border-slate-800">
+                          <span className={`px-2 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
                             {totalSummary.totalRateDt}%
                           </span>
                         </td>
@@ -1777,11 +1777,15 @@ ${botLines || 'Đang cập nhật'}
                     )}
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                       <>
-                        <td className="p-3 text-right font-mono text-amber-300">{formatVND(totalSummary.totalAchievedTc)}</td>
-                        <td className="p-3 text-center text-amber-300">{totalSummary.totalTcRatio}%</td>
+                        <td className="p-2.5 text-right font-mono text-amber-300 border-r border-slate-800">{formatVND(totalSummary.totalAchievedTc)}</td>
+                        <td className="p-2.5 text-center border-r border-slate-800">
+                          <span className="px-2 py-0.5 rounded-md bg-teal-500 text-slate-950 font-black">
+                            {totalSummary.totalTcRatio}%
+                          </span>
+                        </td>
                       </>
                     )}
-                    <td className="p-3 text-center text-amber-300">{totalSummary.reachedStoresCount} / {totalSummary.totalStores}</td>
+                    <td className="p-2.5 text-center text-amber-300">{totalSummary.reachedStoresCount} / {totalSummary.totalStores}</td>
                   </tr>
                 )}
               </thead>
@@ -1840,48 +1844,48 @@ ${botLines || 'Đang cập nhật'}
                 <thead>
                   {/* Group Band Headers */}
                   <tr>
-                    <th colSpan={6} className="bg-slate-900 text-white font-black text-xs text-center p-2 border-r border-slate-800">
+                    <th colSpan={6} className="bg-slate-800 text-white font-black text-xs text-center p-2.5 border-r border-slate-700 uppercase tracking-wide">
                       THÔNG TIN SIÊU THỊ
                     </th>
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                      <th colSpan={3} className="bg-amber-300 text-amber-900 font-black text-xs text-center p-2 border-r border-amber-400/60 uppercase">
+                      <th colSpan={3} className="bg-[#f59e0b] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
                         NHÓM DOANH THU THUẦN
                       </th>
                     )}
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                      <th colSpan={2} className="bg-green-300 text-green-900 font-black text-xs text-center p-2 uppercase">
+                      <th colSpan={2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 uppercase tracking-wide">
                         NHÓM TRẢ CHẬM
                       </th>
                     )}
                   </tr>
 
                   {/* Sub Headers */}
-                  <tr className="bg-slate-900 text-white font-black text-center text-[11px] uppercase tracking-wider">
-                    <th className="p-2.5 border-r border-slate-800 w-12">STT</th>
-                    <th className="p-2.5 border-r border-slate-800 text-left">TỈNH</th>
-                    <th className="p-2.5 border-r border-slate-800 text-left">SIÊU THỊ</th>
-                    <th className="p-2.5 border-r border-slate-800">BOSS</th>
-                    <th className="p-2.5 border-r border-slate-800 w-16">KÊNH</th>
-                    <th className="p-2.5 border-r border-slate-800">PHÂN LOẠI</th>
+                  <tr className="bg-slate-700 text-white font-black text-center text-[11px] uppercase tracking-wider">
+                    <th className="p-2 border-r border-slate-600 w-12 text-slate-200">STT</th>
+                    <th className="p-2 border-r border-slate-600 text-left text-slate-200">TỈNH</th>
+                    <th className="p-2 border-r border-slate-600 text-left text-slate-200">SIÊU THỊ</th>
+                    <th className="p-2 border-r border-slate-600 text-slate-200">BOSS</th>
+                    <th className="p-2 border-r border-slate-600 w-16 text-slate-200">KÊNH</th>
+                    <th className="p-2 border-r border-slate-600 text-slate-200">PHÂN LOẠI</th>
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                       <>
-                        <th onClick={() => handleSort('targetDt')} className="p-2.5 border-r border-slate-800 text-right bg-amber-200 text-amber-950 font-black cursor-pointer hover:bg-amber-300">
+                        <th onClick={() => handleSort('targetDt')} className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
                           TARGET DT
                         </th>
-                        <th onClick={() => handleSort('achievedDt')} className="p-2.5 border-r border-slate-800 text-right bg-amber-200 text-amber-950 font-black cursor-pointer hover:bg-amber-300">
+                        <th onClick={() => handleSort('achievedDt')} className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
                           THỰC ĐẠT DT
                         </th>
-                        <th onClick={() => handleSort('rateDt')} className="p-2.5 border-r border-slate-800 text-center bg-amber-200 text-amber-950 font-black cursor-pointer hover:bg-amber-300">
+                        <th onClick={() => handleSort('rateDt')} className="p-2 border-r border-amber-300 text-center bg-amber-200 text-amber-950 font-black cursor-pointer hover:bg-amber-300">
                           % HT DT
                         </th>
                       </>
                     )}
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                       <>
-                        <th onClick={() => handleSort('achievedTc')} className="p-2.5 border-r border-slate-800 text-right bg-green-200 text-green-950 font-black cursor-pointer hover:bg-green-300">
+                        <th onClick={() => handleSort('achievedTc')} className="p-2 border-r border-emerald-200 text-right bg-emerald-100 text-emerald-950 font-black cursor-pointer hover:bg-emerald-200">
                           TRẢ CHẬM
                         </th>
-                        <th onClick={() => handleSort('tcRatio')} className="p-2.5 text-center bg-green-200 text-green-950 font-black cursor-pointer hover:bg-green-300">
+                        <th onClick={() => handleSort('tcRatio')} className="p-2 text-center bg-emerald-200 text-emerald-950 font-black cursor-pointer hover:bg-emerald-300">
                           % TRẢ CHẬM / DT
                         </th>
                       </>
@@ -1889,16 +1893,16 @@ ${botLines || 'Đang cập nhật'}
                   </tr>
 
                   {/* PINNED SUMMARY TOTAL ROW AT TOP */}
-                  <tr className="bg-slate-800 text-white font-black text-xs border-b-2 border-slate-900">
-                    <td colSpan={6} className="p-2.5 text-center text-amber-300 uppercase tracking-wider">
+                  <tr className="bg-slate-900 text-white font-black text-xs border-b border-slate-800 shadow-xs">
+                    <td colSpan={6} className="p-2.5 text-center text-amber-400 uppercase tracking-wider">
                       TỔNG ({filteredItems.length} SIÊU THỊ)
                     </td>
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
                       <>
-                        <td className="p-2.5 text-right font-mono">{formatVND(totalSummary.totalTargetDt)}</td>
-                        <td className="p-2.5 text-right font-mono text-emerald-300">{formatVND(totalSummary.totalAchievedDt)}</td>
-                        <td className="p-2.5 text-center">
-                          <span className={`px-2 py-0.5 rounded-md ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>
+                        <td className="p-2.5 text-right font-mono text-slate-200 border-r border-slate-800">{formatVND(totalSummary.totalTargetDt)}</td>
+                        <td className="p-2.5 text-right font-mono text-emerald-400 font-black border-r border-slate-800">{formatVND(totalSummary.totalAchievedDt)}</td>
+                        <td className="p-2.5 text-center border-r border-slate-800">
+                          <span className={`px-2 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
                             {totalSummary.totalRateDt}%
                           </span>
                         </td>
@@ -1906,8 +1910,12 @@ ${botLines || 'Đang cập nhật'}
                     )}
                     {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
                       <>
-                        <td className="p-2.5 text-right font-mono text-amber-300">{formatVND(totalSummary.totalAchievedTc)}</td>
-                        <td className="p-2.5 text-center text-amber-300">{totalSummary.totalTcRatio}%</td>
+                        <td className="p-2.5 text-right font-mono text-amber-300 border-r border-slate-800">{formatVND(totalSummary.totalAchievedTc)}</td>
+                        <td className="p-2.5 text-center">
+                          <span className="px-2 py-0.5 rounded-md bg-teal-500 text-slate-950 font-black">
+                            {totalSummary.totalTcRatio}%
+                          </span>
+                        </td>
                       </>
                     )}
                   </tr>
