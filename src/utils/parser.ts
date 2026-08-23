@@ -366,7 +366,12 @@ export function isExcludedStore(
   store: { sieuthi?: string; kenh?: string; boss?: string },
   bossAssignments: BossAssignmentRecord[] = []
 ): boolean {
-  const sieuthi = normVN(store.sieuthi || '').toUpperCase();
+  const rawSieuthi = (store.sieuthi || '').trim();
+  if (!rawSieuthi || /^[0-9.,\s%+-]+$/.test(rawSieuthi) || !/[a-zA-ZÀ-ỹ]/.test(rawSieuthi)) {
+    return true;
+  }
+
+  const sieuthi = normVN(rawSieuthi).toUpperCase();
   const rawKenh = normVN(store.kenh || '').toUpperCase();
   const boss = normVN(store.boss || '').toUpperCase();
   const effectiveKenh = normVN((getChannelForStore(store.sieuthi || '', bossAssignments, store.kenh) || '').toString()).toUpperCase();
@@ -1132,19 +1137,18 @@ export function parseRevenuePastedData(
     }
 
     // Identify if this row is a valid store row (has store code \d+ - or standard store naming)
-    const isStore =
-      /\d+\s*-\s*/.test(col1) ||
-      /\d+\s*-\s*/.test(col0) ||
-      (col1.length > 5 && (col0.length >= 3 || col1.includes('_') || col1.includes('Kho chứa')));
+    const isPureNumber = (str: string) => /^[0-9.,\s%+-]+$/.test(str.trim());
+    const isStore1 = (/\d+\s*-\s*[a-zA-ZÀ-ỹ]/.test(col1) || (col1.length > 5 && (col1.includes('_') || col1.includes('Kho chứa') || /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE/i.test(col1)))) && !isPureNumber(col1);
+    const isStore0 = (/\d+\s*-\s*[a-zA-ZÀ-ỹ]/.test(col0) || (col0.length > 5 && (col0.includes('_') || col0.includes('Kho chứa') || /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE/i.test(col0)))) && !isPureNumber(col0);
 
-    if (!isStore) continue;
+    if (!isStore1 && !isStore0) continue;
 
     let tinh = col0;
     let sieuthi = col1;
     let colOffset = 1;
 
     // In case province column is missing and store is in col0
-    if (/\d+\s*-\s*/.test(col0) || (!sieuthi && col0)) {
+    if (isStore0 && !isStore1) {
       sieuthi = col0;
       tinh = 'Khác';
       colOffset = 0;
@@ -1153,6 +1157,8 @@ export function parseRevenuePastedData(
       sieuthi = col1;
       colOffset = 1;
     }
+
+    if (isPureNumber(sieuthi) || !/[a-zA-ZÀ-ỹ]/.test(sieuthi)) continue;
 
     let target = 0;
     let achieved = 0;
