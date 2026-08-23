@@ -976,27 +976,27 @@ ${botLines || 'Đang cập nhật'}
 
         {/* 3. TABLE RENDERING: TỔNG vs VÙNG (TỈNH) vs SIÊU THỊ */}
         {entityScope === 'tong' ? (
-          /* TAB TỔNG: REDESIGNED BEAUTIFUL 2-TABLE VIEW (MATCHING ATTACHED IMAGE 1:1) */
-          <div className="max-w-2xl mx-auto bg-white border-2 border-slate-300 shadow-md font-sans select-none overflow-hidden rounded-md my-2">
+          /* TAB TỔNG: EXECUTIVE REDESIGNED 2-TABLE VIEW */
+          <div className="max-w-2xl mx-auto bg-white border border-slate-300 shadow-md font-sans select-none overflow-hidden rounded-2xl my-2">
             {/* Header: Title */}
-            <div className="py-3 px-4 text-center border-b-2 border-slate-300 bg-white">
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight uppercase">
+            <div className="py-3 px-4 text-center bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-b border-slate-800 text-white shadow-xs">
+              <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase text-amber-300 drop-shadow-xs">
                 {mainTitleStr}
               </h1>
             </div>
 
             {/* Sub-Header Bar: REALTIME / THỜI GIAN SD */}
-            <div className="grid grid-cols-4 border-b-2 border-slate-300 bg-white text-center text-xs sm:text-sm divide-x-2 divide-slate-300 font-sans">
-              <div className="py-2 px-3 font-black text-slate-950 uppercase flex items-center justify-center">
+            <div className="grid grid-cols-4 border-b border-slate-300 bg-slate-100/90 text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans shadow-2xs">
+              <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
                 REALTIME :
               </div>
-              <div className="py-2 px-3 font-black text-slate-950 flex items-center justify-center">
+              <div className="py-2.5 px-3 font-black text-indigo-700 flex items-center justify-center font-mono">
                 {realtimeTimeStr}
               </div>
-              <div className="py-2 px-3 font-black text-slate-950 uppercase flex items-center justify-center">
+              <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
                 THỜI GIAN SD :
               </div>
-              <div className="py-2 px-3 font-black text-slate-950 flex items-center justify-center">
+              <div className="py-2.5 px-3 font-black text-emerald-700 flex items-center justify-center font-mono">
                 {thoiGianSdPercent}%
               </div>
             </div>
@@ -1006,51 +1006,51 @@ ${botLines || 'Đang cập nhật'}
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
                   {/* Top Banner Row */}
-                  <tr className="border-b-2 border-slate-300">
+                  <tr className="border-b border-slate-300">
                     <th
                       colSpan={3}
-                      className="bg-[#00c08b] text-slate-950 font-black p-2.5 sm:p-3 text-left border-r-2 border-slate-300 text-xs sm:text-sm tracking-tight"
+                      className="bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-black p-2.5 sm:p-3 text-left border-r border-teal-800/80 text-xs sm:text-sm tracking-tight shadow-inner"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r-2 border-slate-300 text-xs leading-tight w-28 align-middle"
+                      className="bg-gradient-to-b from-amber-500 to-amber-600 text-white font-black p-2 text-center border-r border-amber-600 text-xs leading-tight w-28 align-middle shadow-inner"
                     >
                       <div>HIỆU QUẢ</div>
                       <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-amber-100 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-amber-100">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-slate-950 font-black p-2 text-center text-xs leading-tight w-28 align-middle"
+                      className="bg-gradient-to-b from-orange-500 to-amber-600 text-white font-black p-2 text-center text-xs leading-tight w-28 align-middle shadow-inner"
                     >
                       <div>TỈ TRỌNG</div>
                       <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-orange-100 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-orange-100">MIN = 50%</div>
                     </th>
                   </tr>
 
                   {/* Sub Header Row for Green Banner */}
-                  <tr className="border-b-2 border-slate-300 bg-[#00c08b] text-slate-950 font-black text-xs">
-                    <th className="p-2 sm:p-2.5 border-r-2 border-slate-300 text-left w-36 pl-3 sm:pl-4">
+                  <tr className="border-b border-slate-300 bg-teal-800 text-teal-50 font-black text-xs">
+                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-left w-36 pl-3 sm:pl-4 uppercase tracking-wider">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r-2 border-slate-300 text-center">
+                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r-2 border-slate-300 text-center">
+                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y text-slate-900 font-sans">
-                  {channelSummaryRows.map((ch) => {
+                <tbody className="divide-y divide-slate-200 text-slate-900 font-sans">
+                  {channelSummaryRows.map((ch, idx) => {
                     const projected = thoiGianSdPercent > 0 ? (ch.rateDt / (thoiGianSdPercent / 100)) : 0;
                     const isCurrentPink = ch.rateDt < 21.0 && ch.rateDt > 0;
                     const isProjectedPink = projected < 80.0 && projected > 0;
@@ -1059,22 +1059,41 @@ ${botLines || 'Đang cập nhật'}
                     const isTcRed = ch.tcRatio < 50.0;
 
                     return (
-                      <tr key={ch.kenh} className="hover:bg-slate-50 transition-colors border-b border-slate-300">
-                        <td className="p-2 sm:p-2.5 font-black text-left pl-3 sm:pl-4 border-r-2 border-slate-300 text-slate-950">
+                      <tr
+                        key={ch.kenh}
+                        className={`transition-colors border-b border-slate-200 ${
+                          idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
+                        } hover:bg-amber-50/40`}
+                      >
+                        <td className="p-2.5 sm:p-3 font-black text-left pl-3 sm:pl-4 border-r border-slate-200 text-slate-900">
                           {ch.kenh}
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r-2 border-slate-300 font-bold ${isCurrentPink ? 'bg-[#ffe4e6] text-[#b91c1c] font-black' : 'text-slate-950'}`}>
-                          {ch.rateDt.toFixed(1)}%
+                        <td className="p-2.5 sm:p-3 text-center border-r border-slate-200">
+                          <span className={`inline-block px-2 py-0.5 rounded font-black ${
+                            isCurrentPink ? 'bg-rose-100 text-rose-800' : 'text-slate-900'
+                          }`}>
+                            {ch.rateDt.toFixed(1)}%
+                          </span>
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r-2 border-slate-300 font-bold ${
-                          isProjectedGreen ? 'bg-[#dcfce7] text-[#15803d] font-black' : isProjectedPink ? 'bg-[#ffe4e6] text-[#b91c1c] font-black' : 'text-slate-950'
+                        <td className="p-2.5 sm:p-3 text-center border-r border-slate-200">
+                          <span className={`inline-block px-2 py-0.5 rounded-md font-black ${
+                            isProjectedGreen
+                              ? 'bg-emerald-100 text-emerald-800 shadow-2xs'
+                              : isProjectedPink
+                              ? 'bg-rose-100 text-rose-800 shadow-2xs'
+                              : 'text-slate-900 font-bold'
+                          }`}>
+                            {projected.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className={`p-2.5 sm:p-3 text-center border-r border-slate-200 font-black ${
+                          isQdRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {projected.toFixed(1)}%
-                        </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r-2 border-slate-300 font-bold ${isQdRed ? 'text-[#dc2626] font-black' : 'text-slate-950'}`}>
                           {ch.qdEff.toFixed(1)}%
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center font-bold ${isTcRed ? 'text-[#dc2626] font-black' : 'text-slate-950'}`}>
+                        <td className={`p-2.5 sm:p-3 text-center font-black ${
+                          isTcRed ? 'text-rose-600' : 'text-slate-800'
+                        }`}>
                           {ch.tcRatio.toFixed(1)}%
                         </td>
                       </tr>
@@ -1082,20 +1101,20 @@ ${botLines || 'Đang cập nhật'}
                   })}
 
                   {/* Channel Summary Row */}
-                  <tr className="font-black text-slate-950 border-t-2 border-slate-300">
-                    <td className="p-2 sm:p-2.5 bg-[#00c08b] text-left pl-3 sm:pl-4 border-r-2 border-slate-300">
+                  <tr className="font-black text-white border-t-2 border-slate-300">
+                    <td className="p-2.5 sm:p-3 bg-slate-900 text-left pl-3 sm:pl-4 border-r border-slate-800 text-amber-300 uppercase tracking-wide">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#00c08b] text-center border-r-2 border-slate-300">
+                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-amber-300">
                       {totalSummary.totalRateDt.toFixed(1)}%
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#00c08b] text-center border-r-2 border-slate-300">
+                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-emerald-300">
                       {(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0).toFixed(1)}%
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#fbb040] text-center border-r-2 border-slate-300 font-black">
+                    <td className="p-2.5 sm:p-3 bg-amber-500 text-center border-r border-amber-600 font-black text-slate-950">
                       {(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0).toFixed(1)}%
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#fcd34d] text-center font-black">
+                    <td className="p-2.5 sm:p-3 bg-orange-500 text-center font-black text-slate-950">
                       {totalSummary.totalTcRatio.toFixed(1)}%
                     </td>
                   </tr>
@@ -1104,58 +1123,58 @@ ${botLines || 'Đang cập nhật'}
             </div>
 
             {/* DIVIDER SPACE BETWEEN TABLES */}
-            <div className="h-4 bg-white border-y-2 border-slate-300" />
+            <div className="h-3 bg-slate-200/80 border-y border-slate-300" />
 
             {/* TABLE 2: THEO TỈNH */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
                   {/* Top Banner Row */}
-                  <tr className="border-b-2 border-slate-300">
+                  <tr className="border-b border-slate-300">
                     <th
                       colSpan={3}
-                      className="bg-[#00c08b] text-slate-950 font-black p-2.5 sm:p-3 text-left border-r-2 border-slate-300 text-xs sm:text-sm tracking-tight"
+                      className="bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-black p-2.5 sm:p-3 text-left border-r border-teal-800/80 text-xs sm:text-sm tracking-tight shadow-inner"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r-2 border-slate-300 text-xs leading-tight w-28 align-middle"
+                      className="bg-gradient-to-b from-amber-500 to-amber-600 text-white font-black p-2 text-center border-r border-amber-600 text-xs leading-tight w-28 align-middle shadow-inner"
                     >
                       <div>HIỆU QUẢ</div>
                       <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-amber-100 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-amber-100">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-slate-950 font-black p-2 text-center text-xs leading-tight w-28 align-middle"
+                      className="bg-gradient-to-b from-orange-500 to-amber-600 text-white font-black p-2 text-center text-xs leading-tight w-28 align-middle shadow-inner"
                     >
                       <div>TỈ TRỌNG</div>
                       <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-bold mt-1 opacity-90">MỤC TIÊU</div>
-                      <div className="text-[10px] font-bold opacity-90">MIN = 50%</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-orange-100 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-orange-100">MIN = 50%</div>
                     </th>
                   </tr>
 
                   {/* Sub Header Row */}
-                  <tr className="border-b-2 border-slate-300 bg-[#00c08b] text-slate-950 font-black text-xs">
-                    <th className="p-2 sm:p-2.5 border-r-2 border-slate-300 text-left w-36 pl-3 sm:pl-4">
+                  <tr className="border-b border-slate-300 bg-teal-800 text-teal-50 font-black text-xs">
+                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-left w-36 pl-3 sm:pl-4 uppercase tracking-wider">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r-2 border-slate-300 text-center">
+                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r-2 border-slate-300 text-center">
+                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y text-slate-900 font-sans">
-                  {provinceSummaryRows.map((p) => {
+                <tbody className="divide-y divide-slate-200 text-slate-900 font-sans">
+                  {provinceSummaryRows.map((p, idx) => {
                     const projected = thoiGianSdPercent > 0 ? (p.rateDt / (thoiGianSdPercent / 100)) : 0;
                     const isCurrentPink = p.rateDt < 21.0 && p.rateDt > 0;
                     const isProjectedPink = projected < 80.0 && projected > 0;
@@ -1165,22 +1184,41 @@ ${botLines || 'Đang cập nhật'}
                     const isTcRed = p.tcRatio < 50.0;
 
                     return (
-                      <tr key={p.tinh} className="hover:bg-slate-50 transition-colors border-b border-slate-300">
-                        <td className="p-2 sm:p-2.5 font-bold text-left pl-3 sm:pl-4 border-r-2 border-slate-300 text-slate-950">
+                      <tr
+                        key={p.tinh}
+                        className={`transition-colors border-b border-slate-200 ${
+                          idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
+                        } hover:bg-amber-50/40`}
+                      >
+                        <td className="p-2 sm:p-2.5 font-bold text-left pl-3 sm:pl-4 border-r border-slate-200 text-slate-900">
                           {p.tinh}
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r-2 border-slate-300 font-bold ${isCurrentPink ? 'bg-[#ffe4e6] text-[#b91c1c] font-black' : 'text-slate-950'}`}>
-                          {p.rateDt.toFixed(1)}%
+                        <td className="p-2 sm:p-2.5 text-center border-r border-slate-200">
+                          <span className={`inline-block px-2 py-0.5 rounded font-black ${
+                            isCurrentPink ? 'bg-rose-100 text-rose-800' : 'text-slate-900'
+                          }`}>
+                            {p.rateDt.toFixed(1)}%
+                          </span>
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r-2 border-slate-300 font-bold ${
-                          isProjectedGreen ? 'bg-[#dcfce7] text-[#15803d] font-black' : isProjectedPink ? 'bg-[#ffe4e6] text-[#b91c1c] font-black' : 'text-slate-950'
+                        <td className="p-2 sm:p-2.5 text-center border-r border-slate-200">
+                          <span className={`inline-block px-2 py-0.5 rounded-md font-black ${
+                            isProjectedGreen
+                              ? 'bg-emerald-100 text-emerald-800 shadow-2xs'
+                              : isProjectedPink
+                              ? 'bg-rose-100 text-rose-800 shadow-2xs'
+                              : 'text-slate-900 font-bold'
+                          }`}>
+                            {projected.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className={`p-2 sm:p-2.5 text-center border-r border-slate-200 font-black ${
+                          isQdRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {projected.toFixed(1)}%
-                        </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r-2 border-slate-300 font-bold ${isQdRed ? 'text-[#dc2626] font-black' : 'text-slate-950'}`}>
                           {qdEff.toFixed(1)}%
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center font-bold ${isTcRed ? 'text-[#dc2626] font-black' : 'text-slate-950'}`}>
+                        <td className={`p-2 sm:p-2.5 text-center font-black ${
+                          isTcRed ? 'text-rose-600' : 'text-slate-800'
+                        }`}>
                           {p.tcRatio.toFixed(1)}%
                         </td>
                       </tr>
@@ -1188,20 +1226,20 @@ ${botLines || 'Đang cập nhật'}
                   })}
 
                   {/* Province Summary Row at Bottom */}
-                  <tr className="font-black text-slate-950 border-t-2 border-slate-300">
-                    <td className="p-2 sm:p-2.5 bg-[#00c08b] text-left pl-3 sm:pl-4 border-r-2 border-slate-300">
+                  <tr className="font-black text-white border-t-2 border-slate-300">
+                    <td className="p-2.5 sm:p-3 bg-slate-900 text-left pl-3 sm:pl-4 border-r border-slate-800 text-amber-300 uppercase tracking-wide">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#00c08b] text-center border-r-2 border-slate-300">
+                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-amber-300">
                       {totalSummary.totalRateDt.toFixed(1)}%
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#00c08b] text-center border-r-2 border-slate-300">
+                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-emerald-300">
                       {(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0).toFixed(1)}%
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#fbb040] text-center border-r-2 border-slate-300 font-black">
+                    <td className="p-2.5 sm:p-3 bg-amber-500 text-center border-r border-amber-600 font-black text-slate-950">
                       {(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0).toFixed(1)}%
                     </td>
-                    <td className="p-2 sm:p-2.5 bg-[#fcd34d] text-center font-black">
+                    <td className="p-2.5 sm:p-3 bg-orange-500 text-center font-black text-slate-950">
                       {totalSummary.totalTcRatio.toFixed(1)}%
                     </td>
                   </tr>
