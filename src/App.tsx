@@ -198,6 +198,13 @@ function AppInner() {
     return (acc && cachedData.userPreferences?.[acc]) || initialUserProfile;
   });
 
+  // Only account 3717 may see and access the "Doanh thu" feature
+  const isUser3717 =
+    currentUser?.accountId === '3717' ||
+    currentUser?.username === '3717' ||
+    currentUser?.username?.toLowerCase().includes('3717') ||
+    currentUser?.accountId?.toLowerCase().includes('3717');
+
   // Tự động giới hạn các kênh được phép xem theo tài khoản
   useEffect(() => {
     if (currentUser?.allowedChannels && currentUser.allowedChannels.length > 0) {
@@ -208,6 +215,13 @@ function AppInner() {
       });
     }
   }, [currentUser]);
+
+  // If user is not 3717 and is on revenue tab, redirect to report tab
+  useEffect(() => {
+    if (activeTab === 'revenue' && currentUser && !isUser3717) {
+      setActiveTab('report');
+    }
+  }, [activeTab, currentUser, isUser3717, setActiveTab]);
 
   // Cloud Loading / Data Sync Modal state
   const [cloudSyncState, setCloudSyncState] = useState<{
@@ -1468,7 +1482,7 @@ function AppInner() {
             </ErrorBoundary>
           )}
 
-          {activeTab === 'revenue' && (
+          {activeTab === 'revenue' && isUser3717 && (
             <React.Suspense
               fallback={
                 <div className="flex items-center justify-center py-24 text-slate-400 text-sm font-semibold">

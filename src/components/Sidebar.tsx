@@ -40,6 +40,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsCollapsed,
 }) => {
   const isSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.accountId === '3717';
+  // Only account 3717 may see and access the "Doanh thu" feature
+  const isUser3717 =
+    currentUser?.accountId === '3717' ||
+    currentUser?.username === '3717' ||
+    currentUser?.username?.toLowerCase().includes('3717') ||
+    currentUser?.accountId?.toLowerCase().includes('3717');
+
   // Only Super Admin / Admin may paste & sync new data — Editor/Viewer never
   // see the "Cập nhật" menu at all (data flows one way: they only view what
   // these two roles upload).
@@ -54,14 +61,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'HOT',
       badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
     },
-    {
-      id: 'revenue' as ViewTab,
-      label: 'Doanh thu',
-      subLabel: 'Doanh thu & Trả chậm',
-      icon: Coins,
-      badge: 'MỚI',
-      badgeColor: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
-    },
+    ...(isUser3717
+      ? [
+          {
+            id: 'revenue' as ViewTab,
+            label: 'Doanh thu',
+            subLabel: 'Doanh thu & Trả chậm',
+            icon: Coins,
+            badge: 'MỚI',
+            badgeColor: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+          },
+        ]
+      : []),
     ...(canUpdateData
       ? [
           {
