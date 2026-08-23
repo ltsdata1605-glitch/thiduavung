@@ -1124,27 +1124,27 @@ ${botLines || 'Đang cập nhật'}
 
         {/* 3. TABLE RENDERING: TỔNG vs VÙNG (TỈNH) vs SIÊU THỊ */}
         {entityScope === 'tong' ? (
-          /* TAB TỔNG: EXECUTIVE REDESIGNED 2-TABLE VIEW */
+          /* TAB TỔNG: EXECUTIVE REDESIGNED 2-TABLE VIEW - CHUYÊN NGHIỆP & SANG TRỌNG */
           <div className="max-w-2xl mx-auto bg-white border border-slate-300 shadow-md font-sans select-none overflow-hidden rounded-2xl my-2">
             {/* Header: Title */}
-            <div className="py-3 px-4 text-center bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-b border-slate-800 text-white shadow-xs">
-              <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase text-amber-300 drop-shadow-xs">
+            <div className="py-3 px-4 text-center bg-slate-900 border-b border-slate-800 text-white shadow-xs">
+              <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase text-white drop-shadow-xs">
                 {mainTitleStr}
               </h1>
             </div>
 
             {/* Sub-Header Bar: REALTIME / LUỸ KẾ & THỜI GIAN SD */}
-            <div className="grid grid-cols-4 border-b border-slate-300 bg-slate-100/90 text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans shadow-2xs">
-              <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
+            <div className="grid grid-cols-4 border-b border-slate-300 bg-slate-50 text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans shadow-2xs">
+              <div className="py-2 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
                 {infoTimeLabel}
               </div>
-              <div className="py-2.5 px-3 font-black text-indigo-700 flex items-center justify-center font-mono">
+              <div className="py-2 px-3 font-black text-slate-900 flex items-center justify-center font-mono">
                 {realtimeTimeStr}
               </div>
-              <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
+              <div className="py-2 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
                 THỜI GIAN SD :
               </div>
-              <div className="py-2.5 px-3 font-black text-emerald-700 flex items-center justify-center font-mono">
+              <div className="py-2 px-3 font-black text-indigo-700 flex items-center justify-center font-mono">
                 {Math.round(thoiGianSdPercent)}%
               </div>
             </div>
@@ -1154,43 +1154,43 @@ ${botLines || 'Đang cập nhật'}
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
                   {/* Top Banner Row */}
-                  <tr className="border-b border-slate-300">
+                  <tr className="border-b border-slate-700">
                     <th
                       colSpan={3}
-                      className="bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-black p-2.5 sm:p-3 text-left border-r border-teal-800/80 text-xs sm:text-sm tracking-tight shadow-inner"
+                      className="bg-slate-800 text-white font-black p-2.5 sm:p-3 text-center border-r border-slate-700 text-xs sm:text-sm uppercase tracking-wide"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-gradient-to-b from-amber-500 to-amber-600 text-white font-black p-2 text-center border-r border-amber-600 text-xs leading-tight w-28 align-middle shadow-inner"
+                      className="bg-slate-800 text-white font-black p-2 text-center border-r border-slate-700 text-xs leading-tight w-28 align-middle"
                     >
-                      <div>HIỆU QUẢ</div>
-                      <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-extrabold mt-1 text-amber-100 uppercase tracking-wider">MỤC TIÊU</div>
-                      <div className="text-[10px] font-extrabold text-amber-100">MIN = 50%</div>
+                      <div className="text-white">HIỆU QUẢ</div>
+                      <div className="text-white">QUY ĐỔI</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-slate-300 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-slate-300">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-gradient-to-b from-orange-500 to-amber-600 text-white font-black p-2 text-center text-xs leading-tight w-28 align-middle shadow-inner"
+                      className="bg-slate-800 text-white font-black p-2 text-center text-xs leading-tight w-28 align-middle"
                     >
-                      <div>TỈ TRỌNG</div>
-                      <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-extrabold mt-1 text-orange-100 uppercase tracking-wider">MỤC TIÊU</div>
-                      <div className="text-[10px] font-extrabold text-orange-100">MIN = 50%</div>
+                      <div className="text-white">TỈ TRỌNG</div>
+                      <div className="text-white">TRẢ CHẬM</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-slate-300 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-slate-300">MIN = 50%</div>
                     </th>
                   </tr>
 
-                  {/* Sub Header Row for Green Banner */}
-                  <tr className="border-b border-slate-300 bg-teal-800 text-teal-50 font-black text-xs">
-                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-left w-36 pl-3 sm:pl-4 uppercase tracking-wider">
+                  {/* Sub Header Row */}
+                  <tr className="border-b border-slate-300 bg-slate-100 text-slate-800 font-black text-xs">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-left w-36 pl-3 sm:pl-4 uppercase tracking-wider">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -1211,59 +1211,57 @@ ${botLines || 'Đang cập nhật'}
                         key={ch.kenh}
                         className={`transition-colors border-b border-slate-200 ${
                           idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
-                        } hover:bg-amber-50/40`}
+                        } hover:bg-indigo-50/40`}
                       >
-                        <td className="p-2.5 sm:p-3 font-black text-left pl-3 sm:pl-4 border-r border-slate-200 text-slate-900">
+                        <td className="p-2.5 sm:p-3 font-bold text-left pl-3 sm:pl-4 border-r border-slate-200 text-slate-900">
                           {ch.kenh}
                         </td>
-                        <td className="p-2.5 sm:p-3 text-center border-r border-slate-200">
+                        <td className="p-2.5 sm:p-3 text-center border-r border-slate-200 font-mono font-black">
+                          <span className={`${isCurrentPink ? 'text-rose-600' : 'text-slate-900'}`}>
+                            {Math.round(ch.rateDt)}%
+                          </span>
+                        </td>
+                        <td className="p-2.5 sm:p-3 text-center border-r border-slate-200 font-mono font-black">
                           <span className={`inline-block px-2 py-0.5 rounded font-black ${
-                            isCurrentPink ? 'bg-rose-100 text-rose-800' : 'text-slate-900'
-                          }`}>
-                            {ch.rateDt.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="p-2.5 sm:p-3 text-center border-r border-slate-200">
-                          <span className={`inline-block px-2 py-0.5 rounded-md font-black ${
                             isProjectedGreen
-                              ? 'bg-emerald-100 text-emerald-800 shadow-2xs'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : isProjectedPink
-                              ? 'bg-rose-100 text-rose-800 shadow-2xs'
-                              : 'text-slate-900 font-bold'
+                              ? 'text-rose-600'
+                              : 'text-slate-900'
                           }`}>
-                            {projected.toFixed(1)}%
+                            {Math.round(projected)}%
                           </span>
                         </td>
-                        <td className={`p-2.5 sm:p-3 text-center border-r border-slate-200 font-black ${
+                        <td className={`p-2.5 sm:p-3 text-center border-r border-slate-200 font-mono font-black ${
                           isQdRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {ch.qdEff.toFixed(1)}%
+                          {Math.round(ch.qdEff)}%
                         </td>
-                        <td className={`p-2.5 sm:p-3 text-center font-black ${
+                        <td className={`p-2.5 sm:p-3 text-center font-mono font-black ${
                           isTcRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {ch.tcRatio.toFixed(1)}%
+                          {Math.round(ch.tcRatio)}%
                         </td>
                       </tr>
                     );
                   })}
 
                   {/* Channel Summary Row */}
-                  <tr className="font-black text-white border-t-2 border-slate-300">
-                    <td className="p-2.5 sm:p-3 bg-slate-900 text-left pl-3 sm:pl-4 border-r border-slate-800 text-amber-300 uppercase tracking-wide">
+                  <tr className="font-black text-white border-t-2 border-slate-300 bg-slate-900 divide-x divide-slate-800">
+                    <td className="p-2.5 sm:p-3 text-left pl-3 sm:pl-4 text-white uppercase tracking-wide">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-amber-300">
-                      {totalSummary.totalRateDt.toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center text-white font-mono">
+                      {Math.round(totalSummary.totalRateDt)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-emerald-300">
-                      {(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0).toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center text-emerald-400 font-mono">
+                      {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-amber-500 text-center border-r border-amber-600 font-black text-slate-950">
-                      {(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0).toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center font-mono text-white">
+                      {Math.round(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-orange-500 text-center font-black text-slate-950">
-                      {totalSummary.totalTcRatio.toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center font-mono text-white">
+                      {Math.round(totalSummary.totalTcRatio)}%
                     </td>
                   </tr>
                 </tbody>
@@ -1271,50 +1269,50 @@ ${botLines || 'Đang cập nhật'}
             </div>
 
             {/* DIVIDER SPACE BETWEEN TABLES */}
-            <div className="h-3 bg-slate-200/80 border-y border-slate-300" />
+            <div className="h-2.5 bg-slate-100 border-y border-slate-300" />
 
             {/* TABLE 2: THEO TỈNH */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs sm:text-sm">
                 <thead>
                   {/* Top Banner Row */}
-                  <tr className="border-b border-slate-300">
+                  <tr className="border-b border-slate-700">
                     <th
                       colSpan={3}
-                      className="bg-gradient-to-r from-teal-700 to-emerald-700 text-white font-black p-2.5 sm:p-3 text-left border-r border-teal-800/80 text-xs sm:text-sm tracking-tight shadow-inner"
+                      className="bg-slate-800 text-white font-black p-2.5 sm:p-3 text-center border-r border-slate-700 text-xs sm:text-sm uppercase tracking-wide"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-gradient-to-b from-amber-500 to-amber-600 text-white font-black p-2 text-center border-r border-amber-600 text-xs leading-tight w-28 align-middle shadow-inner"
+                      className="bg-slate-800 text-white font-black p-2 text-center border-r border-slate-700 text-xs leading-tight w-28 align-middle"
                     >
-                      <div>HIỆU QUẢ</div>
-                      <div>QUY ĐỔI</div>
-                      <div className="text-[10px] font-extrabold mt-1 text-amber-100 uppercase tracking-wider">MỤC TIÊU</div>
-                      <div className="text-[10px] font-extrabold text-amber-100">MIN = 50%</div>
+                      <div className="text-white">HIỆU QUẢ</div>
+                      <div className="text-white">QUY ĐỔI</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-slate-300 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-slate-300">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-gradient-to-b from-orange-500 to-amber-600 text-white font-black p-2 text-center text-xs leading-tight w-28 align-middle shadow-inner"
+                      className="bg-slate-800 text-white font-black p-2 text-center text-xs leading-tight w-28 align-middle"
                     >
-                      <div>TỈ TRỌNG</div>
-                      <div>TRẢ CHẬM</div>
-                      <div className="text-[10px] font-extrabold mt-1 text-orange-100 uppercase tracking-wider">MỤC TIÊU</div>
-                      <div className="text-[10px] font-extrabold text-orange-100">MIN = 50%</div>
+                      <div className="text-white">TỈ TRỌNG</div>
+                      <div className="text-white">TRẢ CHẬM</div>
+                      <div className="text-[10px] font-extrabold mt-1 text-slate-300 uppercase tracking-wider">MỤC TIÊU</div>
+                      <div className="text-[10px] font-extrabold text-slate-300">MIN = 50%</div>
                     </th>
                   </tr>
 
                   {/* Sub Header Row */}
-                  <tr className="border-b border-slate-300 bg-teal-800 text-teal-50 font-black text-xs">
-                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-left w-36 pl-3 sm:pl-4 uppercase tracking-wider">
-                      KÊNH
+                  <tr className="border-b border-slate-300 bg-slate-100 text-slate-800 font-black text-xs">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-left w-36 pl-3 sm:pl-4 uppercase tracking-wider">
+                      TỈNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-teal-700/80 text-center uppercase tracking-wider">
+                    <th className="p-2 sm:p-2.5 border-r border-slate-300 text-center uppercase tracking-wider">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -1336,59 +1334,57 @@ ${botLines || 'Đang cập nhật'}
                         key={p.tinh}
                         className={`transition-colors border-b border-slate-200 ${
                           idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
-                        } hover:bg-amber-50/40`}
+                        } hover:bg-indigo-50/40`}
                       >
                         <td className="p-2 sm:p-2.5 font-bold text-left pl-3 sm:pl-4 border-r border-slate-200 text-slate-900">
                           {p.tinh}
                         </td>
-                        <td className="p-2 sm:p-2.5 text-center border-r border-slate-200">
+                        <td className="p-2 sm:p-2.5 text-center border-r border-slate-200 font-mono font-black">
+                          <span className={`${isCurrentPink ? 'text-rose-600' : 'text-slate-900'}`}>
+                            {Math.round(p.rateDt)}%
+                          </span>
+                        </td>
+                        <td className="p-2 sm:p-2.5 text-center border-r border-slate-200 font-mono font-black">
                           <span className={`inline-block px-2 py-0.5 rounded font-black ${
-                            isCurrentPink ? 'bg-rose-100 text-rose-800' : 'text-slate-900'
-                          }`}>
-                            {p.rateDt.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="p-2 sm:p-2.5 text-center border-r border-slate-200">
-                          <span className={`inline-block px-2 py-0.5 rounded-md font-black ${
                             isProjectedGreen
-                              ? 'bg-emerald-100 text-emerald-800 shadow-2xs'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                               : isProjectedPink
-                              ? 'bg-rose-100 text-rose-800 shadow-2xs'
-                              : 'text-slate-900 font-bold'
+                              ? 'text-rose-600'
+                              : 'text-slate-900'
                           }`}>
-                            {projected.toFixed(1)}%
+                            {Math.round(projected)}%
                           </span>
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r border-slate-200 font-black ${
+                        <td className={`p-2 sm:p-2.5 text-center border-r border-slate-200 font-mono font-black ${
                           isQdRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {qdEff.toFixed(1)}%
+                          {Math.round(qdEff)}%
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center font-black ${
+                        <td className={`p-2 sm:p-2.5 text-center font-mono font-black ${
                           isTcRed ? 'text-rose-600' : 'text-slate-800'
                         }`}>
-                          {p.tcRatio.toFixed(1)}%
+                          {Math.round(p.tcRatio)}%
                         </td>
                       </tr>
                     );
                   })}
 
                   {/* Province Summary Row at Bottom */}
-                  <tr className="font-black text-white border-t-2 border-slate-300">
-                    <td className="p-2.5 sm:p-3 bg-slate-900 text-left pl-3 sm:pl-4 border-r border-slate-800 text-amber-300 uppercase tracking-wide">
+                  <tr className="font-black text-white border-t-2 border-slate-300 bg-slate-900 divide-x divide-slate-800">
+                    <td className="p-2.5 sm:p-3 text-left pl-3 sm:pl-4 text-white uppercase tracking-wide">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-amber-300">
-                      {totalSummary.totalRateDt.toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center text-white font-mono">
+                      {Math.round(totalSummary.totalRateDt)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-slate-900 text-center border-r border-slate-800 text-emerald-300">
-                      {(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0).toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center text-emerald-400 font-mono">
+                      {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : 0)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-amber-500 text-center border-r border-amber-600 font-black text-slate-950">
-                      {(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0).toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center font-mono text-white">
+                      {Math.round(totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)}%
                     </td>
-                    <td className="p-2.5 sm:p-3 bg-orange-500 text-center font-black text-slate-950">
-                      {totalSummary.totalTcRatio.toFixed(1)}%
+                    <td className="p-2.5 sm:p-3 text-center font-mono text-white">
+                      {Math.round(totalSummary.totalTcRatio)}%
                     </td>
                   </tr>
                 </tbody>
