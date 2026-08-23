@@ -438,35 +438,64 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       });
   }, [filteredItems]);
 
-  const { realtimeTimeStr, thoiGianSdPercent } = useMemo(() => {
-    if (timeMode === 'luyke') {
-      const now = new Date();
-      const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const currentDay = now.getDate();
-      const pct = Number(((currentDay / totalDays) * 100).toFixed(1));
-      return { realtimeTimeStr: `${currentDay}/${totalDays} NGÀY`, thoiGianSdPercent: pct };
-    }
-
+  const { infoTimeLabel, realtimeTimeStr, realtimeTimeAndDateStr, thoiGianSdPercent } = useMemo(() => {
+    let day = new Date().getDate();
+    let month = new Date().getMonth() + 1;
+    let year = new Date().getFullYear();
     let hours = 12;
     let mins = 0;
-    const m = (lastUpdatedTime || '').match(/(\d{1,2}):(\d{1,2})/);
-    if (m) {
-      hours = parseInt(m[1], 10);
-      mins = parseInt(m[2], 10);
-    } else {
-      const n = new Date();
-      hours = n.getHours();
-      mins = n.getMinutes();
+
+    if (lastUpdatedTime) {
+      const dateMatch = lastUpdatedTime.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if (dateMatch) {
+        day = parseInt(dateMatch[1], 10);
+        month = parseInt(dateMatch[2], 10);
+        year = parseInt(dateMatch[3], 10);
+      }
+      const timeMatch = lastUpdatedTime.match(/(\d{1,2}):(\d{1,2})/);
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10);
+        mins = parseInt(timeMatch[2], 10);
+      }
     }
 
+    if (timeMode === 'luyke') {
+      // Khi chọn Luỹ kế: Lấy thời gian dữ liệu cập nhật - 1 ngày
+      const baseDate = new Date(year, month - 1, day);
+      baseDate.setDate(baseDate.getDate() - 1);
+      const lkDay = baseDate.getDate();
+      const lkMonth = baseDate.getMonth() + 1;
+      const lkYear = baseDate.getFullYear();
+      const totalDays = new Date(lkYear, lkMonth, 0).getDate();
+      const pct = Number(((lkDay / totalDays) * 100).toFixed(1));
+      const lkDayStr = String(lkDay).padStart(2, '0');
+      const lkMonthStr = String(lkMonth).padStart(2, '0');
+      const formattedStr = `${lkDay}/${totalDays} NGÀY ${lkDayStr}/${lkMonthStr}`;
+
+      return {
+        infoTimeLabel: 'LUỸ KẾ :',
+        realtimeTimeStr: formattedStr,
+        realtimeTimeAndDateStr: formattedStr,
+        thoiGianSdPercent: pct,
+      };
+    }
+
+    // Realtime mode
     const currentMins = hours * 60 + mins;
     const startMins = 7 * 60 + 30; // 07:30
     const endMins = 22 * 60; // 22:00
     const elapsed = Math.max(0, Math.min(endMins - startMins, currentMins - startMins));
     const pct = Number(((elapsed / (endMins - startMins)) * 100).toFixed(1));
     const timeDisplay = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    const dayStr = String(day).padStart(2, '0');
+    const monthStr = String(month).padStart(2, '0');
 
-    return { realtimeTimeStr: timeDisplay, thoiGianSdPercent: pct > 0 ? pct : 30.9 };
+    return {
+      infoTimeLabel: 'REALTIME :',
+      realtimeTimeStr: timeDisplay,
+      realtimeTimeAndDateStr: `${timeDisplay} ${dayStr}/${monthStr}`,
+      thoiGianSdPercent: pct > 0 ? pct : 30.9,
+    };
   }, [lastUpdatedTime, timeMode]);
 
   const currentDayMonthYearStr = useMemo(() => {
@@ -510,13 +539,6 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     if (!hasDmx && hasTgd) return 'KÊNH TGD';
     return 'KÊNH ĐMX';
   }, [selectedChannels]);
-
-  const realtimeTimeAndDateStr = useMemo(() => {
-    const now = new Date();
-    const d = String(now.getDate()).padStart(2, '0');
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    return `${realtimeTimeStr} ${d}/${m}`;
-  }, [realtimeTimeStr]);
 
   const currentProvinceTitle = useMemo(() => {
     if (selectedProvince && selectedProvince !== 'ALL') {
@@ -1111,10 +1133,10 @@ ${botLines || 'Đang cập nhật'}
               </h1>
             </div>
 
-            {/* Sub-Header Bar: REALTIME / THỜI GIAN SD */}
+            {/* Sub-Header Bar: REALTIME / LUỸ KẾ & THỜI GIAN SD */}
             <div className="grid grid-cols-4 border-b border-slate-300 bg-slate-100/90 text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans shadow-2xs">
               <div className="py-2.5 px-3 font-extrabold text-slate-500 uppercase flex items-center justify-center">
-                REALTIME :
+                {infoTimeLabel}
               </div>
               <div className="py-2.5 px-3 font-black text-indigo-700 flex items-center justify-center font-mono">
                 {realtimeTimeStr}
@@ -1123,7 +1145,7 @@ ${botLines || 'Đang cập nhật'}
                 THỜI GIAN SD :
               </div>
               <div className="py-2.5 px-3 font-black text-emerald-700 flex items-center justify-center font-mono">
-                {thoiGianSdPercent}%
+                {Math.round(thoiGianSdPercent)}%
               </div>
             </div>
 
@@ -1390,10 +1412,10 @@ ${botLines || 'Đang cập nhật'}
               </div>
             </div>
 
-            {/* Sub-Header Bar: REALTIME & THỜI GIAN ĐÃ SỬ DỤNG */}
+            {/* Sub-Header Bar: REALTIME / LUỸ KẾ & THỜI GIAN ĐÃ SỬ DỤNG */}
             <div className="grid grid-cols-4 border-b border-slate-300 bg-white text-center text-xs sm:text-sm divide-x divide-slate-300 font-sans font-black text-slate-900">
               <div className="py-2 px-3 uppercase flex items-center justify-start pl-4 whitespace-nowrap">
-                REALTIME :
+                {infoTimeLabel}
               </div>
               <div className="py-2 px-3 flex items-center justify-start pl-4 font-mono whitespace-nowrap">
                 {realtimeTimeAndDateStr}
