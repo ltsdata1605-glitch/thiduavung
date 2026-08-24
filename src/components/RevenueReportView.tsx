@@ -1370,7 +1370,7 @@ ${botLines || 'Đang cập nhật'}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-tight">
-              {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'} DOANH THU &amp; TRẢ CHẬM THÁNG 08/2026
+              {timeMode === 'realtime' ? 'REALTIME DOANH THU QUY ĐỔI' : 'LUỸ KẾ DOANH THU QUY ĐỔI'} - T{currentMonthYearStr}
             </h2>
             <p className="text-xs font-bold text-red-600 tracking-wide uppercase mt-0.5">
               CHỈ TÍNH KÊNH {selectedChannels.join(', ')}
