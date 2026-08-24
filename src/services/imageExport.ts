@@ -666,6 +666,22 @@ export async function exportElementAsImage(
       }
     });
 
+    // Check if Top/Bot 2-column grid exists and calculate total combined width
+    const topbotInClone = clone.querySelector<HTMLElement>('#topbot-report-container');
+    if (topbotInClone) {
+      let combinedWidth = 0;
+      const cols = Array.from(topbotInClone.children) as HTMLElement[];
+      cols.forEach((col) => {
+        const colTable = col.querySelector('table');
+        const colW = colTable
+          ? Math.max(colTable.scrollWidth, colTable.offsetWidth, colTable.getBoundingClientRect().width)
+          : col.offsetWidth;
+        combinedWidth += Math.max(colW, 600);
+      });
+      combinedWidth += 24; // 16px gap + margin
+      maxTableContentWidth = Math.max(maxTableContentWidth, combinedWidth, 1220);
+    }
+
     if (maxTableContentWidth === 0) {
       maxTableContentWidth = Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, clone.getBoundingClientRect().width));
     }
@@ -703,6 +719,22 @@ export async function exportElementAsImage(
       table.style.setProperty('max-width', '100%', 'important');
       table.style.setProperty('box-sizing', 'border-box', 'important');
     });
+
+    if (topbotInClone) {
+      topbotInClone.style.setProperty('display', 'grid', 'important');
+      topbotInClone.style.setProperty('grid-template-columns', 'repeat(2, minmax(0, 1fr))', 'important');
+      topbotInClone.style.setProperty('gap', '16px', 'important');
+      topbotInClone.style.setProperty('width', '100%', 'important');
+      topbotInClone.style.setProperty('min-width', '100%', 'important');
+      topbotInClone.style.setProperty('max-width', '100%', 'important');
+
+      const cols = Array.from(topbotInClone.children) as HTMLElement[];
+      cols.forEach((col) => {
+        col.style.setProperty('width', '100%', 'important');
+        col.style.setProperty('min-width', '0', 'important');
+        col.style.setProperty('max-width', 'none', 'important');
+      });
+    }
 
     // Calculate exact content height reliably
     const cloneScrollHeight = Math.ceil(clone.scrollHeight);
