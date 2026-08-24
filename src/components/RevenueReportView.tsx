@@ -1740,7 +1740,7 @@ ${botLines || 'Đang cập nhật'}
             {/* LEFT COLUMN: CHANNEL HEADER & TOP/BOT D.THU TABLE */}
             <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
               {/* Channel Big Banner */}
-              <div className="bg-[#1e40af] text-white flex items-center justify-center p-5 border-b border-slate-300 min-h-[110px]">
+              <div className="bg-[#1e40af] text-white flex items-center justify-center p-4 border-b border-slate-300 h-[132px] box-border">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
                   {selectedChannels.length === 1
                     ? (selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0] === 'TGD' ? 'TGD' : 'TOPZONE')
@@ -1753,12 +1753,12 @@ ${botLines || 'Đang cập nhật'}
               {/* Table: Top & Bottom DTQD */}
               <div className="overflow-x-auto xl:overflow-x-visible grow flex flex-col justify-between">
                 <div>
-                  <div className="bg-[#00b074] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
+                  <div className="bg-[#00b074] text-black font-black h-10 flex items-center justify-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
                     TOP &amp; BOTTOM D.THU QUY ĐỔI
                   </div>
                   <table className="w-full text-left border-collapse text-[11px] sm:text-xs font-sans">
                     <thead>
-                      <tr className="bg-[#00b074] text-black font-black text-[11px] sm:text-xs">
+                      <tr className="bg-[#00b074] text-black font-black text-[11px] sm:text-xs h-9">
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-8">STT</th>
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-20 sm:w-24">BOSS</th>
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-12">KÊNH</th>
@@ -1832,26 +1832,26 @@ ${botLines || 'Đang cập nhật'}
             {/* RIGHT COLUMN: TIME INFO & TOP/BOT % HT TABLE */}
             <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
               {/* Right Time Info Block */}
-              <div className="flex flex-col justify-center bg-white min-h-[120px] border-b border-slate-300">
-                <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300">
-                  <div className="p-2.5 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
+              <div className="flex flex-col bg-white h-[132px] border-b border-slate-300 box-border">
+                <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300 h-[44px]">
+                  <div className="px-3 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
                     {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'}
                   </div>
-                  <div className="p-2.5 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
+                  <div className="px-3 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
                     {realtimeTimeAndDateStr || realtimeTimeStr}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300">
-                  <div className="p-2.5 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
+                <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300 h-[44px]">
+                  <div className="px-3 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
                     THỜI GIAN SỬ DỤNG
                   </div>
-                  <div className="p-2.5 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
+                  <div className="px-3 font-black text-red-600 text-xs sm:text-sm font-mono flex items-center justify-center">
                     {Math.round(thoiGianSdPercent)}%
                   </div>
                 </div>
 
-                <div className="p-2.5 text-center font-black text-black text-xs sm:text-sm uppercase tracking-wide">
+                <div className="px-3 flex items-center justify-center font-black text-black text-xs sm:text-sm uppercase tracking-wide h-[44px] text-center">
                   {targetHeaderStr}
                 </div>
               </div>
@@ -1859,12 +1859,12 @@ ${botLines || 'Đang cập nhật'}
               {/* Table: Top & Bottom % HT */}
               <div className="overflow-x-auto xl:overflow-x-visible grow flex flex-col justify-between">
                 <div>
-                  <div className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
+                  <div className="bg-[#fcd34d] text-black font-black h-10 flex items-center justify-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
                     TOP &amp; BOTTOM TỈ LỆ HOÀN THÀNH
                   </div>
                   <table className="w-full text-left border-collapse text-[11px] sm:text-xs font-sans">
                     <thead>
-                      <tr className="bg-[#fcd34d] text-black font-black text-[11px] sm:text-xs">
+                      <tr className="bg-[#fcd34d] text-black font-black text-[11px] sm:text-xs h-9">
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-8">STT</th>
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-20 sm:w-24">BOSS</th>
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-12">KÊNH</th>
