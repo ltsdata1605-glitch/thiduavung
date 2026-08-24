@@ -1736,12 +1736,12 @@ ${botLines || 'Đang cập nhật'}
           </div>
         ) : entityScope === 'topbot' ? (
           /* TAB TOP/BOT: EXACT MATCH DESIGN WITH 2 SEPARATE COLUMNS (GAP IN BETWEEN) */
-          <div id="topbot-report-container" className="w-full max-w-6xl mx-auto grid grid-cols-2 gap-4 my-2 select-none">
+          <div id="topbot-report-container" className="w-full max-w-full xl:max-w-7xl 2xl:max-w-[1440px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-3.5 my-2 select-none">
             {/* LEFT COLUMN: CHANNEL HEADER & TOP/BOT D.THU TABLE */}
             <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
               {/* Channel Big Banner */}
-              <div className="bg-[#1e40af] text-white flex items-center justify-center p-6 border-b border-slate-300 min-h-[120px]">
-                <h1 className="text-5xl sm:text-6xl md:text-7xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
+              <div className="bg-[#1e40af] text-white flex items-center justify-center p-5 border-b border-slate-300 min-h-[110px]">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
                   {selectedChannels.length === 1
                     ? (selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0] === 'TGD' ? 'TGD' : 'TOPZONE')
                     : selectedChannels.length === 5
@@ -1751,21 +1751,21 @@ ${botLines || 'Đang cập nhật'}
               </div>
 
               {/* Table: Top & Bottom DTQD */}
-              <div className="overflow-x-auto grow flex flex-col justify-between">
+              <div className="overflow-x-auto xl:overflow-x-visible grow flex flex-col justify-between">
                 <div>
-                  <div className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
+                  <div className="bg-[#00b074] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
                     TOP &amp; BOTTOM D.THU QUY ĐỔI
                   </div>
-                  <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
+                  <table className="w-full text-left border-collapse text-[11px] sm:text-xs font-sans">
                     <thead>
-                      <tr className="bg-[#00b074] text-black font-black text-xs sm:text-sm">
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
-                        <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
+                      <tr className="bg-[#00b074] text-black font-black text-[11px] sm:text-xs">
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-8">STT</th>
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-20 sm:w-24">BOSS</th>
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-12">KÊNH</th>
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-left pl-2 sm:pl-3">SIÊU THỊ</th>
+                        <th className="p-1 sm:p-1.5 border-b border-slate-300 text-center w-20 sm:w-24 leading-tight">
                           <div>D.THU</div>
-                          <div className="text-[10px]">THỰC HIỆN</div>
+                          <div className="text-[9.5px]">THỰC HIỆN</div>
                         </th>
                       </tr>
                     </thead>
@@ -1812,6 +1812,18 @@ ${botLines || 'Đang cập nhật'}
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr className="bg-[#00b074] font-black text-black">
+                        <td colSpan={4} className="p-2 text-center uppercase tracking-wide border-r border-t border-slate-300 font-black text-xs sm:text-sm">
+                          {selectedChannels.length === 1
+                            ? `KÊNH ${selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0]}`
+                            : 'TỔNG CỘNG KÊNH'}
+                        </td>
+                        <td className="p-2 text-center font-black font-mono border-t border-slate-300 text-xs sm:text-sm">
+                          {Math.round(totalSummary.totalAchievedDt || 0).toLocaleString('vi-VN')}
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </div>
@@ -1845,21 +1857,21 @@ ${botLines || 'Đang cập nhật'}
               </div>
 
               {/* Table: Top & Bottom % HT */}
-              <div className="overflow-x-auto grow flex flex-col justify-between">
+              <div className="overflow-x-auto xl:overflow-x-visible grow flex flex-col justify-between">
                 <div>
-                  <div className="bg-[#fcd34d] text-black font-black p-2.5 sm:p-3 text-center border-b border-slate-300 text-sm sm:text-base md:text-lg uppercase tracking-wide">
+                  <div className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
                     TOP &amp; BOTTOM TỈ LỆ HOÀN THÀNH
                   </div>
-                  <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans">
+                  <table className="w-full text-left border-collapse text-[11px] sm:text-xs font-sans">
                     <thead>
-                      <tr className="bg-[#fcd34d] text-black font-black text-xs sm:text-sm">
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-10">STT</th>
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-24">BOSS</th>
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-center w-14">KÊNH</th>
-                        <th className="p-1.5 sm:p-2 border-r border-b border-slate-300 text-left pl-3">SIÊU THỊ</th>
-                        <th className="p-1.5 sm:p-2 border-b border-slate-300 text-center w-24 leading-tight">
+                      <tr className="bg-[#fcd34d] text-black font-black text-[11px] sm:text-xs">
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-8">STT</th>
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-20 sm:w-24">BOSS</th>
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-12">KÊNH</th>
+                        <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-left pl-2 sm:pl-3">SIÊU THỊ</th>
+                        <th className="p-1 sm:p-1.5 border-b border-slate-300 text-center w-20 sm:w-24 leading-tight">
                           <div>TỈ LỆ</div>
-                          <div className="text-[10px]">HOÀN THÀNH</div>
+                          <div className="text-[9.5px]">HOÀN THÀNH</div>
                         </th>
                       </tr>
                     </thead>
