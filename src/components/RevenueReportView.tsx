@@ -1304,7 +1304,7 @@ ${botLines || 'Đang cập nhật'}
               </div>
             )}
 
-            {entityScope !== 'tong' && entityScope !== 'sieuthi' && entityScope !== 'topbot' && (
+            {entityScope !== 'tong' && entityScope !== 'sieuthi' && (
               <>
                 <div className="h-4 w-px bg-slate-200 mx-0.5"></div>
 
