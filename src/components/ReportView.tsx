@@ -1211,8 +1211,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
     if (sortField !== 'default') {
       const aCat = a.categoryMap?.[sortField];
       const bCat = b.categoryMap?.[sortField];
-      const aVal = aCat ? aCat.rate : -999;
-      const bVal = bCat ? bCat.rate : -999;
+      const aVal = aCat ? (valueDisplayMode === 'value' ? (aCat.achieved || 0) : (aCat.rate ?? -999)) : -999;
+      const bVal = bCat ? (valueDisplayMode === 'value' ? (bCat.achieved || 0) : (bCat.rate ?? -999)) : -999;
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
     }
 
@@ -1223,15 +1223,31 @@ export const ReportView: React.FC<ReportViewProps> = ({
     const channelDiff = getChannelRank(aKenh) - getChannelRank(bKenh);
     if (channelDiff !== 0) return channelDiff;
 
-    // 2. Cột ĐẠT giảm dần (18/38 > 16/38 > 12/38 > 11/38...)
+    // 2. KHI CHỈ CHỌN 1 NGÀNH HÀNG: Sắp xếp giảm dần theo %HT hoặc Doanh thu của ngành hàng đó
+    if (displayedCategoryNames.length === 1) {
+      const singleCat = displayedCategoryNames[0];
+      const aData = getCategoryData(a, singleCat);
+      const bData = getCategoryData(b, singleCat);
+      if (valueDisplayMode === 'value') {
+        const valDiff = (bData.achieved || 0) - (aData.achieved || 0);
+        if (valDiff !== 0) return valDiff;
+        return (bData.rate || 0) - (aData.rate || 0);
+      } else {
+        const rateDiff = (bData.rate || 0) - (aData.rate || 0);
+        if (rateDiff !== 0) return rateDiff;
+        return (bData.achieved || 0) - (aData.achieved || 0);
+      }
+    }
+
+    // 3. Cột ĐẠT giảm dần (18/38 > 16/38 > 12/38 > 11/38...)
     const aAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
     const bAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
     const achievedDiff = bAchievedCount - aAchievedCount;
     if (achievedDiff !== 0) return achievedDiff;
 
-    // 3. Tỷ lệ % giảm dần
+    // 4. Tỷ lệ % giảm dần
     return (b.rate || 0) - (a.rate || 0);
-  }), [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss]);
+  }), [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss, valueDisplayMode]);
 
   // Paginate the Siêu Thị (per-store) view — Vùng rollup is already short
   // (one row per tỉnh) and never needs it. forceShowAllRows overrides this
