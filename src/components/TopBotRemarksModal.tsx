@@ -47,6 +47,7 @@ export function generateTopBotRemarksText(params: {
   remarkDisplayMode?: RemarkDisplayMode;
   daysInMonth?: number;
   daysElapsed?: number;
+  botCount?: number; // Số lượng Siêu thị BOT được tag, mặc định 30
 }): string {
   const {
     provinceScope,
@@ -59,9 +60,10 @@ export function generateTopBotRemarksText(params: {
     selectedChannels = [],
     bossAssignments = [],
     isExcludedChannel,
-    remarkDisplayMode = 'user',
+    remarkDisplayMode = 'no_tag_top',
     daysInMonth,
     daysElapsed,
+    botCount = 30,
   } = params;
 
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
@@ -107,26 +109,30 @@ export function generateTopBotRemarksText(params: {
         prefix: `${medal} #${idx + 1}`,
         storeName: s.storeName,
         bossTag: s.bossTag,
+        rawBoss: s.boss,
         valuePart: `${formatInt(s.achieved)} / ${formatInt(s.target)}`,
         rate: s.rate,
         mode: remarkDisplayMode,
+        group: 'top',
       });
     })
     .join('\n');
 
-  // Max 10 stores for BOT group — only considering stores with Target > 0
+  // BOT group (số lượng tuỳ chỉnh, mặc định 30) — chỉ xét ST có Target > 0
   const storesWithTarget = sortedAll.filter((s) => s.target > 0);
-  const bot10 = storesWithTarget.slice(-10).reverse();
-  const botLines = bot10
+  const botStores = storesWithTarget.slice(-Math.max(1, botCount)).reverse();
+  const botLines = botStores
     .map((s) => {
       const rank = sortedAll.findIndex((item) => item.storeName === s.storeName) + 1;
       return formatStoreRemarkLine({
         prefix: `🔻 #${rank}`,
         storeName: s.storeName,
         bossTag: s.bossTag,
+        rawBoss: s.boss,
         valuePart: `${formatInt(s.achieved)} / ${formatInt(s.target)}`,
         rate: s.rate,
         mode: remarkDisplayMode,
+        group: 'bot',
       });
     })
     .join('\n');
@@ -141,7 +147,7 @@ export function generateTopBotRemarksText(params: {
 🌟 TOP SIÊU THỊ DẪN ĐẦU (Tối đa 10 ST):
 ${topLines || 'Đang cập nhật'}
 
-⚠️ BOT SIÊU THỊ CẦN TĂNG TỐC (Tối đa 10 ST có Target):
+⚠️ BOT ${botStores.length} SIÊU THỊ CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━
 👉 Đề nghị các Boss chỉ đạo quyết liệt, tư vấn kèm gói giải pháp để bứt phá mục tiêu! 💪🏼🔥`;
@@ -164,7 +170,8 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
   daysElapsed,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('no_tag_top');
+  const [botCount, setBotCount] = useState<number>(30);
   const [customText, setCustomText] = useState('');
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
 
@@ -184,6 +191,7 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
       remarkDisplayMode,
       daysInMonth,
       daysElapsed,
+      botCount,
     });
     setCustomText(text);
     setCopied(false);
@@ -202,6 +210,7 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
     remarkDisplayMode,
     daysInMonth,
     daysElapsed,
+    botCount,
   ]);
 
   if (!isOpen) return null;
@@ -242,12 +251,13 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
             <span>Nội dung nhận xét:</span>
 
             {/* Checkbox Options */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
               {(
                 [
                   { id: 'user', label: 'User' },
                   { id: 'sieuthi', label: 'Siêu thị' },
                   { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                  { id: 'no_tag_top', label: 'Bỏ Tag TOP' },
                 ] as const
               ).map((opt) => (
                 <button
@@ -272,9 +282,23 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
               ))}
             </div>
 
-            <span className="text-[11px] text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200 font-bold">
-              Line/Zalo Tag Limit: 20
-            </span>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="topbot-bot-count-input" className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
+                Số lượng BOT:
+              </label>
+              <input
+                id="topbot-bot-count-input"
+                type="number"
+                min={1}
+                max={999}
+                value={botCount}
+                onChange={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  setBotCount(Number.isFinite(n) && n > 0 ? Math.min(999, n) : 1);
+                }}
+                className="w-16 px-2 py-1 rounded-lg border border-slate-300 text-[11px] font-bold text-center focus:outline-hidden focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
           </div>
 
           <textarea

@@ -815,7 +815,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           if (targetEl) {
             const cleanProv = removeVietnameseTones(prov);
             const filename = `${timePrefix}_${cleanProv}.png`;
-            const remarkText = generateRevenueRemarks('template_1', 'user');
+            const remarkText = generateRevenueRemarks('template_1', 'no_tag_top');
             const blob = await exportElementAsImage(targetEl, filename, {
               remarkTextToCopy: remarkText,
             });
@@ -841,7 +841,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           if (targetEl) {
             const cleanTm = removeVietnameseTones(tm);
             const filename = `${timePrefix}_${cleanTm}.png`;
-            const remarkText = generateRevenueRemarks('template_1', 'user');
+            const remarkText = generateRevenueRemarks('template_1', 'no_tag_top');
             const blob = await exportElementAsImage(targetEl, filename, {
               remarkTextToCopy: remarkText,
             });
@@ -866,7 +866,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
             const cleanSz = removeVietnameseTones(sz);
             const cleanProv = selectedProvince !== 'ALL' ? `_${removeVietnameseTones(selectedProvince)}` : '';
             const filename = `${timePrefix}_Size_${cleanSz}${cleanProv}.png`;
-            const remarkText = generateRevenueRemarks('template_1', 'user');
+            const remarkText = generateRevenueRemarks('template_1', 'no_tag_top');
             const blob = await exportElementAsImage(targetEl, filename, {
               remarkTextToCopy: remarkText,
             });
@@ -897,7 +897,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           }
         }
 
-        const remarkText = generateRevenueRemarks('template_1', 'user');
+        const remarkText = generateRevenueRemarks('template_1', 'no_tag_top');
         const blob = await exportElementAsImage(el, filename, {
           remarkTextToCopy: remarkText,
         });
@@ -941,9 +941,11 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
             prefix,
             storeName: formatStoreDisplayName(s.sieuthi),
             bossTag: getBossTag(s.boss),
+            rawBoss: s.boss,
             valuePart: valPart,
             rate: s.rateDt,
             mode,
+            group: 'bot',
           });
         })
         .join('\n');
@@ -973,9 +975,11 @@ ${lines || 'Tất cả siêu thị đều đang đạt tiến độ rất tốt!
             prefix,
             storeName: formatStoreDisplayName(s.sieuthi),
             bossTag: getBossTag(s.boss),
+            rawBoss: s.boss,
             valuePart: valPart,
             rate: s.rateDt,
             mode,
+            group: 'top',
           });
         })
         .join('\n');
@@ -988,9 +992,11 @@ ${lines || 'Tất cả siêu thị đều đang đạt tiến độ rất tốt!
             prefix,
             storeName: formatStoreDisplayName(s.sieuthi),
             bossTag: getBossTag(s.boss),
+            rawBoss: s.boss,
             valuePart: valPart,
             rate: s.rateDt,
             mode,
+            group: 'bot',
           });
         })
         .join('\n');
@@ -1022,9 +1028,11 @@ ${botLines || 'Đang cập nhật'}
           prefix,
           storeName: formatStoreDisplayName(s.sieuthi),
           bossTag: getBossTag(s.boss),
+          rawBoss: s.boss,
           valuePart: valPart,
           rate: s.rateDt,
           mode,
+          group: 'top',
         });
       })
       .join('\n');
@@ -1037,9 +1045,11 @@ ${botLines || 'Đang cập nhật'}
           prefix,
           storeName: formatStoreDisplayName(s.sieuthi),
           bossTag: getBossTag(s.boss),
+          rawBoss: s.boss,
           valuePart: valPart,
           rate: s.rateDt,
           mode,
+          group: 'bot',
         });
       })
       .join('\n');
@@ -2540,12 +2550,13 @@ ${botLines || 'Đang cập nhật'}
                   </label>
 
                   {/* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User */}
-                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+                  <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
                     {(
                       [
                         { id: 'user', label: 'User' },
                         { id: 'sieuthi', label: 'Siêu thị' },
                         { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                        { id: 'no_tag_top', label: 'Bỏ Tag TOP' },
                       ] as const
                     ).map((opt) => (
                       <button

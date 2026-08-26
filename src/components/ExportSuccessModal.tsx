@@ -377,12 +377,13 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
                 <label className="text-[11px] font-black text-slate-700 block">
                   1. Kiểu hiển thị dòng Siêu thị / Quản lý:
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {(
                     [
                       { id: 'user', label: 'User ID (@Tag)', desc: '🥇 #1. @53136' },
                       { id: 'sieuthi', label: 'Tên Siêu Thị', desc: '🥇 #1. TGD_AGI_CNO' },
                       { id: 'sieuthi_user', label: 'Siêu Thị + User', desc: '🥇 #1. TGD_AGI @53136' },
+                      { id: 'no_tag_top', label: 'Bỏ Tag TOP', desc: 'TOP: Luân_55810 | BOT: @55810' },
                     ] as const
                   ).map((opt) => (
                     <button

@@ -1157,10 +1157,10 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                 <span className="text-xs font-bold text-slate-600">{topBotMode === 'percent' ? '%' : 'ST'}</span>
               </div>
 
-              {/* Nút Nhận xét TOP/BOT (Tối đa 10 Top / 10 Bot) */}
+              {/* Nút Nhận xét TOP/BOT (Top 10, số lượng BOT tuỳ chỉnh trong modal) */}
               <button
                 onClick={() => setIsTopBotRemarksOpen(true)}
-                title="Xem & Sao chép Nhận xét TOP/BOT (tối đa 10 ST mỗi nhóm)"
+                title="Xem & Sao chép Nhận xét TOP/BOT (số lượng BOT tuỳ chỉnh trong modal)"
                 className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-xl shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ml-1"
               >
                 <MessageSquare className="w-4 h-4" />

@@ -88,6 +88,7 @@ export function generateReportRemarksText(params: {
   templateType?: 'template_1' | 'template_2' | 'template_3';
   includeEmoji?: boolean;
   includeCallToAction?: boolean;
+  botCount?: number; // Mẫu 1 Siêu thị: số lượng Siêu thị BOT được tag, mặc định 30
 }): string {
   const {
     stores = [],
@@ -108,6 +109,7 @@ export function generateReportRemarksText(params: {
     templateType = 'template_1',
     includeEmoji = true,
     includeCallToAction = true,
+    botCount = 30,
   } = params;
 
   const isLuyKe = !timeModeName.toLowerCase().includes('real');
@@ -393,6 +395,7 @@ ${botLines || 'Đang cập nhật'}
           achieved,
           achievedCategories,
           rate,
+          boss,
           bossTag,
         };
       }
@@ -418,6 +421,7 @@ ${botLines || 'Đang cập nhật'}
         achieved,
         achievedCategories,
         rate,
+        boss,
         bossTag,
       };
     })
@@ -436,7 +440,9 @@ ${botLines || 'Đang cập nhật'}
   if (templateType === 'template_2') {
     // Mẫu 2 Siêu thị: Danh sách cần tăng tốc (< 100% hoặc < 80%)
     const warningStores = storeRanking.filter((s) => (totalCatCount === 1 ? s.rate < 100 : s.rate < 80 || s.achievedCategories < totalCatCount) && (s.target > 0 || totalCatCount === 1));
+    // Tag tối đa 30 Boss để tránh vượt giới hạn @mention của Zalo/Line khi danh sách cần tăng tốc quá dài
     const warningLines = (warningStores.length > 0 ? warningStores : storeRanking.slice(-10).reverse())
+      .slice(0, 30)
       .map((s) => {
         const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
         const valuePart = totalCatCount === 1 ? `${formatInt(s.achieved)} / ${formatInt(s.target)}` : `${s.achievedCategories} / ${totalCatCount}`;
@@ -444,9 +450,11 @@ ${botLines || 'Đang cập nhật'}
           prefix: `${includeEmoji ? '⚠️' : '•'} #${rank}`,
           storeName: s.storeName,
           bossTag: s.bossTag,
+          rawBoss: s.boss,
           valuePart,
           rate: s.rate,
           mode: remarkDisplayMode,
+          group: 'bot',
         });
       })
       .join('\n');
@@ -473,9 +481,11 @@ ${callToActionText}`;
           prefix: `${includeEmoji ? medal : '•'} #${rank}`,
           storeName: s.storeName,
           bossTag: s.bossTag,
+          rawBoss: s.boss,
           valuePart,
           rate: s.rate,
           mode: remarkDisplayMode,
+          group: rank <= 5 ? 'top' : 'bot',
         });
       })
       .join('\n');
@@ -490,10 +500,10 @@ ${allLines || 'Đang cập nhật'}
 ${callToActionText}`;
   }
 
-  // Mẫu 1 Siêu thị: Top 10 + Bot 10 Siêu thị
+  // Mẫu 1 Siêu thị: Top 10 + Bot {botCount} Siêu thị (botCount tuỳ chỉnh, mặc định 30)
   const top10 = storeRanking.slice(0, 10);
   const storesWithTarget = storeRanking.filter((s) => s.target > 0 || totalCatCount === 1);
-  const bot10 = storesWithTarget.slice(-10).reverse();
+  const botStores = storesWithTarget.slice(-Math.max(1, botCount)).reverse();
 
   const topLines = top10
     .map((s, idx) => {
@@ -503,14 +513,16 @@ ${callToActionText}`;
         prefix: `${medal} #${idx + 1}`,
         storeName: s.storeName,
         bossTag: s.bossTag,
+        rawBoss: s.boss,
         valuePart,
         rate: s.rate,
         mode: remarkDisplayMode,
+        group: 'top',
       });
     })
     .join('\n');
 
-  const botLines = bot10
+  const botLines = botStores
     .map((s) => {
       const rank = storeRanking.findIndex((item) => item.storeName === s.storeName) + 1;
       const valuePart = totalCatCount === 1 ? `${formatInt(s.achieved)} / ${formatInt(s.target)}` : `${s.achievedCategories} / ${totalCatCount}`;
@@ -518,9 +530,11 @@ ${callToActionText}`;
         prefix: `${includeEmoji ? '🔻' : '•'} #${rank}`,
         storeName: s.storeName,
         bossTag: s.bossTag,
+        rawBoss: s.boss,
         valuePart,
         rate: s.rate,
         mode: remarkDisplayMode,
+        group: 'bot',
       });
     })
     .join('\n');
@@ -533,7 +547,7 @@ ${includeEmoji ? '🎯' : '•'} Target: ${formatInt(totalTargetVal)} | ${modeIc
 ${includeEmoji ? '🏆' : '•'} TOP 10 SIÊU THỊ DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
 
-${includeEmoji ? '⚠️' : '•'} BOT 10 SIÊU THỊ CẦN TĂNG TỐC:
+${includeEmoji ? '⚠️' : '•'} BOT ${botStores.length} SIÊU THỊ CẦN TĂNG TỐC:
 ${botLines || 'Đang cập nhật'}
 ${callToActionText}`;
 }
@@ -558,7 +572,8 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('no_tag_top');
+  const [botCount, setBotCount] = useState<number>(30);
   const [customText, setCustomText] = useState<string>('');
 
   const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
@@ -587,8 +602,9 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       entityScope,
       remarkDisplayMode,
       templateType: 'template_1',
+      botCount,
     });
-  }, [stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode]);
+  }, [stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode, botCount]);
 
   const template2Text = useMemo(() => {
     return generateReportRemarksText({
@@ -678,13 +694,39 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
                 Chọn mẫu nội dung nhận xét:
               </label>
 
-              {/* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User */}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+              {/* Số lượng Siêu thị BOT được tag — chỉ áp dụng cho Mẫu 1: TOP/BOT */}
+              {!isProvinceLevel && activeTemplateTab === 'template_1' && (
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="bot-count-input" className="text-[11px] font-bold text-slate-500 whitespace-nowrap">
+                    Số lượng BOT:
+                  </label>
+                  <input
+                    id="bot-count-input"
+                    type="number"
+                    min={1}
+                    max={999}
+                    value={botCount}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      setBotCount(Number.isFinite(n) && n > 0 ? Math.min(999, n) : 1);
+                      setCustomText('');
+                    }}
+                    className="w-16 px-2 py-1 rounded-lg border border-slate-300 text-[11px] font-bold text-center focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              )}
+
+              {/* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User
+                  Chỉ có ý nghĩa ở cấp Siêu thị (có boss/tên ST để hiển thị) —
+                  Nhận xét cấp VÙNG chỉ liệt kê Tỉnh nên ẩn hẳn bộ chọn này. */}
+              {!isProvinceLevel && (
+              <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
                 {(
                   [
                     { id: 'user', label: 'User' },
                     { id: 'sieuthi', label: 'Siêu thị' },
                     { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                    { id: 'no_tag_top', label: 'Bỏ Tag TOP' },
                   ] as const
                 ).map((opt) => (
                   <button
@@ -711,6 +753,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
                   </button>
                 ))}
               </div>
+              )}
             </div>
 
             {/* Template Buttons */}

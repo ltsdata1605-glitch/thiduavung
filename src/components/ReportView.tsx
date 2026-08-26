@@ -590,7 +590,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // same browser was previously used by a privileged account).
   const valueDisplayMode = canViewDtQdTb ? rawValueDisplayMode : 'percent';
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<string>('default');
+  // Mặc định sắp xếp theo TỶ LỆ % giảm dần (Tab Vùng & Siêu thị) — người dùng
+  // không cần bấm vào cột TỶ LỆ % mỗi lần mở lại tab.
+  const [sortField, setSortField] = useState<string>('rate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showChartSection, setShowChartSection] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -1239,14 +1241,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
       }
     }
 
-    // 3. Cột ĐẠT giảm dần (18/38 > 16/38 > 12/38 > 11/38...)
+    // 3. Tỷ lệ % giảm dần
+    const rateDiff = (b.rate || 0) - (a.rate || 0);
+    if (rateDiff !== 0) return rateDiff;
+
+    // 4. Cột ĐẠT giảm dần (phụ, khi Tỷ lệ % bằng nhau)
     const aAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
     const bAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
-    const achievedDiff = bAchievedCount - aAchievedCount;
-    if (achievedDiff !== 0) return achievedDiff;
-
-    // 4. Tỷ lệ % giảm dần
-    return (b.rate || 0) - (a.rate || 0);
+    return bAchievedCount - aAchievedCount;
   }), [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss, valueDisplayMode]);
 
   // Paginate the Siêu Thị (per-store) view — Vùng rollup is already short

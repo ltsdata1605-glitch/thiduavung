@@ -1819,21 +1819,31 @@ export function formatBossTag(rawBoss: string = ''): string {
  * - 'user': 🥇 #1. @53136
  * - 'sieuthi': 🥇 #1. ĐMS_AGI_CPH - Bình Thủy: 11 / 38 (29%)
  * - 'sieuthi_user': 🥇 #1. ĐMS_AGI_CPH - Bình Thủy: 11 / 38 (29%) @53136
+ * - 'no_tag_top': như 'user', nhưng dòng thuộc nhóm TOP (group: 'top') không
+ *   @tag mà chỉ in tên Boss dạng "Tên_User" (vd: Luân_55810) để tránh ping
+ *   không cần thiết; dòng thuộc nhóm BOT (group: 'bot') vẫn @tag như bình thường.
  */
 export function formatStoreRemarkLine(params: {
   prefix: string; // e.g. "🥇 #1" or "🔻 #73"
   storeName: string;
   bossTag: string;
+  rawBoss?: string; // chuỗi Boss gốc "Tên_mãUser", dùng riêng cho mode 'no_tag_top'
   valuePart: string;
   rate: number;
   mode?: RemarkDisplayMode;
+  group?: 'top' | 'bot'; // dòng này thuộc nhóm TOP hay BOT — chỉ có ý nghĩa với mode 'no_tag_top'
 }): string {
-  const { prefix, storeName, bossTag, valuePart, rate, mode = 'user' } = params;
+  const { prefix, storeName, bossTag, rawBoss = '', valuePart, rate, mode = 'user', group = 'top' } = params;
   const tag = bossTag ? (bossTag.startsWith('@') ? bossTag : `@${bossTag}`) : '';
   const cleanPrefix = prefix.trim();
   const prefixWithDot = cleanPrefix.endsWith('.') ? cleanPrefix : `${cleanPrefix}.`;
 
-  if (mode === 'user') {
+  if (mode === 'no_tag_top' && group === 'top') {
+    const nameId = rawBoss.trim() && rawBoss.trim() !== 'Chưa phân công' ? rawBoss.trim() : '';
+    return nameId ? `${prefixWithDot} ${nameId}` : `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%)`;
+  }
+
+  if (mode === 'user' || mode === 'no_tag_top') {
     return tag ? `${prefixWithDot} ${tag}` : `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%)`;
   }
 

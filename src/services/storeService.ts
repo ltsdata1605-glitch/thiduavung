@@ -379,7 +379,7 @@ export function getLocalRemarkConfig(): RemarkTemplateConfig {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        displayMode: parsed.displayMode || 'user',
+        displayMode: parsed.displayMode || DEFAULT_REMARK_CONFIG.displayMode,
         templateType: parsed.templateType || 'template_1',
         includeEmoji: parsed.includeEmoji !== false,
         includeCallToAction: parsed.includeCallToAction !== false,

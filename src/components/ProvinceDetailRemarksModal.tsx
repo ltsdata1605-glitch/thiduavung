@@ -120,16 +120,18 @@ export function generateProvinceDetailRemarksText(params: {
         prefix: `${medal} #${idx + 1}`,
         storeName: s.storeName,
         bossTag: s.bossTag,
+        rawBoss: s.boss,
         valuePart: `${formatInt(s.achieved)} / ${formatInt(s.target)}`,
         rate: s.rate,
         mode: remarkDisplayMode,
+        group: 'top',
       });
     })
     .join('\n');
 
-  // BOT 20%
+  // BOT 20% (tối đa 30 Boss để tránh vượt giới hạn @mention của Zalo/Line)
   const storesWithTarget = sortedAll.filter((s) => s.target > 0);
-  const botCount = Math.max(1, Math.round(storesWithTarget.length * 0.2));
+  const botCount = Math.min(30, Math.max(1, Math.round(storesWithTarget.length * 0.2)));
   const botStores = storesWithTarget.slice(-botCount).reverse();
 
   const botLines = botStores
@@ -139,9 +141,11 @@ export function generateProvinceDetailRemarksText(params: {
         prefix: `🔻 #${rank}`,
         storeName: s.storeName,
         bossTag: s.bossTag,
+        rawBoss: s.boss,
         valuePart: `${formatInt(s.achieved)} / ${formatInt(s.target)}`,
         rate: s.rate,
         mode: remarkDisplayMode,
+        group: 'bot',
       });
     })
     .join('\n');
@@ -260,12 +264,13 @@ export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProp
             <span>Nội dung nhận xét:</span>
 
             {/* Checkbox Options */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
               {(
                 [
                   { id: 'user', label: 'User' },
                   { id: 'sieuthi', label: 'Siêu thị' },
                   { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                  { id: 'no_tag_top', label: 'Bỏ Tag TOP' },
                 ] as const
               ).map((opt) => (
                 <button
