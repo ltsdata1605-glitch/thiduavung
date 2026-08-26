@@ -183,6 +183,9 @@ interface ReportViewProps {
   // (e.g. any not-yet-updated usage) keep the previous, unrestricted behavior.
   canViewDtQdTb?: boolean;
   currentUser?: UserAccount | null;
+  // Toàn bộ doc user_preferences (theo accountId) — truyền xuống GroupReportView
+  // để lưu mẫu nhận xét đúng chuẩn merge, không ghi đè preference tài khoản khác.
+  userPreferencesMap?: Record<string, any>;
 }
 
 interface VerticalComparisonTableProps {
@@ -584,6 +587,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   daysElapsed: propDaysElapsed,
   canViewDtQdTb = true,
   currentUser,
+  userPreferencesMap,
 }) => {
   // Non-privileged accounts can never see the DT Luỹ Kế/Realtime value view
   // even if 'value' somehow ended up in their persisted preference (e.g. the
@@ -1465,6 +1469,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           daysInMonth={propDaysInMonth}
           daysElapsed={propDaysElapsed}
           currentUser={currentUser}
+          userPreferencesMap={userPreferencesMap}
         />
       </React.Suspense>
     );

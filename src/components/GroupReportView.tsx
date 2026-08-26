@@ -15,7 +15,7 @@ import {
   BossAssignmentRecord,
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
-import { saveGroupSummaryCardsToFirebase, getLocalCache } from '../services/storeService';
+import { saveGroupSummaryCardsToFirebase, getLocalCache, getLocalRemarkConfig } from '../services/storeService';
 import { getCurrentSession } from '../services/authService';
 import { ExportLoadingModal } from './ExportLoadingModal';
 import { ProvinceRemarksModal, generateProvinceRemarksText } from './ProvinceRemarksModal';
@@ -37,6 +37,10 @@ interface GroupReportViewProps {
   daysInMonth?: number;
   daysElapsed?: number;
   currentUser?: UserAccount | null;
+  // Toàn bộ doc user_preferences (theo accountId) — cần truyền nguyên vẹn khi
+  // lưu mẫu nhận xét TOP/BOT, tránh setDoc (không merge) ghi đè mất preference
+  // của các tài khoản khác.
+  userPreferencesMap?: Record<string, any>;
 }
 
 /** Distinct pastel colors per channel for headers & badges */
@@ -549,6 +553,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   daysInMonth,
   daysElapsed,
   currentUser,
+  userPreferencesMap = {},
 }) => {
   // Xác định accountId để lưu cấu hình bộ lọc riêng biệt theo từng tài khoản
   const session = getCurrentSession();
@@ -1168,6 +1173,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
               <button
                 onClick={() => {
+                  const savedRemarkConfig = getLocalRemarkConfig(accountId);
                   const remarkText = generateTopBotRemarksText({
                     provinceScope: selectedProvinceCard3,
                     category: activeCategory,
@@ -1181,6 +1187,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                     isExcludedChannel,
                     daysInMonth,
                     daysElapsed,
+                    remarkDisplayMode: savedRemarkConfig.displayMode,
+                    botCount: savedRemarkConfig.botCount,
                   });
                   handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`, remarkText);
                 }}
@@ -1365,6 +1373,9 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
         isExcludedChannel={isExcludedChannel}
         daysInMonth={daysInMonth}
         daysElapsed={daysElapsed}
+        accountId={accountId}
+        updatedBy={currentUser?.name || currentUser?.accountId || 'User'}
+        userPreferencesMap={userPreferencesMap}
       />
 
       {/* Export Loading Overlay Modal */}

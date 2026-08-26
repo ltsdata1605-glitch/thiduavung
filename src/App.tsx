@@ -1203,7 +1203,7 @@ function AppInner() {
       // Let ReportView re-render with pagination bypassed before capturing.
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_RutGon_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const remarkConfig = getLocalRemarkConfig();
+      const remarkConfig = getLocalRemarkConfig(currentUser?.accountId);
       const remarkContext = {
         stores: activeStores,
         selectedProvince,
@@ -1223,6 +1223,7 @@ function AppInner() {
         templateType: remarkConfig.templateType,
         includeEmoji: remarkConfig.includeEmoji,
         includeCallToAction: remarkConfig.includeCallToAction,
+        botCount: remarkConfig.botCount,
       };
       const remarkText = generateReportRemarksText(remarkContext);
       const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText, remarkContext });
@@ -1253,7 +1254,7 @@ function AppInner() {
     try {
       await new Promise((r) => setTimeout(r, 350));
       const filename = `ThiDua_TongHop_${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_${new Date().toISOString().slice(0, 10)}.png`;
-      const remarkConfig = getLocalRemarkConfig();
+      const remarkConfig = getLocalRemarkConfig(currentUser?.accountId);
       const remarkContext = {
         stores: activeStores,
         selectedProvince,
@@ -1273,6 +1274,7 @@ function AppInner() {
         templateType: remarkConfig.templateType,
         includeEmoji: remarkConfig.includeEmoji,
         includeCallToAction: remarkConfig.includeCallToAction,
+        botCount: remarkConfig.botCount,
       };
       const remarkText = generateReportRemarksText(remarkContext);
       const blob = await exportElementAsImage(el, filename, { remarkTextToCopy: remarkText, remarkContext });
@@ -1310,7 +1312,7 @@ function AppInner() {
     });
 
     const previousGroup = selectedCategoryGroup;
-    const remarkConfig = getLocalRemarkConfig();
+    const remarkConfig = getLocalRemarkConfig(currentUser?.accountId);
     const baseRemarkContext = {
       stores: activeStores,
       selectedProvince,
@@ -1330,6 +1332,7 @@ function AppInner() {
       templateType: remarkConfig.templateType,
       includeEmoji: remarkConfig.includeEmoji,
       includeCallToAction: remarkConfig.includeCallToAction,
+      botCount: remarkConfig.botCount,
     };
     const remarkText = generateReportRemarksText(baseRemarkContext);
 
@@ -1576,6 +1579,7 @@ function AppInner() {
                 onExportGroup={handleExportGroup}
                 forceShowAllRows={isExportingAllRows}
                 currentUser={currentUser}
+                userPreferencesMap={userPreferencesMap}
               />
             </ErrorBoundary>
           )}
@@ -1675,6 +1679,7 @@ function AppInner() {
         remarkText={exportSuccessState.remarkText}
         remarkContext={exportSuccessState.remarkContext}
         currentUser={currentUser}
+        userPreferencesMap={userPreferencesMap}
       />
 
       {/* Tag Boss / Quick Remarks Modal */}
@@ -1695,6 +1700,8 @@ function AppInner() {
         timeModeName={timeMode === 'realtime' ? 'Realtime' : 'Luỹ kế'}
         lastUpdated={timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe}
         entityScope={entityScope}
+        currentUser={currentUser}
+        userPreferencesMap={userPreferencesMap}
       />
 
       {/* Super Admin User Management Modal */}

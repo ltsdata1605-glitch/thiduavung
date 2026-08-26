@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { StoreRecord, Channel, EntityScope, RemarkDisplayMode } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { StoreRecord, Channel, EntityScope, RemarkDisplayMode, UserAccount } from '../types';
 import {
   formatStoreDisplayName,
   getChannelForStore,
@@ -18,6 +18,7 @@ import { getCategoryGroup } from './ReportView';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy, ListOrdered } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { copyTextToClipboard } from '../services/imageExport';
+import { getLocalRemarkConfig, saveRemarkConfigToFirebaseAndLocal } from '../services/storeService';
 
 function formatInt(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
@@ -63,6 +64,11 @@ export interface TagBossModalProps {
   timeModeName?: string;
   lastUpdated?: string;
   entityScope?: EntityScope;
+  currentUser?: UserAccount | null;
+  // Toàn bộ doc user_preferences hiện tại (theo accountId) — bắt buộc truyền
+  // vào để merge đúng khi lưu mẫu nhận xét, tránh setDoc (không merge) ghi đè
+  // mất preference của các tài khoản khác.
+  userPreferencesMap?: Record<string, any>;
 }
 
 /**
@@ -569,12 +575,33 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   timeModeName = 'Luỹ kế',
   lastUpdated,
   entityScope = 'vung',
+  currentUser,
+  userPreferencesMap = {},
 }) => {
+  const accountId = currentUser?.accountId || 'global';
   const [copied, setCopied] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('no_tag_top');
-  const [botCount, setBotCount] = useState<number>(30);
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(() => getLocalRemarkConfig(accountId).displayMode);
+  const [botCount, setBotCount] = useState<number>(() => getLocalRemarkConfig(accountId).botCount);
   const [customText, setCustomText] = useState<string>('');
+
+  // Đổi tài khoản khi modal đang mở sẵn trong cây component (không unmount) —
+  // nạp lại mẫu nhận xét đã lưu riêng của tài khoản mới thay vì giữ giá trị cũ.
+  useEffect(() => {
+    const cfg = getLocalRemarkConfig(accountId);
+    setRemarkDisplayMode(cfg.displayMode);
+    setBotCount(cfg.botCount);
+  }, [accountId]);
+
+  // Lưu displayMode/botCount vào Firebase + localStorage riêng theo accountId,
+  // giữ nguyên các field khác (templateType, emoji, cta) đã lưu trước đó.
+  const persistRemarkConfig = (patch: Partial<{ displayMode: RemarkDisplayMode; botCount: number }>) => {
+    const updated = { ...getLocalRemarkConfig(accountId), ...patch };
+    const updatedBy = currentUser?.name || currentUser?.accountId || 'User';
+    saveRemarkConfigToFirebaseAndLocal(updated, userPreferencesMap, accountId, updatedBy).catch((e) => {
+      console.error('Failed to persist remark config:', e);
+    });
+  };
 
   const isSpecificProvince = Boolean(selectedProvince && selectedProvince !== 'ALL');
   const isSpecificBoss = Boolean(selectedBoss && selectedBoss !== 'ALL');
@@ -711,6 +738,10 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
                       setBotCount(Number.isFinite(n) && n > 0 ? Math.min(999, n) : 1);
                       setCustomText('');
                     }}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      persistRemarkConfig({ botCount: Number.isFinite(n) && n > 0 ? Math.min(999, n) : 1 });
+                    }}
                     className="w-16 px-2 py-1 rounded-lg border border-slate-300 text-[11px] font-bold text-center focus:outline-hidden focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -735,6 +766,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
                     onClick={() => {
                       setRemarkDisplayMode(opt.id);
                       setCustomText('');
+                      persistRemarkConfig({ displayMode: opt.id });
                     }}
                     className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       remarkDisplayMode === opt.id

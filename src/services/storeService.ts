@@ -373,16 +373,25 @@ export async function saveUserPreferencesToFirebase(prefs: Record<string, any>, 
 
 const REMARK_CONFIG_STORAGE_KEY = 'tnb_remark_template_config';
 
-export function getLocalRemarkConfig(): RemarkTemplateConfig {
+// Mỗi tài khoản có mẫu nhận xét riêng — namespace theo accountId để tránh
+// 2 tài khoản dùng chung 1 trình duyệt bị lẫn cấu hình của nhau. Fallback về
+// key cũ (không namespace) khi tài khoản này chưa từng lưu riêng, để không
+// mất cấu hình đã lưu từ trước khi có accountId-scoping.
+function remarkConfigStorageKey(accountId?: string): string {
+  return accountId && accountId !== 'global' ? `${REMARK_CONFIG_STORAGE_KEY}_${accountId}` : REMARK_CONFIG_STORAGE_KEY;
+}
+
+export function getLocalRemarkConfig(accountId?: string): RemarkTemplateConfig {
   try {
-    const raw = localStorage.getItem(REMARK_CONFIG_STORAGE_KEY);
+    const raw = localStorage.getItem(remarkConfigStorageKey(accountId)) || localStorage.getItem(REMARK_CONFIG_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
         displayMode: parsed.displayMode || DEFAULT_REMARK_CONFIG.displayMode,
-        templateType: parsed.templateType || 'template_1',
+        templateType: parsed.templateType || DEFAULT_REMARK_CONFIG.templateType,
         includeEmoji: parsed.includeEmoji !== false,
         includeCallToAction: parsed.includeCallToAction !== false,
+        botCount: Number.isFinite(parsed.botCount) && parsed.botCount > 0 ? parsed.botCount : DEFAULT_REMARK_CONFIG.botCount,
       };
     }
   } catch (e) {}
@@ -396,7 +405,7 @@ export async function saveRemarkConfigToFirebaseAndLocal(
   updatedBy: string = 'User'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    localStorage.setItem(REMARK_CONFIG_STORAGE_KEY, JSON.stringify(config));
+    localStorage.setItem(remarkConfigStorageKey(accountId), JSON.stringify(config));
   } catch (e) {}
 
   const updatedPrefs = {

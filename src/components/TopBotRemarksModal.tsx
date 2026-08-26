@@ -15,6 +15,7 @@ import {
 import { X, Copy, Check, MessageSquare } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { copyTextToClipboard } from '../services/imageExport';
+import { getLocalRemarkConfig, saveRemarkConfigToFirebaseAndLocal } from '../services/storeService';
 
 interface TopBotRemarksModalProps {
   isOpen: boolean;
@@ -31,6 +32,13 @@ interface TopBotRemarksModalProps {
   isExcludedChannel: (k?: string) => boolean;
   daysInMonth?: number;
   daysElapsed?: number;
+  // Danh tính tài khoản hiện tại — để lưu mẫu nhận xét (displayMode/botCount)
+  // riêng theo từng người dùng, đồng bộ qua Firebase.
+  accountId?: string;
+  updatedBy?: string;
+  // Toàn bộ doc user_preferences hiện tại — bắt buộc truyền vào để merge khi
+  // lưu, tránh setDoc (không merge) ghi đè mất preference tài khoản khác.
+  userPreferencesMap?: Record<string, any>;
 }
 
 export function generateTopBotRemarksText(params: {
@@ -168,12 +176,32 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
   isExcludedChannel,
   daysInMonth,
   daysElapsed,
+  accountId = 'global',
+  updatedBy = 'User',
+  userPreferencesMap = {},
 }) => {
   const [copied, setCopied] = useState(false);
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('no_tag_top');
-  const [botCount, setBotCount] = useState<number>(30);
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(() => getLocalRemarkConfig(accountId).displayMode);
+  const [botCount, setBotCount] = useState<number>(() => getLocalRemarkConfig(accountId).botCount);
   const [customText, setCustomText] = useState('');
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
+
+  // Đổi tài khoản khi modal đang mở sẵn trong cây component (không unmount) —
+  // nạp lại mẫu nhận xét đã lưu riêng của tài khoản mới thay vì giữ giá trị cũ.
+  useEffect(() => {
+    const cfg = getLocalRemarkConfig(accountId);
+    setRemarkDisplayMode(cfg.displayMode);
+    setBotCount(cfg.botCount);
+  }, [accountId]);
+
+  // Lưu displayMode/botCount vào Firebase + localStorage riêng theo accountId,
+  // giữ nguyên các field khác (templateType, emoji, cta) đã lưu trước đó.
+  const persistRemarkConfig = (patch: Partial<{ displayMode: RemarkDisplayMode; botCount: number }>) => {
+    const updated = { ...getLocalRemarkConfig(accountId), ...patch };
+    saveRemarkConfigToFirebaseAndLocal(updated, userPreferencesMap, accountId, updatedBy).catch((e) => {
+      console.error('Failed to persist TOP/BOT remark config:', e);
+    });
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -263,7 +291,10 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setRemarkDisplayMode(opt.id)}
+                  onClick={() => {
+                    setRemarkDisplayMode(opt.id);
+                    persistRemarkConfig({ displayMode: opt.id });
+                  }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     remarkDisplayMode === opt.id
                       ? 'bg-violet-600 text-white shadow-xs font-black'
@@ -295,6 +326,10 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
                 onChange={(e) => {
                   const n = parseInt(e.target.value, 10);
                   setBotCount(Number.isFinite(n) && n > 0 ? Math.min(999, n) : 1);
+                }}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  persistRemarkConfig({ botCount: Number.isFinite(n) && n > 0 ? Math.min(999, n) : 1 });
                 }}
                 className="w-16 px-2 py-1 rounded-lg border border-slate-300 text-[11px] font-bold text-center focus:outline-hidden focus:ring-2 focus:ring-violet-500"
               />

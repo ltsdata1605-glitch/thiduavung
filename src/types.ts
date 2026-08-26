@@ -15,6 +15,7 @@ export interface RemarkTemplateConfig {
   templateType: RemarkTemplateType;
   includeEmoji: boolean;
   includeCallToAction: boolean;
+  botCount: number; // Số lượng Siêu thị BOT được tag ở Mẫu 1 TOP/BOT (Tab Siêu Thị & Nhóm)
 }
 
 // 'no_tag_top' is the default: khi xuất ảnh, các ST trong nhóm TOP không cần
@@ -24,6 +25,7 @@ export const DEFAULT_REMARK_CONFIG: RemarkTemplateConfig = {
   templateType: 'template_1',
   includeEmoji: true,
   includeCallToAction: true,
+  botCount: 20,
 };
 
 export interface CategoryData {

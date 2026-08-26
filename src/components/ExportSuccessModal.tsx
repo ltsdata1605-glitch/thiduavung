@@ -40,6 +40,10 @@ export interface ExportSuccessModalProps {
   remarkText?: string;
   remarkContext?: Record<string, any>;
   currentUser?: UserAccount | null;
+  // Toàn bộ doc user_preferences hiện tại (theo accountId) — bắt buộc phải
+  // truyền vào khi lưu mẫu nhận xét, nếu không saveRemarkConfigToFirebaseAndLocal
+  // sẽ ghi đè (setDoc không merge) và xoá mất preference của các tài khoản khác.
+  userPreferencesMap?: Record<string, any>;
 }
 
 export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
@@ -50,6 +54,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
   remarkText = '',
   remarkContext,
   currentUser,
+  userPreferencesMap = {},
 }) => {
   const isMobile = useMemo(() => isMobileUserAgent(), []);
   const [copiedImage, setCopiedImage] = useState(false);
@@ -59,7 +64,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
 
   // Template configuration state
-  const [config, setConfig] = useState<RemarkTemplateConfig>(() => getLocalRemarkConfig());
+  const [config, setConfig] = useState<RemarkTemplateConfig>(() => getLocalRemarkConfig(currentUser?.accountId));
 
   // Compute active remark text based on config & context
   const activeRemarkText = useMemo(() => {
@@ -84,6 +89,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
           templateType: config.templateType,
           includeEmoji: config.includeEmoji,
           includeCallToAction: config.includeCallToAction,
+          botCount: config.botCount,
         });
       } catch (err) {
         console.error('Error generating contextual remark text:', err);
@@ -95,7 +101,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       // Load saved config on open
-      const savedConfig = getLocalRemarkConfig();
+      const savedConfig = getLocalRemarkConfig(currentUser?.accountId);
       setConfig(savedConfig);
       setIsSettingsOpen(false);
       setSaveFeedback(null);
@@ -129,7 +135,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
     } else {
       setPreviewUrl(null);
     }
-  }, [isOpen, blob, isMobile]);
+  }, [isOpen, blob, isMobile, currentUser?.accountId]);
 
   if (!isOpen) return null;
 
@@ -144,7 +150,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
     try {
       const accountId = currentUser?.accountId || 'global';
       const userName = currentUser?.name || currentUser?.accountId || 'User';
-      await saveRemarkConfigToFirebaseAndLocal(updated, {}, accountId, userName);
+      await saveRemarkConfigToFirebaseAndLocal(updated, userPreferencesMap, accountId, userName);
       setSaveFeedback('✅ Đã lưu & ghi nhớ mẫu vào Firebase');
       setTimeout(() => setSaveFeedback(null), 3000);
     } catch (e) {
