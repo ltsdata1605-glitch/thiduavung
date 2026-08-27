@@ -15,17 +15,14 @@ export interface RemarkTemplateConfig {
   templateType: RemarkTemplateType;
   includeEmoji: boolean;
   includeCallToAction: boolean;
-  botCount: number; // Số lượng Siêu thị BOT được tag ở Mẫu 1 TOP/BOT (Tab Siêu Thị & Nhóm)
+  botCount?: number;
 }
 
-// 'no_tag_top' is the default: khi xuất ảnh, các ST trong nhóm TOP không cần
-// @tag (chỉ hiện Tên_User), còn nhóm BOT vẫn giữ @tag để nhắc Boss xử lý.
 export const DEFAULT_REMARK_CONFIG: RemarkTemplateConfig = {
-  displayMode: 'no_tag_top',
+  displayMode: 'user',
   templateType: 'template_1',
   includeEmoji: true,
   includeCallToAction: true,
-  botCount: 20,
 };
 
 export interface CategoryData {
@@ -61,7 +58,6 @@ export interface StoreRecord {
   achievedCategories?: number;
   dtThuc?: number; // Doanh thu thực trước quy đổi (DT Realtime / DTLK)
   dtQd?: number;   // Doanh thu sau quy đổi (DT Realtime QĐ / DTQĐ)
-  rateQd?: number; // Tỉ lệ hoàn thành quy đổi (% HT Target Ngày QĐ / % HT Target Dự Kiến QĐ)
   lastUpdated?: string;
 }
 

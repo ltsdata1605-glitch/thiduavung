@@ -1207,7 +1207,10 @@ export function parseRevenuePastedData(
 
         achieved = dtQd;
         target = valTargetQd > 0 ? valTargetQd : valTargetRaw;
-        rate = target > 0 ? (achieved / target) * 100 : (valRateQd > 0 ? valRateQd : valRateRaw);
+        // Luỹ kế ưu tiên lấy trực tiếp cột: % HT Target Dự Kiến (QĐ)
+        rate = cells[colOffset + 5] !== undefined && cells[colOffset + 5].trim() !== ''
+          ? valRateQd
+          : (target > 0 ? (achieved / target) * 100 : valRateRaw);
       } else {
         // Realtime Doanh Thu (BI BCDTST Realtime):
         // Col offset + 1: % HT Target Ngày (e.g. 53.43%)
@@ -1227,15 +1230,12 @@ export function parseRevenuePastedData(
         dtThuc = valDtRaw;
         dtQd = valDtQd > 0 ? valDtQd : valDtRaw;
 
-        if (valTargetQd > 0 || valDtQd > 0) {
-          achieved = valDtQd;
-          target = valTargetQd;
-          rate = target > 0 ? (achieved / target) * 100 : (valRateQd > 0 ? valRateQd : 0);
-        } else {
-          achieved = valDtRaw;
-          target = valTargetRaw;
-          rate = target > 0 ? (achieved / target) * 100 : (valRateRaw > 0 ? valRateRaw : 0);
-        }
+        achieved = valDtQd > 0 ? valDtQd : valDtRaw;
+        target = valTargetQd > 0 ? valTargetQd : valTargetRaw;
+        // Realtime ưu tiên lấy trực tiếp cột: % HT Target Ngày (QĐ)
+        rate = cells[colOffset + 4] !== undefined && cells[colOffset + 4].trim() !== ''
+          ? valRateQd
+          : (target > 0 ? (achieved / target) * 100 : valRateRaw);
       }
     }
 

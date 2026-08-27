@@ -1870,7 +1870,7 @@ ${botLines || 'Đang cập nhật'}
               <div className="overflow-x-auto xl:overflow-x-visible grow flex flex-col justify-between">
                 <div>
                   <div className="bg-[#fcd34d] text-black font-black h-10 flex items-center justify-center border-b border-slate-300 text-xs sm:text-sm md:text-base uppercase tracking-wide">
-                    TOP &amp; BOTTOM TỈ LỆ HOÀN THÀNH
+                    {timeMode === 'realtime' ? 'TOP & BOTTOM TỈ LỆ HOÀN THÀNH' : 'TOP & BOTTOM DK TỈ LỆ HOÀN THÀNH'}
                   </div>
                   <table className="w-full text-left border-collapse text-[11px] sm:text-xs font-sans">
                     <thead>
@@ -1880,7 +1880,7 @@ ${botLines || 'Đang cập nhật'}
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-center w-12">KÊNH</th>
                         <th className="p-1 sm:p-1.5 border-r border-b border-slate-300 text-left pl-2 sm:pl-3">SIÊU THỊ</th>
                         <th className="p-1 sm:p-1.5 border-b border-slate-300 text-center w-20 sm:w-24 leading-tight">
-                          <div>TỈ LỆ</div>
+                          <div>{timeMode === 'realtime' ? 'TỈ LỆ' : 'DK TỈ LỆ'}</div>
                           <div className="text-[9.5px]">HOÀN THÀNH</div>
                         </th>
                       </tr>
