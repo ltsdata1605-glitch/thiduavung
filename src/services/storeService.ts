@@ -8,9 +8,7 @@ const COLLECTION = 'competition_tracker';
 const LOCAL_CACHE_KEY = 'tnb_firebase_cache';
 
 export interface FirebaseDataPayload {
-  realtimeStoresTinh?: StoreRecord[];
   realtimeStoresVung?: StoreRecord[];
-  luykeStoresTinh?: StoreRecord[];
   luykeStoresVung?: StoreRecord[];
   realtimeDtStores?: StoreRecord[];
   realtimeTcStores?: StoreRecord[];
@@ -35,13 +33,8 @@ export interface FirebaseDataPayload {
 
 // Each dataset gets its own Firestore document so a large BOSS/store list
 // never risks pushing a combined document past Firestore's 1MiB doc limit.
-// Realtime/Luỹ Kế are further split by Tỉnh vs Vùng scope — they're pasted
-// into two separate boxes in the UI and must persist independently instead
-// of overwriting each other.
 export type DocKey =
-  | 'realtime_stores_tinh'
   | 'realtime_stores_vung'
-  | 'luyke_stores_tinh'
   | 'luyke_stores_vung'
   | 'realtime_revenue_dt'
   | 'realtime_revenue_tc'
@@ -58,9 +51,7 @@ export type DocKey =
   | 'group_summary_cards';
 
 const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
-  realtime_stores_tinh: 'realtimeStoresTinh',
   realtime_stores_vung: 'realtimeStoresVung',
-  luyke_stores_tinh: 'luykeStoresTinh',
   luyke_stores_vung: 'luykeStoresVung',
   realtime_revenue_dt: 'realtimeDtStores',
   realtime_revenue_tc: 'realtimeTcStores',
@@ -88,9 +79,7 @@ const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
 // else (BOSS list, settings, preferences, filters) stays well under the
 // limit and keeps the simple single-document form.
 const CHUNKED_STORE_DOC_KEYS = new Set<DocKey>([
-  'realtime_stores_tinh',
   'realtime_stores_vung',
-  'luyke_stores_tinh',
   'luyke_stores_vung',
   'realtime_revenue_dt',
   'realtime_revenue_tc',
@@ -335,12 +324,12 @@ async function saveDataset(
   }
 }
 
-export async function saveRealtimeStoresToFirebase(stores: StoreRecord[], updatedBy: string = 'Super Admin', scope: 'tinh' | 'vung' = 'tinh') {
-  return saveChunkedStoreDataset(scope === 'vung' ? 'realtime_stores_vung' : 'realtime_stores_tinh', stores, updatedBy);
+export async function saveRealtimeStoresToFirebase(stores: StoreRecord[], updatedBy: string = 'Super Admin') {
+  return saveChunkedStoreDataset('realtime_stores_vung', stores, updatedBy);
 }
 
-export async function saveLuyKeStoresToFirebase(stores: StoreRecord[], updatedBy: string = 'Super Admin', scope: 'tinh' | 'vung' = 'tinh') {
-  return saveChunkedStoreDataset(scope === 'vung' ? 'luyke_stores_vung' : 'luyke_stores_tinh', stores, updatedBy);
+export async function saveLuyKeStoresToFirebase(stores: StoreRecord[], updatedBy: string = 'Super Admin') {
+  return saveChunkedStoreDataset('luyke_stores_vung', stores, updatedBy);
 }
 
 export async function saveRealtimeDtToFirebase(stores: StoreRecord[], lastUpdated: string, updatedBy: string = 'Super Admin') {

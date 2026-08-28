@@ -44,13 +44,43 @@ export interface BossAssignmentRecord {
  */
 const normVN = (s: string = ''): string => s.normalize('NFC');
 
+/** Strips diacritics/case for loose header-keyword matching (paste-format detection & parsing). */
+function normalizeHeaderText(h: string): string {
+  return (h || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toUpperCase()
+    .trim();
+}
+
+/**
+ * Heuristic KÊNH inferred purely from a store's own name/code when no BOSS
+ * file match (or explicit KÊNH column) is available — e.g. "ĐMM_..." implies
+ * DMM. Shared by both paste-format parsers below.
+ */
+function inferKenhFromSieuThiName(sieuthi: string): Channel | string {
+  const u = normVN(sieuthi).toUpperCase();
+  if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
+  if (u.includes('OFF') || u.includes('OFFLINE')) return 'OFF';
+  if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
+  if (u.includes('ĐMM') || u.includes('DMM')) return 'DMM';
+  if (u.includes('ĐMS') || u.includes('DMS')) return 'DMS';
+  if (u.includes('TGD')) return 'TGD';
+  return 'DML';
+}
+
 /**
  * Smart Shortening Engine for Category Column Headers.
  * Converts long Vietnamese BI category names into clean, compact abbreviations.
  */
 export const getShortCategoryName = (catName: string): string => {
   if (!catName) return '';
-  const trimmed = catName.trim();
+  // Ngành hàng dán từ BI mới có mã số đứng đầu (VD: "827-Nồi cơm") — mã này
+  // chỉ cần để định danh/khớp dữ liệu nội bộ, không cần hiển thị cho người
+  // dùng, nên bỏ đi trước khi rút gọn/tra từ điển tên hiển thị.
+  const trimmed = catName.trim().replace(/^\d+\s*-\s*/, '');
   const upper = trimmed.toUpperCase();
 
   const dictionary: Record<string, string> = {
@@ -661,14 +691,17 @@ export function parseBossPastedData(text: string): {
   };
 }
 
-/** What one of the 4 Realtime/Luỹ Kế × Tỉnh/Vùng paste boxes is supposed to receive. */
+/** What one of the Realtime/Luỹ Kế Siêu Thị paste boxes is supposed to receive. */
 export interface PasteScopeExpectation {
   timeMode: 'realtime' | 'luyke';
+  // 'tinh' (province rollup) is no longer a paste target — kept as a detected
+  // value so a stray province-rollup paste into the Siêu Thị box is still
+  // caught and reported below instead of silently accepted.
   granularity: 'tinh' | 'sieuthi';
 }
 
 /**
- * Validates that pasted text (any of the 4 Realtime/Luỹ Kế Tỉnh/Vùng boxes)
+ * Validates that pasted text (either of the Realtime/Luỹ Kế Siêu Thị boxes)
  * actually looks like a store competition table — i.e. has a recognizable
  * TARGET/CHỈ TIÊU and/or ĐẠT/REALTIME/LUỸ KẾ column — before the expensive
  * parse+save pipeline runs. Catches the common "pasted the wrong sheet /
@@ -676,8 +709,8 @@ export interface PasteScopeExpectation {
  *
  * When `expected` is given, also cross-checks the pasted header against
  * which box it landed in — e.g. text carrying a REALTIME column pasted into
- * a Luỹ Kế box, or store-level text (SIÊU THỊ/BOSS columns) pasted into a
- * Tỉnh (province rollup) box — and reports a dedicated mismatch error
+ * a Luỹ Kế box, or a province-rollup table (TỈNH column, no SIÊU THỊ/BOSS)
+ * pasted into the Siêu Thị box — and reports a dedicated mismatch error
  * instead of silently accepting data that's structurally valid but destined
  * for the wrong box. Ambiguous headers (neither signal present) are never
  * flagged — false positives are worse than missing a rare mismatch.
@@ -721,7 +754,12 @@ export function validateStoreHeaders(text: string, expected?: PasteScopeExpectat
   let hasTarget = false;
   let hasAchieved = false;
 
-  for (let i = 0; i < Math.min(50, lines.length); i++) {
+  // Scans the WHOLE paste, not just a leading slice — the newer BI export
+  // (baocao.dienmayxanh.com) carries a long sidebar/toolbar preamble (page
+  // nav, user info, filters...) ahead of the real header row, easily 100+
+  // lines, so capping this scan used to make a perfectly valid paste look
+  // structureless (reported as "found columns: DASHBOARDS").
+  for (let i = 0; i < lines.length; i++) {
     const delimiter = detectDelimiter(lines[i]);
     const cells = splitLine(lines[i], delimiter);
     if (cells.length < 2) continue;
@@ -729,7 +767,14 @@ export function validateStoreHeaders(text: string, expected?: PasteScopeExpectat
 
     const tTarget = normHeaders.some((h) => h.includes('CHI TIEU') || h.includes('KE HOACH') || h.includes('TARGET'));
     const tAchieved = normHeaders.some(
-      (h) => h.includes('DAT') || h.includes('REALTIME') || h.includes('LUY KE') || h.includes('DOANH THU') || h.includes('DTLK') || h.includes('SLLK')
+      (h) =>
+        h.includes('DAT') ||
+        h.includes('REALTIME') ||
+        h.includes('LUY KE') ||
+        h.includes('DOANH THU') ||
+        h.includes('DTLK') ||
+        h.includes('SLLK') ||
+        h.includes('SO LUONG')
     );
     const tRate = normHeaders.some((h) => h.includes('DU KIEN') || h.includes('TY LE') || h.includes('%') || h.includes('HOAN THANH'));
 
@@ -809,10 +854,249 @@ export function validateStoreHeaders(text: string, expected?: PasteScopeExpectat
 }
 
 /**
+ * Detects the "store-name-only" BI export format (e.g. BI Dashboards'
+ * "Doanh thu theo kênh bán" / revenue-by-store report) — pasted rows carry
+ * NO Tỉnh/Siêu Thị/Boss/Kênh column at all, only value columns like
+ * "DOANH THU (RT)", "TARGET", "% HT NGÀY". The store's own name/code sits
+ * alone on the line directly above its value row (an artifact of copying an
+ * HTML table where the store name is a hyperlink), so a header row here has
+ * TARGET/ĐẠT-like columns but no entity-identifying column — the opposite
+ * of the classic format handled below, whose header always includes a
+ * SIÊU THỊ/TỈNH/BOSS/KÊNH column alongside them.
+ */
+function looksLikeStoreNameOnlyFormat(
+  lines: string[],
+  detectDelimiter: (line: string) => string,
+  splitLine: (line: string, delimiter: string) => string[],
+  normalizeHeader: (h: string) => string
+): boolean {
+  // Scans the whole paste — see the matching comment in validateStoreHeaders
+  // above about the new BI source's long sidebar/toolbar preamble.
+  for (let i = 0; i < lines.length; i++) {
+    const delim = detectDelimiter(lines[i]);
+    const cells = splitLine(lines[i], delim);
+    if (cells.length < 2) continue;
+    const norm = cells.map(normalizeHeader);
+    const hasAchieved = norm.some(
+      (h) => h.includes('DOANH THU') || h.includes('DAT') || h.includes('REALTIME') || h.includes('LUY KE') || h.includes('SO LUONG')
+    );
+    const hasTarget = norm.some((h) => h.includes('TARGET') || h.includes('CHI TIEU'));
+    if (!hasAchieved && !hasTarget) continue;
+    const hasEntityCol = norm.some(
+      (h) => h.includes('SIEU THI') || h.includes('TINH') || h.includes('BOSS') || h.includes('KENH') || h.includes('STORE') || h.includes('CUA HANG')
+    );
+    return !hasEntityCol;
+  }
+  return false;
+}
+
+/**
+ * Parses the "store-name-only" BI export format described above. Since the
+ * pasted text carries nothing but a store name/code and its numbers, every
+ * other attribute (Tỉnh, Tỉnh Mới, Kênh, Boss, Phân Loại Shop, Mã Kho) is
+ * resolved by matching that name against the uploaded BOSS file (Cột J —
+ * see getBossAssignmentIndex above, which now also indexes on Cột J).
+ * Multiple stacked ngành hàng blocks (each with its own "827-Nồi cơm"-style
+ * label line, header line, and "TỔNG" line) are merged per store into one
+ * categoryMap, same as the classic parser below.
+ *
+ * The header's rate column means something different depending on which box
+ * this was pasted into:
+ * - Realtime ("DOANH THU (RT)" / TARGET NGÀY): rate = "% HT NGÀY", the
+ *   day's actual completion so far.
+ * - Luỹ Kế ("DOANH THU" / TARGET THÁNG): rate = "% DỰ BÁO" instead — the
+ *   BI's own forecasted month-end completion, not the plain
+ *   doanh-thu/target-tháng ratio that "% HT THÁNG" gives.
+ */
+function parseStoreNameOnlyFormat(lines: string[], isRealtime: boolean, bossAssignments: BossAssignmentRecord[]): StoreRecord[] {
+  const detectDelimiter = (line: string): string => {
+    if (line.includes('\t')) return '\t';
+    // No comma fallback here (unlike the classic parser below): this
+    // format's own ngành hàng/store names routinely contain commas — "OTT
+    // Mango+, iCallMe", "Trả chậm FECredit, Shinhan, Samsung Finance+", "Tủ
+    // lạnh, Tủ đông, Tủ mát". Treating comma as a delimiter would shred a
+    // bare label line into multiple cells, so it skips the "cells.length <
+    // 2 -> pendingLabel" branch below and its whole category block silently
+    // gets attributed to whichever category came right before it.
+    return /\s{2,}/.source;
+  };
+  const splitLine = (line: string, delimiter: string): string[] => {
+    const parts = delimiter === /\s{2,}/.source ? line.split(new RegExp(delimiter)) : line.split(delimiter);
+    return parts.map((c) => c.trim().replace(/^["']|["']$/g, ''));
+  };
+  // This source uses US-style number formatting (comma = thousands
+  // separator, period = decimal — e.g. "4,210.5%", "747.78"), the opposite
+  // convention from the classic parser's Vietnamese-locale numbers below.
+  const parseNumUS = (val: string | undefined, defaultVal = 0): number => {
+    if (!val) return defaultVal;
+    const clean = val.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(clean);
+    return isNaN(num) ? defaultVal : num;
+  };
+  const parseRateUS = (val: string | undefined): number => {
+    if (!val) return 0;
+    const clean = val.replace(/%/g, '').replace(/,/g, '').trim();
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const recordMap = new Map<string, StoreRecord>();
+  let currentCategoryName = '';
+  let colAchieved = -1;
+  let colTarget = -1;
+  let colRate = -1;
+  // Whether the current category block is revenue-based (DOANH THU, Triệu VND)
+  // vs quantity-based (SỐ LƯỢNG, SLLK — e.g. Camera, Sim Tổng, thẻ, VAS...).
+  // The top-level target/achieved fields are documented as Triệu VND, so only
+  // revenue-based categories should be summed into them — mixing in quantity
+  // counts would make the store's overall total meaningless (mirrors the same
+  // guard in the classic parser below).
+  let currentCategoryIsRevenue = true;
+  // The single-cell line seen most recently — either a ngành hàng label
+  // ("827-Nồi cơm"), a store name, or "TỔNG", disambiguated by what kind of
+  // line follows it (a column header vs. a plain value row).
+  let pendingLabel: string | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const delim = detectDelimiter(lines[i]);
+    const cells = splitLine(lines[i], delim);
+
+    if (cells.length < 2) {
+      pendingLabel = lines[i].trim();
+      continue;
+    }
+
+    const norm = cells.map(normalizeHeaderText);
+    // Some ngành hàng (Camera, Sim Tổng, VAS/thẻ/ngân hàng...) are measured
+    // by quantity, not revenue — their column reads "SỐ LƯỢNG (RT)" / "SỐ
+    // LƯỢNG" instead of "DOANH THU (RT)" / "DOANH THU". Missing this made
+    // those blocks' header rows go unrecognized entirely, so colAchieved
+    // stayed stale (or -1) and every store under them parsed as 0%.
+    const hasAchieved = norm.some(
+      (h) => h.includes('DOANH THU') || h.includes('DAT') || h.includes('REALTIME') || h.includes('LUY KE') || h.includes('SO LUONG')
+    );
+    const hasTarget = norm.some((h) => h.includes('TARGET') || h.includes('CHI TIEU'));
+
+    if (hasAchieved && hasTarget) {
+      // New ngành hàng block's column-header row. The label line right
+      // before it (if any) was the category name, not a store/"Tổng" line.
+      // Strip the BI's internal numeric code ("827-Nồi cơm" -> "Nồi cơm") —
+      // this becomes the categoryMap KEY (not just a display label), and it
+      // must match the app's existing 38-category taxonomy
+      // (ALL_HARDCODED_CATEGORY_NAMES / DEFAULT_CATEGORY_GROUP_MAP in
+      // ReportView.tsx) exactly, or the category silently falls into "Chưa
+      // phân nhóm" and every column for it renders as 0 — the code prefix
+      // is a BI-internal id, not part of that established category identity.
+      if (pendingLabel) currentCategoryName = pendingLabel.replace(/^\d+\s*-\s*/, '');
+      colAchieved = norm.findIndex(
+        (h) => h.includes('DOANH THU') || h.includes('DAT') || h.includes('REALTIME') || h.includes('LUY KE') || h.includes('SO LUONG')
+      );
+      currentCategoryIsRevenue =
+        colAchieved === -1 || (!norm[colAchieved].includes('SLLK') && !norm[colAchieved].includes('SO LUONG'));
+      colTarget = norm.findIndex((h) => h.includes('TARGET') || h.includes('CHI TIEU'));
+      const forecastIdx = norm.findIndex((h) => h.includes('DU BAO'));
+      if (isRealtime) {
+        // Realtime: "% HT NGÀY" — the day's actual completion, not the forecast.
+        colRate = norm.findIndex((h, idx) => (h.includes('% HT') || h.includes('HOAN THANH')) && idx !== forecastIdx);
+        if (colRate === -1) {
+          colRate = norm.findIndex((h, idx) => h.includes('%') && idx !== forecastIdx);
+        }
+      } else {
+        // Luỹ Kế: "% DỰ BÁO" — BI's forecasted month-end completion.
+        colRate = forecastIdx;
+        if (colRate === -1) {
+          colRate = norm.findIndex((h, idx) => (h.includes('% HT') || h.includes('HOAN THANH')) && idx !== forecastIdx);
+        }
+      }
+      pendingLabel = null;
+      continue;
+    }
+
+    // A value row belongs to whatever pendingLabel named — a store, or the
+    // block's "TỔNG" line (which is skipped, not turned into a record).
+    if (!pendingLabel) continue;
+    const label = pendingLabel;
+    pendingLabel = null;
+
+    const labelLower = label.trim().toLowerCase();
+    if (labelLower === 'tổng' || labelLower === 'tong') continue;
+    if (!label) continue;
+
+    const achieved = colAchieved >= 0 ? parseNumUS(cells[colAchieved]) : 0;
+    const target = colTarget >= 0 ? parseNumUS(cells[colTarget]) : 0;
+    let rate = colRate >= 0 ? parseRateUS(cells[colRate]) : 0;
+    if (colRate === -1 && target > 0) {
+      rate = Number(((achieved / target) * 100).toFixed(1));
+    }
+
+    const matched = findBossAssignmentRecord(label, bossAssignments);
+    const tinh = matched?.tinh || 'Cần Thơ';
+    const boss = matched?.boss || 'Boss Quản Lý';
+    const kenh: Channel | string = (matched?.kenh as Channel) || inferKenhFromSieuThiName(label);
+
+    const entityKey = label.toLowerCase();
+    if (recordMap.has(entityKey)) {
+      const existing = recordMap.get(entityKey)!;
+      if (currentCategoryIsRevenue) {
+        existing.target = Number((existing.target + target).toFixed(2));
+        existing.achieved = Number((existing.achieved + achieved).toFixed(2));
+        existing.rate = existing.target > 0 ? Number(((existing.achieved / existing.target) * 100).toFixed(1)) : 0;
+      }
+      if (currentCategoryName) {
+        existing.categoryMap = existing.categoryMap || {};
+        existing.categoryMap[currentCategoryName] = {
+          target: Number(target.toFixed(2)),
+          achieved: Number(achieved.toFixed(2)),
+          rate,
+        };
+      }
+    } else {
+      const baseTarget = currentCategoryIsRevenue ? target : 0;
+      const baseAchieved = currentCategoryIsRevenue ? achieved : 0;
+      const baseRate = currentCategoryIsRevenue ? rate : 0;
+      const catMap: Record<string, { target: number; achieved: number; rate: number }> = {};
+      if (currentCategoryName) {
+        catMap[currentCategoryName] = {
+          target: Number(target.toFixed(2)),
+          achieved: Number(achieved.toFixed(2)),
+          rate,
+        };
+      }
+      recordMap.set(entityKey, {
+        stt: recordMap.size + 1,
+        id: `ST_${Date.now()}_${recordMap.size + 1}`,
+        tinh,
+        boss,
+        kenh,
+        sieuthi: label,
+        target: Number(baseTarget.toFixed(2)),
+        achieved: Number(baseAchieved.toFixed(2)),
+        rate: baseRate,
+        rank: 0,
+        categoryMap: catMap,
+        lastUpdated: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      });
+    }
+  }
+
+  const records = Array.from(recordMap.values());
+  records.sort((a, b) => b.rate - a.rate);
+  records.forEach((rec, idx) => {
+    rec.rank = idx + 1;
+    rec.stt = idx + 1;
+  });
+  return records;
+}
+
+/**
  * Parses TSV/CSV string pasted directly from Excel or Google Sheets.
  * Handles headers like STT, TỈNH, BOSS, KÊNH, SIÊU THỊ, CHỈ TIÊU, ĐẠT, TỶ LỆ...
  */
-export function parsePastedData(text: string, isRealtime: boolean = false): StoreRecord[] {
+export function parsePastedData(
+  text: string,
+  isRealtime: boolean = false,
+  bossAssignments: BossAssignmentRecord[] = []
+): StoreRecord[] {
   if (!text || !text.trim()) return [];
 
   const lines = text
@@ -835,6 +1119,13 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
     return parts.map((c) => c.trim().replace(/^["']|["']$/g, ''));
   };
 
+  // BI export with no Tỉnh/Siêu Thị/Boss/Kênh column at all (just a store
+  // name line + a numbers line) — hand off entirely to the dedicated parser,
+  // which resolves those attributes from the BOSS file instead.
+  if (looksLikeStoreNameOnlyFormat(lines, detectDelimiter, splitLine, normalizeHeaderText)) {
+    return parseStoreNameOnlyFormat(lines, isRealtime, bossAssignments);
+  }
+
   const parseNum = (val: string | undefined, defaultVal = 0): number => {
     if (!val) return defaultVal;
     const clean = val.replace(/[^0-9.-]/g, '');
@@ -847,17 +1138,6 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
     const clean = val.replace(/%/g, '').replace(/,/g, '.').trim();
     const num = parseFloat(clean);
     return isNaN(num) ? 0 : num;
-  };
-
-  const kenhFromSieuThi = (sieuthi: string): Channel | string => {
-    const u = normVN(sieuthi).toUpperCase();
-    if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
-    if (u.includes('OFF') || u.includes('OFFLINE')) return 'OFF';
-    if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
-    if (u.includes('ĐMM') || u.includes('DMM')) return 'DMM';
-    if (u.includes('ĐMS') || u.includes('DMS')) return 'DMS';
-    if (u.includes('TGD')) return 'TGD';
-    return 'DML';
   };
 
   const isNumericLike = (s: string): boolean => /^-?[\d.,]+%?$/.test(s.trim());
@@ -925,13 +1205,17 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
       !firstCellUpper.includes('RANK') &&
       (colTarget >= 0 || colAchieved >= 0 || colRate >= 0)
     ) {
-      currentCategoryName = cells[0].trim();
+      // Strip a leading BI numeric code ("827-Nồi cơm" -> "Nồi cơm") so this
+      // categoryMap key matches the app's established category taxonomy —
+      // see the matching comment in parseStoreNameOnlyFormat above.
+      currentCategoryName = cells[0].trim().replace(/^\d+\s*-\s*/, '');
       currentCategoryIsRevenue = tAchieved === -1 || !upper[tAchieved].includes('SLLK');
     }
   };
 
-  // Find initial header mapping
-  for (let i = 0; i < Math.min(50, lines.length); i++) {
+  // Find initial header mapping — scans the whole paste (see the preamble
+  // comment in validateStoreHeaders above).
+  for (let i = 0; i < lines.length; i++) {
     const lineDelimiter = detectDelimiter(lines[i]);
     const cells = splitLine(lines[i], lineDelimiter);
     if (cells.length < 2) continue;
@@ -989,7 +1273,7 @@ export function parsePastedData(text: string, isRealtime: boolean = false): Stor
     else if (rawKenh.includes('DMM')) kenh = 'DMM';
     else if (rawKenh.includes('DMS')) kenh = 'DMS';
     else if (rawKenh.includes('DML')) kenh = 'DML';
-    else kenh = kenhFromSieuThi(sieuthiRaw);
+    else kenh = inferKenhFromSieuThiName(sieuthiRaw);
 
     const sieuthi = sieuthiRaw;
 
@@ -1089,16 +1373,6 @@ export function parseRevenuePastedData(
     return isNaN(num) ? 0 : num;
   };
 
-  const kenhFromSieuThi = (sieuthi: string): Channel | string => {
-    const u = normVN(sieuthi).toUpperCase();
-    if (u.includes('LƯU ĐỘNG') || u.includes('LUU DONG') || u.includes('LUUDONG')) return 'LƯU ĐỘNG';
-    if (u.includes('OFF') || u.includes('OFFLINE')) return 'OFF';
-    if (u.includes('TOPZONE') || u.includes('TOP ZONE') || u.includes('TZ') || u.includes('AAR')) return 'TopZone';
-    if (u.includes('ĐMM') || u.includes('DMM')) return 'DMM';
-    if (u.includes('ĐMS') || u.includes('DMS')) return 'DMS';
-    if (u.includes('TGD')) return 'TGD';
-    return 'DML';
-  };
 
   const results: StoreRecord[] = [];
 
@@ -1252,7 +1526,7 @@ export function parseRevenuePastedData(
       rate: Number(rate.toFixed(1)),
       dtThuc: dataType === 'doanhthu' ? (dtThuc || 0) : undefined,
       dtQd: dataType === 'doanhthu' ? (dtQd || 0) : undefined,
-      kenh: kenhFromSieuThi(sieuthi),
+      kenh: inferKenhFromSieuThiName(sieuthi),
       boss: '',
       categoryMap: {},
     });
@@ -1378,13 +1652,18 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
     const mstFromSieuthi = extractMst(b.sieuthi);
     if (mstFromSieuthi && !byMst.has(mstFromSieuthi)) byMst.set(mstFromSieuthi, b);
 
-    const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '');
+    const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '') || extractStoreCode(b.sieuthiNgan || '');
     if (code && !byCode.has(code)) byCode.set(code, b);
 
     const normB = normalizeVietnameseForMatch(b.sieuthi);
     if (normB && !byNormName.has(normB)) byNormName.set(normB, b);
     const normBase = normalizeVietnameseForMatch(b.sieuthiBase || '');
     if (normBase && !byNormName.has(normBase)) byNormName.set(normBase, b);
+    // Cột J (SIÊU THỊ) — một số nguồn BI mới (VD: BCDT theo Siêu thị) chỉ cho
+    // "ĐML_STR_STR - 99 Hùng Vương" (không kèm MST), khớp đúng định dạng cột
+    // này thay vì cột O (MST – TÊN SIÊU THỊ).
+    const normNgan = normalizeVietnameseForMatch(b.sieuthiNgan || '');
+    if (normNgan && !byNormName.has(normNgan)) byNormName.set(normNgan, b);
   });
 
   const index: BossAssignmentIndex = { byMst, byCode, byNormName };

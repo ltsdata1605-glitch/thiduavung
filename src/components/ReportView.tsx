@@ -957,6 +957,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   const isAllCategoryGroups = selectedCategoryGroup === 'ALL' || (!selectedCategoryGroup && selectedCategoryGroup !== 'NONE');
 
+  // Every ngành hàng name that actually has data in the currently loaded
+  // dataset (union of every store's categoryMap keys) — used below to drop
+  // stale, always-empty "unknown" columns that categoryGroupMap/
+  // categoryOrderMap/categoryDisplayNameMap keep referencing after a BOSS
+  // paste change (e.g. the old numeric-prefixed BI codes) even though no
+  // store's categoryMap has matched that exact key since. This never hides
+  // one of the 38 canonical categories — those still show even at 0%,
+  // which is real business data, not staleness.
+  const liveCategoryNames = useMemo(() => {
+    const set = new Set<string>();
+    stores.forEach((s) => {
+      if (s.categoryMap) Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
+    });
+    return set;
+  }, [stores]);
+
   // Ngành hàng belonging to the selected Nhóm (Category Groups) — ordered by custom position ordering
   const categoriesInSelectedGroup = useMemo(() => (
     !isAllCategoryGroups
@@ -968,7 +984,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           );
           const list = ALL_HARDCODED_CATEGORY_NAMES.filter((cat) => selected.has(cat) && !isHiddenCat(cat));
           const unknown = Array.from(selected).filter(
-            (cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat) && !isHiddenCat(cat)
+            (cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat) && !isHiddenCat(cat) && liveCategoryNames.has(cat)
           );
           // Cluster by Nhóm (in the order the user picked them) before the
           // within-group STT sort — sorting by categoryOrderMap alone (a
@@ -985,7 +1001,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           });
         })()
       : []
-  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap, categoryHiddenMap]);
+  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap, categoryHiddenMap, liveCategoryNames]);
 
   // Whichever category columns are actually shown in the table right now
   const baseDisplayedCategoryNames = !isAllCategoryGroups ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;

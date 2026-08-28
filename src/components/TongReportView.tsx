@@ -8,7 +8,7 @@ import {
   BossAssignmentRecord,
   getFormattedNow,
 } from '../utils/parser';
-import { getCategoryGroup } from './ReportView';
+import { getCategoryGroup, DEFAULT_CATEGORY_GROUP_MAP } from './ReportView';
 import { exportElementAsImage } from '../services/imageExport';
 import { ExportLoadingModal } from './ExportLoadingModal';
 import { Camera, Download, Layers, ShieldCheck, Sparkles, Check, MessageSquare } from 'lucide-react';
@@ -121,10 +121,17 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
     );
   };
 
-  // 3. Extract all unique category names (excluding hidden ones)
+  // 3. Extract all unique category names (excluding hidden ones).
+  // Always includes the 38 canonical ngành hàng (DEFAULT_CATEGORY_GROUP_MAP
+  // — a fixed constant, unlike the user-editable categoryGroupMap prop) plus
+  // whatever the currently loaded stores actually carry. Deliberately does
+  // NOT union Object.keys(categoryGroupMap) — that state accumulates every
+  // category ever group-assigned (e.g. old BI-numeric-prefixed keys from a
+  // prior paste format) and never prunes stale ones, which used to leave
+  // always-0% zombie columns for categories no store's categoryMap matches anymore.
   const allCategoryNames = useMemo(() => {
     const set = new Set<string>();
-    Object.keys(categoryGroupMap).forEach((c) => {
+    Object.keys(DEFAULT_CATEGORY_GROUP_MAP).forEach((c) => {
       if (!isHiddenCat(c)) set.add(c);
     });
     stores.forEach((s) => {
@@ -135,7 +142,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
       }
     });
     return Array.from(set);
-  }, [categoryGroupMap, stores, categoryHiddenMap]);
+  }, [stores, categoryHiddenMap]);
 
   // 4. Compute metrics for a specific channel dataset
   const buildGroupSections = (

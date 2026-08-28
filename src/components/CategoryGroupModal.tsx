@@ -640,7 +640,7 @@ export const CategoryGroupModal: React.FC<CategoryGroupModalProps> = ({
             })}
             {categoryList.length === 0 && (
               <div className="px-3 py-6 text-center text-xs text-slate-400 font-semibold">
-                Chưa có ngành hàng nào — hãy dán dữ liệu Realtime Thi Đua Tỉnh trước.
+                Chưa có ngành hàng nào — hãy dán dữ liệu Realtime Thi Đua Siêu Thị trước.
               </div>
             )}
           </div>

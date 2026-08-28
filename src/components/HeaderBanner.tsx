@@ -820,7 +820,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </button>
 
             <a
-              href="https://bi.thegioididong.com/thi-dua?id=-1&tab=1&rt=1&dm=2&mt=2"
+              href="https://baocao.dienmayxanh.com/dashboard/thi-dua"
               target="_blank"
               rel="noopener noreferrer"
               title="Mở link cập nhật báo cáo BI Thế Giới Di Động"

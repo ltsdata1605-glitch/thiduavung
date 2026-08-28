@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount } from './types';
 import { initialUserProfile, initialSettings } from './data/sampleData';
-import { getBossForStore, extractMst, findBossAssignmentRecord, BossAssignmentRecord } from './utils/parser';
+import { getBossForStore, findBossAssignmentRecord, BossAssignmentRecord } from './utils/parser';
 import { Sidebar } from './components/Sidebar';
 import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
@@ -167,12 +167,8 @@ function AppInner() {
   const [userFiltersMap, setUserFiltersMap] = useState<Record<string, any>>(cachedData.userFilters || {});
   const appliedFiltersForAccountRef = useRef<string | null>(null);
 
-  // Stores Data — Tỉnh & Vùng are independently persisted (separate Firestore
-  // docs, see storeService.ts) since they're pasted into two separate boxes
-  // in the UI and must not overwrite each other.
-  const [realtimeStoresTinh, setRealtimeStoresTinh] = useState<StoreRecord[]>(cachedData.realtimeStoresTinh?.length ? cachedData.realtimeStoresTinh : []);
+  // Stores Data
   const [realtimeStoresVung, setRealtimeStoresVung] = useState<StoreRecord[]>(cachedData.realtimeStoresVung?.length ? cachedData.realtimeStoresVung : []);
-  const [luykeStoresTinh, setLuyKeStoresTinh] = useState<StoreRecord[]>(cachedData.luykeStoresTinh?.length ? cachedData.luykeStoresTinh : []);
   const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : []);
 
   // Revenue & Installment (Doanh thu & Trả chậm) Data
@@ -256,7 +252,7 @@ function AppInner() {
   // already the bottleneck. Only the 3 datasets the loading text promises
   // ("Realtime, Luỹ kế & danh sách Boss") gate it — the rest still load via
   // the same listeners just without blocking the modal on them.
-  const CRITICAL_SYNC_DOC_KEYS: DocKey[] = ['realtime_stores_tinh', 'luyke_stores_tinh', 'boss_assignments'];
+  const CRITICAL_SYNC_DOC_KEYS: DocKey[] = ['realtime_stores_vung', 'luyke_stores_vung', 'boss_assignments'];
   const criticalDocsSeenRef = useRef<Set<DocKey>>(new Set());
   const resolveCriticalSyncRef = useRef<(() => void) | null>(null);
   const waitForCriticalSync = () =>
@@ -312,7 +308,7 @@ function AppInner() {
     // still in flight — no confetti and a warning banner instead when the
     // account just logged in to find nothing has been uploaded at all.
     const freshCache = getLocalCache();
-    const stillEmpty = !freshCache.realtimeStoresTinh?.length && !freshCache.luykeStoresTinh?.length;
+    const stillEmpty = !freshCache.realtimeStoresVung?.length && !freshCache.luykeStoresVung?.length;
     if (stillEmpty) {
       showWarningToast('📭 Hệ thống chưa có dữ liệu thi đua nào. Vui lòng chờ Super Admin/Admin cập nhật dữ liệu Realtime & Luỹ kế.');
     } else {
@@ -399,7 +395,7 @@ function AppInner() {
       isInitialLaunchDoneRef.current = true;
       // Skip if login handler already triggered the sync animation this session
       if (cloudSyncShownRef.current) return;
-      const isFreshDevice = !cachedData.realtimeStoresTinh?.length || !cachedData.luykeStoresTinh?.length;
+      const isFreshDevice = !cachedData.realtimeStoresVung?.length || !cachedData.luykeStoresVung?.length;
       if (isFreshDevice) {
         triggerCloudSyncAnimation('Đang tải dữ liệu thi đua từ máy chủ Cloud cho thiết bị mới...');
       }
@@ -410,10 +406,8 @@ function AppInner() {
   // they change remotely (i.e. saved from another device/session). Settings,
   // filters, category config etc. update too often/quietly to be worth a toast.
   const REMOTE_UPDATE_LABELS: Partial<Record<DocKey, string>> = {
-    realtime_stores_tinh: 'Realtime Tỉnh',
-    realtime_stores_vung: 'Realtime Vùng',
-    luyke_stores_tinh: 'Luỹ Kế Tỉnh',
-    luyke_stores_vung: 'Luỹ Kế Vùng',
+    realtime_stores_vung: 'Realtime',
+    luyke_stores_vung: 'Luỹ Kế',
     realtime_revenue_dt: 'Doanh thu Realtime',
     realtime_revenue_tc: 'Trả chậm Realtime',
     luyke_revenue_dt: 'Doanh thu Luỹ kế',
@@ -458,14 +452,8 @@ function AppInner() {
   // Subscribe to Firebase Firestore Realtime Database updates
   useEffect(() => {
     const unsubscribe = subscribeToFirebaseData((payload, meta) => {
-      if (payload.realtimeStoresTinh && payload.realtimeStoresTinh.length > 0) {
-        setRealtimeStoresTinh(payload.realtimeStoresTinh);
-      }
       if (payload.realtimeStoresVung && payload.realtimeStoresVung.length > 0) {
         setRealtimeStoresVung(payload.realtimeStoresVung);
-      }
-      if (payload.luykeStoresTinh && payload.luykeStoresTinh.length > 0) {
-        setLuyKeStoresTinh(payload.luykeStoresTinh);
       }
       if (payload.luykeStoresVung && payload.luykeStoresVung.length > 0) {
         setLuyKeStoresVung(payload.luykeStoresVung);
@@ -636,14 +624,8 @@ function AppInner() {
   useEffect(() => {
     (async () => {
       const idbCache = await getIndexedDbCache();
-      if (!cachedData.realtimeStoresTinh?.length && idbCache.realtimeStoresTinh?.length) {
-        setRealtimeStoresTinh(idbCache.realtimeStoresTinh);
-      }
       if (!cachedData.realtimeStoresVung?.length && idbCache.realtimeStoresVung?.length) {
         setRealtimeStoresVung(idbCache.realtimeStoresVung);
-      }
-      if (!cachedData.luykeStoresTinh?.length && idbCache.luykeStoresTinh?.length) {
-        setLuyKeStoresTinh(idbCache.luykeStoresTinh);
       }
       if (!cachedData.luykeStoresVung?.length && idbCache.luykeStoresVung?.length) {
         setLuyKeStoresVung(idbCache.luykeStoresVung);
@@ -751,65 +733,16 @@ function AppInner() {
     return Math.max(1, new Date().getDate() - 1); // fallback: today - 1
   }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
 
-  // Get active stores depending on TimeMode & Scope (Vùng vs Siêu Thị / Tỉnh)
-  // Both Tab VÙNG and Tab SIÊU THỊ use the store-level dataset so data calculates dynamically per KÊNH
+  // Get active stores depending on TimeMode. Both Tab VÙNG and Tab SIÊU THỊ
+  // use the same store-level dataset so data calculates dynamically per KÊNH.
+  // Realtime's TARGET (top-level and per ngành hàng) is used exactly as
+  // pasted — the BI "Doanh thu theo kênh bán" source already reports it as
+  // the daily target, so it's no longer recomputed from Luỹ Kế's monthly
+  // target ÷ số ngày trong tháng like the previous (Thi Đua Tỉnh/Vùng) source
+  // required.
   const activeStores = useMemo(() => {
-    const rawStores = timeMode === 'realtime'
-      ? (realtimeStoresVung.length > 0 ? realtimeStoresVung : realtimeStoresTinh)
-      : (luykeStoresVung.length > 0 ? luykeStoresVung : luykeStoresTinh);
-
-    // If in Realtime mode, compute Target Ngày = Target Tháng (từ Luỹ Kế Siêu Thị) / số ngày trong tháng
-    if (timeMode === 'realtime' && luykeStoresVung.length > 0) {
-      const luykeByMst = new Map<string, StoreRecord>();
-      const luykeByName = new Map<string, StoreRecord>();
-      luykeStoresVung.forEach((ls) => {
-        const mst = extractMst(ls.sieuthi);
-        if (mst) luykeByMst.set(mst, ls);
-        luykeByName.set(ls.sieuthi.toLowerCase().trim(), ls);
-      });
-
-      return rawStores.map((s) => {
-        const mst = extractMst(s.sieuthi);
-        const lStore = (mst ? luykeByMst.get(mst) : undefined) || luykeByName.get(s.sieuthi.toLowerCase().trim());
-        if (!lStore) return s;
-
-        const monthlyTotalTarget = lStore.target || 0;
-        const dailyTotalTarget = daysInMonth > 0 && monthlyTotalTarget > 0 ? Number((monthlyTotalTarget / daysInMonth).toFixed(2)) : s.target;
-        const totalAchieved = s.achieved || 0;
-        const totalRate = dailyTotalTarget > 0 ? Number(((totalAchieved / dailyTotalTarget) * 100).toFixed(1)) : s.rate;
-
-        const newCategoryMap: Record<string, { target: number; achieved: number; rate: number }> = {};
-        const allCats = new Set([
-          ...Object.keys(s.categoryMap || {}),
-          ...Object.keys(lStore.categoryMap || {}),
-        ]);
-
-        allCats.forEach((cat) => {
-          const sCat = s.categoryMap?.[cat] || { target: 0, achieved: 0, rate: 0 };
-          const lCat = lStore.categoryMap?.[cat];
-          const monthlyTarget = lCat?.target || 0;
-          const dailyTarget = daysInMonth > 0 && monthlyTarget > 0 ? Number((monthlyTarget / daysInMonth).toFixed(2)) : sCat.target;
-          const achieved = sCat.achieved || 0;
-          const rate = dailyTarget > 0 ? Number(((achieved / dailyTarget) * 100).toFixed(1)) : (sCat.rate || 0);
-
-          newCategoryMap[cat] = {
-            target: dailyTarget,
-            achieved,
-            rate,
-          };
-        });
-
-        return {
-          ...s,
-          target: dailyTotalTarget,
-          rate: totalRate,
-          categoryMap: newCategoryMap,
-        };
-      });
-    }
-
-    return rawStores;
-  }, [timeMode, realtimeStoresVung, realtimeStoresTinh, luykeStoresVung, luykeStoresTinh, daysInMonth]);
+    return timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
+  }, [timeMode, realtimeStoresVung, luykeStoresVung]);
 
   // Extract unique provinces & bosses for filter dropdowns. These used to be
   // plain `const`s recomputed on every App render (any keystroke/state
@@ -851,12 +784,10 @@ function AppInner() {
     () => Array.from(
       new Set([
         ...realtimeStoresVung.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
-        ...realtimeStoresTinh.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
         ...luykeStoresVung.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
-        ...luykeStoresTinh.flatMap((s) => (s.categoryMap ? Object.keys(s.categoryMap) : [])),
       ])
     ).sort(),
-    [realtimeStoresVung, realtimeStoresTinh, luykeStoresVung, luykeStoresTinh]
+    [realtimeStoresVung, luykeStoresVung]
   );
 
   const dynamicCategoryOptions = useMemo(
@@ -926,51 +857,41 @@ function AppInner() {
   };
 
   // Handler to update Realtime dataset from Update tab & sync Firebase
-  const handleUpdateRealtimeData = async (newStores: StoreRecord[], rawText: string, scope: 'tinh' | 'vung' = 'tinh') => {
-    if (scope === 'vung') {
-      setRealtimeStoresVung(newStores);
-    } else {
-      setRealtimeStoresTinh(newStores);
-    }
+  const handleUpdateRealtimeData = async (newStores: StoreRecord[], rawText: string) => {
+    setRealtimeStoresVung(newStores);
     const timestamp = extractTimestampFromRawText(rawText);
     const newSettings = { ...settings, lastUpdateRealtime: timestamp };
     setSettings(newSettings);
     setTimeMode('realtime');
 
-    // Sync to Firebase (scope-specific document — Tỉnh & Vùng persist independently)
     const [res1, res2] = await Promise.all([
-      saveRealtimeStoresToFirebase(newStores, currentUser.name, scope),
+      saveRealtimeStoresToFirebase(newStores, currentUser.name),
       saveSettingsToFirebase(newSettings, currentUser.name),
     ]);
     if (!res1.success || !res2.success) {
       showErrorToast(res1.error || res2.error || 'Đồng bộ lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} siêu thị Realtime (${scope === 'vung' ? 'Thi đua Vùng' : 'Thi đua Tỉnh'}) lúc ${timestamp}!`);
+    showToast(`Đã đồng bộ ${newStores.length} siêu thị Realtime lúc ${timestamp}!`);
   };
 
   // Handler to update Luỹ Kế dataset from Update tab & sync Firebase
-  const handleUpdateLuyKeData = async (newStores: StoreRecord[], rawText: string, scope: 'tinh' | 'vung' = 'tinh') => {
-    if (scope === 'vung') {
-      setLuyKeStoresVung(newStores);
-    } else {
-      setLuyKeStoresTinh(newStores);
-    }
+  const handleUpdateLuyKeData = async (newStores: StoreRecord[], rawText: string) => {
+    setLuyKeStoresVung(newStores);
     const timestamp = extractTimestampFromRawText(rawText);
     const newSettings = { ...settings, lastUpdateLuyKe: timestamp };
     setSettings(newSettings);
     setTimeMode('luyke');
 
-    // Sync to Firebase (scope-specific document — Tỉnh & Vùng persist independently)
     const [res1, res2] = await Promise.all([
-      saveLuyKeStoresToFirebase(newStores, currentUser.name, scope),
+      saveLuyKeStoresToFirebase(newStores, currentUser.name),
       saveSettingsToFirebase(newSettings, currentUser.name),
     ]);
     if (!res1.success || !res2.success) {
       showErrorToast(res1.error || res2.error || 'Đồng bộ lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} siêu thị Luỹ kế (${scope === 'vung' ? 'Thi đua Vùng' : 'Thi đua Tỉnh'}) lúc ${timestamp}!`);
+    showToast(`Đã đồng bộ ${newStores.length} siêu thị Luỹ kế lúc ${timestamp}!`);
   };
 
   // Handler to update Boss assignments across both Realtime & Luỹ kế datasets & sync Firebase
@@ -998,24 +919,18 @@ function AppInner() {
         return s;
       });
 
-    const updatedRealtimeTinh = updateStores(realtimeStoresTinh);
     const updatedRealtimeVung = updateStores(realtimeStoresVung);
-    const updatedLuyKeTinh = updateStores(luykeStoresTinh);
     const updatedLuyKeVung = updateStores(luykeStoresVung);
 
-    setRealtimeStoresTinh(updatedRealtimeTinh);
     setRealtimeStoresVung(updatedRealtimeVung);
-    setLuyKeStoresTinh(updatedLuyKeTinh);
     setLuyKeStoresVung(updatedLuyKeVung);
 
     setBossAssignments(newBossAssignments);
 
-    // Sync to Firebase — each Tỉnh/Vùng dataset is its own document
+    // Sync to Firebase — Realtime & Luỹ Kế are each their own document
     const results = await Promise.all([
-      saveRealtimeStoresToFirebase(updatedRealtimeTinh, currentUser.name, 'tinh'),
-      saveRealtimeStoresToFirebase(updatedRealtimeVung, currentUser.name, 'vung'),
-      saveLuyKeStoresToFirebase(updatedLuyKeTinh, currentUser.name, 'tinh'),
-      saveLuyKeStoresToFirebase(updatedLuyKeVung, currentUser.name, 'vung'),
+      saveRealtimeStoresToFirebase(updatedRealtimeVung, currentUser.name),
+      saveLuyKeStoresToFirebase(updatedLuyKeVung, currentUser.name),
       saveBossAssignmentsToFirebase(newBossAssignments, currentUser.name),
     ]);
     const failed = results.find((r) => !r.success);
@@ -1124,9 +1039,7 @@ function AppInner() {
 
   const handleForceClearCache = async () => {
     await clearAllLocalCache();
-    setLuyKeStoresTinh([]);
     setLuyKeStoresVung([]);
-    setRealtimeStoresTinh([]);
     setRealtimeStoresVung([]);
     setSettings(initialSettings);
     setCategoryGroupMap(DEFAULT_CATEGORY_GROUP_MAP);
@@ -1632,9 +1545,7 @@ function AppInner() {
                 onUpdateRealtimeTc={handleUpdateRealtimeTc}
                 onUpdateLuyKeDt={handleUpdateLuyKeDt}
                 onUpdateLuyKeTc={handleUpdateLuyKeTc}
-                currentRealtimeStoresTinh={realtimeStoresTinh}
                 currentRealtimeStoresVung={realtimeStoresVung}
-                currentLuyKeStoresTinh={luykeStoresTinh}
                 currentLuyKeStoresVung={luykeStoresVung}
                 currentBossAssignments={bossAssignments}
                 lastUpdateRealtime={settings.lastUpdateRealtime}

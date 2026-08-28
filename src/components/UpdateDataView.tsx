@@ -39,7 +39,6 @@ import {
   XCircle,
   X,
   Globe,
-  Store,
   Clock,
   Eye,
   EyeOff,
@@ -52,16 +51,14 @@ import { copyTextToClipboard } from '../services/imageExport';
 import { usePersistedState } from '../hooks/usePersistedState';
 
 interface UpdateDataViewProps {
-  onUpdateRealtimeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
-  onUpdateLuyKeData: (newStores: StoreRecord[], rawText: string, scope?: 'tinh' | 'vung') => void;
+  onUpdateRealtimeData: (newStores: StoreRecord[], rawText: string) => void;
+  onUpdateLuyKeData: (newStores: StoreRecord[], rawText: string) => void;
   onUpdateBossData?: (bossAssignments: BossAssignmentRecord[]) => Promise<void> | void;
   onUpdateRealtimeDt?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
   onUpdateRealtimeTc?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
   onUpdateLuyKeDt?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
   onUpdateLuyKeTc?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
-  currentRealtimeStoresTinh: StoreRecord[];
   currentRealtimeStoresVung: StoreRecord[];
-  currentLuyKeStoresTinh: StoreRecord[];
   currentLuyKeStoresVung: StoreRecord[];
   currentBossAssignments: BossAssignmentRecord[];
   lastUpdateRealtime?: string;
@@ -230,9 +227,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   onUpdateRealtimeTc,
   onUpdateLuyKeDt,
   onUpdateLuyKeTc,
-  currentRealtimeStoresTinh,
   currentRealtimeStoresVung,
-  currentLuyKeStoresTinh,
   currentLuyKeStoresVung,
   currentBossAssignments,
   lastUpdateRealtime,
@@ -255,10 +250,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     }
   }, []);
 
-  // Lock / Unlock states for Realtime & Luỹ Kế inputs (Tỉnh & Vùng)
-  const [isRealtimeLockedTinh, setIsRealtimeLockedTinh] = useState(true);
+  // Lock / Unlock states for Realtime & Luỹ Kế inputs
   const [isRealtimeLockedVung, setIsRealtimeLockedVung] = useState(true);
-  const [isLuyKeLockedTinh, setIsLuyKeLockedTinh] = useState(true);
   const [isLuyKeLockedVung, setIsLuyKeLockedVung] = useState(true);
 
   // Lock / Unlock states for Doanh Thu & Trả Chậm (Realtime & Luỹ Kế)
@@ -267,10 +260,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const [isLuyKeDtLocked, setIsLuyKeDtLocked] = useState(true);
   const [isLuyKeTcLocked, setIsLuyKeTcLocked] = useState(true);
 
-  // Input text states for Tỉnh & Vùng
-  const [realtimeTextTinh, setRealtimeTextTinh] = useState('');
+  // Input text states for Realtime & Luỹ Kế
   const [realtimeTextVung, setRealtimeTextVung] = useState('');
-  const [luykeTextTinh, setLuyKeTextTinh] = useState('');
   const [luykeTextVung, setLuyKeTextVung] = useState('');
 
   // Input text states for Doanh Thu & Trả Chậm
@@ -356,23 +347,12 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
-  // Live parsed state previews for Tỉnh & Vùng — seeded from the
-  // persisted/synced dataset owned by App.
-  const [parsedRealtimeStoresTinh, setParsedRealtimeStoresTinh] = useState<StoreRecord[]>(currentRealtimeStoresTinh);
-  // Category count badge shown twice below (locked-state label + live count) —
-  // computed once here instead of two separate unmemoized Set-building passes
-  // over up to ~900 rows on every render.
-  const realtimeTinhCategoryCount = useMemo(() => {
-    const catSet = new Set<string>();
-    parsedRealtimeStoresTinh.forEach((r) => r.categoryMap && Object.keys(r.categoryMap).forEach((c) => catSet.add(c)));
-    return catSet.size;
-  }, [parsedRealtimeStoresTinh]);
+  // Live parsed state previews — seeded from the persisted/synced dataset owned by App.
   const [parsedRealtimeStoresVung, setParsedRealtimeStoresVung] = useState<StoreRecord[]>(currentRealtimeStoresVung);
-  const [parsedLuyKeStoresTinh, setParsedLuyKeStoresTinh] = useState<StoreRecord[]>(currentLuyKeStoresTinh);
   const [parsedLuyKeStoresVung, setParsedLuyKeStoresVung] = useState<StoreRecord[]>(currentLuyKeStoresVung);
   // Boss Header Validation Error State
   const [bossValidationError, setBossValidationError] = useState<BossValidationResult | null>(null);
-  // Structure validation error for one of the 4 Realtime/Luỹ Kế Tỉnh/Vùng paste boxes
+  // Structure validation error for one of the Realtime/Luỹ Kế paste boxes
   const [storeValidationError, setStoreValidationError] = useState<(BossValidationResult & { scopeName: string }) | null>(null);
 
   // Interactive Processing Overlay State
@@ -394,16 +374,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   }, [currentBossAssignments]);
 
   useEffect(() => {
-    if (currentRealtimeStoresTinh.length > 0) setParsedRealtimeStoresTinh(currentRealtimeStoresTinh);
-  }, [currentRealtimeStoresTinh]);
-
-  useEffect(() => {
     if (currentRealtimeStoresVung.length > 0) setParsedRealtimeStoresVung(currentRealtimeStoresVung);
   }, [currentRealtimeStoresVung]);
-
-  useEffect(() => {
-    if (currentLuyKeStoresTinh.length > 0) setParsedLuyKeStoresTinh(currentLuyKeStoresTinh);
-  }, [currentLuyKeStoresTinh]);
 
   useEffect(() => {
     if (currentLuyKeStoresVung.length > 0) setParsedLuyKeStoresVung(currentLuyKeStoresVung);
@@ -549,21 +521,19 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     scopeName: string,
     text: string,
     isRealtime: boolean,
-    scope: 'tinh' | 'vung',
     setLock: (locked: boolean) => void,
     setText: (t: string) => void,
     setParsed: (p: StoreRecord[]) => void,
-    onUpdate: (parsed: StoreRecord[], rawText: string, s?: 'tinh' | 'vung') => Promise<void> | void
+    onUpdate: (parsed: StoreRecord[], rawText: string) => Promise<void> | void
   ) => {
     // Validate BEFORE touching any lock/modal state — a bad paste (wrong
     // sheet, wrong box, random text) gets rejected instantly instead of
     // running the full processing overlay only to land on 0/garbage rows.
     // Also cross-checks the pasted header against this exact box (Realtime
-    // vs Luỹ Kế, Tỉnh vs Siêu Thị) — e.g. Luỹ Kế data pasted into a Realtime
-    // box, or store-level data pasted into a province-rollup box.
+    // vs Luỹ Kế) — e.g. Luỹ Kế data pasted into a Realtime box.
     const validation = validateStoreHeaders(text, {
       timeMode: isRealtime ? 'realtime' : 'luyke',
-      granularity: scope === 'tinh' ? 'tinh' : 'sieuthi',
+      granularity: 'sieuthi',
     });
     if (!validation.isValid) {
       setStoreValidationError({ ...validation, scopeName: `${title} (${scopeName})` });
@@ -571,9 +541,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     }
 
     setText(text);
-    setIsRealtimeLockedTinh(true);
     setIsRealtimeLockedVung(true);
-    setIsLuyKeLockedTinh(true);
     setIsLuyKeLockedVung(true);
 
     setProcessingState({
@@ -586,7 +554,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     // before the parse runs; parsing itself is the actual work, not this wait.
     await new Promise((r) => setTimeout(r, 15));
 
-    const parsed = parsePastedData(text, isRealtime);
+    const parsed = parsePastedData(text, isRealtime, parsedBossItems);
     setParsed(parsed);
 
     if (parsed.length === 0) {
@@ -616,7 +584,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       progress: 88,
     });
 
-    await onUpdate(parsed, text, scope);
+    await onUpdate(parsed, text);
 
     setProcessingState({
       title: `HOÀN TẤT ĐỒNG BỘ DỮ LIỆU`,
@@ -628,20 +596,12 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     setProcessingState(null);
   };
 
-  const processRealtimeDataTinh = (text: string) => {
-    runProcessWithFeedback('Realtime Thi Đua Tỉnh', 'Tỉnh', text, true, 'tinh', setIsRealtimeLockedTinh, setRealtimeTextTinh, setParsedRealtimeStoresTinh, onUpdateRealtimeData);
-  };
-
   const processRealtimeDataVung = (text: string) => {
-    runProcessWithFeedback('Realtime Thi Đua Vùng', 'Vùng', text, true, 'vung', setIsRealtimeLockedVung, setRealtimeTextVung, setParsedRealtimeStoresVung, onUpdateRealtimeData);
-  };
-
-  const processLuyKeDataTinh = (text: string) => {
-    runProcessWithFeedback('Luỹ Kế Thi Đua Tỉnh', 'Tỉnh', text, false, 'tinh', setIsLuyKeLockedTinh, setLuyKeTextTinh, setParsedLuyKeStoresTinh, onUpdateLuyKeData);
+    runProcessWithFeedback('Realtime Thi Đua Siêu Thị', 'Siêu Thị', text, true, setIsRealtimeLockedVung, setRealtimeTextVung, setParsedRealtimeStoresVung, onUpdateRealtimeData);
   };
 
   const processLuyKeDataVung = (text: string) => {
-    runProcessWithFeedback('Luỹ Kế Thi Đua Vùng', 'Vùng', text, false, 'vung', setIsLuyKeLockedVung, setLuyKeTextVung, setParsedLuyKeStoresVung, onUpdateLuyKeData);
+    runProcessWithFeedback('Luỹ Kế Thi Đua Siêu Thị', 'Siêu Thị', text, false, setIsLuyKeLockedVung, setLuyKeTextVung, setParsedLuyKeStoresVung, onUpdateLuyKeData);
   };
 
 
@@ -821,9 +781,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       app: 'TNB_Competition_Tracker',
       version: '1.0',
       exportDate: new Date().toLocaleString('vi-VN'),
-      realtimeStoresTinh: currentRealtimeStoresTinh,
       realtimeStoresVung: currentRealtimeStoresVung,
-      luykeStoresTinh: currentLuyKeStoresTinh,
       luykeStoresVung: currentLuyKeStoresVung,
       realtimeDt: parsedRealtimeDt,
       realtimeTc: parsedRealtimeTc,
@@ -854,20 +812,12 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         const text = evt.target?.result as string;
         const data = JSON.parse(text);
         let count = 0;
-        if (Array.isArray(data.realtimeStoresTinh) && data.realtimeStoresTinh.length > 0) {
-          onUpdateRealtimeData(data.realtimeStoresTinh, '', 'tinh');
-          count++;
-        }
         if (Array.isArray(data.realtimeStoresVung) && data.realtimeStoresVung.length > 0) {
-          onUpdateRealtimeData(data.realtimeStoresVung, '', 'vung');
-          count++;
-        }
-        if (Array.isArray(data.luykeStoresTinh) && data.luykeStoresTinh.length > 0) {
-          onUpdateLuyKeData(data.luykeStoresTinh, '', 'tinh');
+          onUpdateRealtimeData(data.realtimeStoresVung, '');
           count++;
         }
         if (Array.isArray(data.luykeStoresVung) && data.luykeStoresVung.length > 0) {
-          onUpdateLuyKeData(data.luykeStoresVung, '', 'vung');
+          onUpdateLuyKeData(data.luykeStoresVung, '');
           count++;
         }
         if (Array.isArray(data.realtimeDt) && data.realtimeDt.length > 0) {
@@ -1045,7 +995,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
           </div>
 
           <a
-            href="https://bi.thegioididong.com/thi-dua?id=-1&tab=1&rt=1&dm=2&mt=2"
+            href="https://baocao.dienmayxanh.com/dashboard/thi-dua"
             target="_blank"
             rel="noopener noreferrer"
             title="Mở trang thi đua trên BI ở tab mới"
@@ -1070,84 +1020,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   REALTIME
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
+                  Ô dán dữ liệu: Thi Đua Siêu Thị
                 </p>
               </div>
             </div>
           </div>
 
-          {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
-          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
-              <span className="flex items-center gap-1.5 text-emerald-700">
-                <Store className="w-3.5 h-3.5" />
-                Thi Đua Tỉnh
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {lastUpdateRealtime && (
-                  <span className="text-[10px] bg-emerald-50 text-emerald-900 border border-emerald-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
-                    Cập nhật: {lastUpdateRealtime}
-                  </span>
-                )}
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">
-                  {parsedRealtimeStoresTinh.length} dòng
-                  {realtimeTinhCategoryCount > 0 ? ` (${realtimeTinhCategoryCount} ngành hàng)` : ''}
-                </span>
-              </div>
-            </div>
-
-            {isRealtimeLockedTinh ? (
-              <div
-                onClick={() => {
-                  setRealtimeTextTinh('');
-                  setIsRealtimeLockedTinh(false);
-                }}
-                className="h-[52px] bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 hover:border-emerald-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
-                title="Bấm vào đây để dán dữ liệu mới"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span className="text-xs font-bold text-emerald-950 truncate">
-                    Đã khóa dữ liệu Thi Đua Tỉnh ({parsedRealtimeStoresTinh.length} dòng
-                    {realtimeTinhCategoryCount > 0 ? ` - ${realtimeTinhCategoryCount} ngành hàng` : ''})
-                  </span>
-                </div>
-                <button className="px-2.5 py-1 bg-emerald-600 group-hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
-                  <Unlock className="w-3 h-3" />
-                  Mở dán mới
-                </button>
-              </div>
-            ) : (
-              <div className="h-[52px] relative rounded-xl overflow-hidden">
-                <textarea
-                  autoFocus
-                  rows={2}
-                  value={realtimeTextTinh}
-                  onChange={(e) => processRealtimeDataTinh(e.target.value)}
-                  onPaste={(e) => {
-                    const text = e.clipboardData.getData('text');
-                    if (text && text.trim()) {
-                      e.preventDefault();
-                      processRealtimeDataTinh(text);
-                      setIsRealtimeLockedTinh(true);
-                    }
-                  }}
-                  onBlur={() => setIsRealtimeLockedTinh(true)}
-                  placeholder="Bấm Ctrl+V để dán dữ liệu Thi Đua Tỉnh mới tại đây..."
-                  className="w-full h-full bg-white border-2 border-emerald-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 resize-none shadow-inner leading-normal"
-                />
-                <button
-                  onClick={() => setIsRealtimeLockedTinh(true)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
-                >
-                  Khóa
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* SUB-BOX 2: Ô DƯỚI - THI ĐUA SIÊU THỊ */}
+          {/* Ô DÁN - THI ĐUA SIÊU THỊ */}
           <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
             <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
               <span className="flex items-center gap-1.5 text-blue-700">
@@ -1229,82 +1108,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                   LUỸ KẾ
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Gồm 2 ô dán dữ liệu: Thi Đua Tỉnh (trên) &amp; Thi Đua Siêu Thị (dưới)
+                  Ô dán dữ liệu: Thi Đua Siêu Thị
                 </p>
               </div>
             </div>
           </div>
 
-          {/* SUB-BOX 1: Ô TRÊN - THI ĐUA TỈNH */}
-          <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
-              <span className="flex items-center gap-1.5 text-purple-700">
-                <Store className="w-3.5 h-3.5" />
-                Thi Đua Tỉnh
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {lastUpdateLuyKe && (
-                  <span className="text-[10px] bg-purple-50 text-purple-900 border border-purple-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-purple-600 shrink-0" />
-                    Cập nhật: {lastUpdateLuyKe}
-                  </span>
-                )}
-                <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md font-bold">
-                  {parsedLuyKeStoresTinh.length} dòng
-                </span>
-              </div>
-            </div>
-
-            {isLuyKeLockedTinh ? (
-              <div
-                onClick={() => {
-                  setLuyKeTextTinh('');
-                  setIsLuyKeLockedTinh(false);
-                }}
-                className="h-[52px] bg-purple-50 hover:bg-purple-100/80 border border-purple-200 hover:border-purple-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
-                title="Bấm vào đây để dán dữ liệu mới"
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Lock className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                  <span className="text-xs font-bold text-purple-950 truncate">
-                    Đã khóa dữ liệu Luỹ Kế Tỉnh ({parsedLuyKeStoresTinh.length} dòng)
-                  </span>
-                </div>
-                <button className="px-2.5 py-1 bg-purple-600 group-hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
-                  <Unlock className="w-3 h-3" />
-                  Mở dán mới
-                </button>
-              </div>
-            ) : (
-              <div className="h-[52px] relative rounded-xl overflow-hidden">
-                <textarea
-                  autoFocus
-                  rows={2}
-                  value={luykeTextTinh}
-                  onChange={(e) => processLuyKeDataTinh(e.target.value)}
-                  onPaste={(e) => {
-                    const text = e.clipboardData.getData('text');
-                    if (text && text.trim()) {
-                      e.preventDefault();
-                      processLuyKeDataTinh(text);
-                      setIsLuyKeLockedTinh(true);
-                    }
-                  }}
-                  onBlur={() => setIsLuyKeLockedTinh(true)}
-                  placeholder="Bấm Ctrl+V để dán dữ liệu Luỹ Kế Thi Đua Tỉnh mới tại đây..."
-                  className="w-full h-full bg-white border-2 border-purple-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-purple-200 resize-none shadow-inner leading-normal"
-                />
-                <button
-                  onClick={() => setIsLuyKeLockedTinh(true)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
-                >
-                  Khóa
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* SUB-BOX 2: Ô DƯỚI - THI ĐUA SIÊU THỊ */}
+          {/* Ô DÁN - THI ĐUA SIÊU THỊ */}
           <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
             <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
               <span className="flex items-center gap-1.5 text-indigo-700">
@@ -2088,7 +1898,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         </div>
       )}
 
-      {/* STORE PASTE STRUCTURE VALIDATION ERROR MODAL (4 boxes: Realtime/Luỹ Kế × Tỉnh/Vùng) */}
+      {/* STORE PASTE STRUCTURE VALIDATION ERROR MODAL (2 boxes: Realtime/Luỹ Kế Siêu Thị) */}
       {storeValidationError && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="max-w-2xl w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 border border-red-200 relative max-h-[90vh] overflow-y-auto">
