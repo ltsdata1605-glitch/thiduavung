@@ -186,9 +186,15 @@ export const ProvinceDetailRemarksModal: React.FC<ProvinceDetailRemarksModalProp
   daysElapsed,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('no_tag_top');
   const [customText, setCustomText] = useState('');
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
+
+  // Tab Nhóm luôn mặc định "Bỏ Tag TOP" mỗi lần mở modal — dù trên thiết bị
+  // nào — vì đây là nơi hay xuất ảnh gửi nhóm, không tag TOP cá nhân.
+  useEffect(() => {
+    if (isOpen) setRemarkDisplayMode('no_tag_top');
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

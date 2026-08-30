@@ -181,18 +181,20 @@ export const TopBotRemarksModal: React.FC<TopBotRemarksModalProps> = ({
   userPreferencesMap = {},
 }) => {
   const [copied, setCopied] = useState(false);
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(() => getLocalRemarkConfig(accountId).displayMode);
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('no_tag_top');
   const [botCount, setBotCount] = useState<number>(() => getLocalRemarkConfig(accountId).botCount);
   const [customText, setCustomText] = useState('');
   const catName = resolveCategoryDisplayName(category, categoryDisplayNameMap);
 
-  // Đổi tài khoản khi modal đang mở sẵn trong cây component (không unmount) —
-  // nạp lại mẫu nhận xét đã lưu riêng của tài khoản mới thay vì giữ giá trị cũ.
+  // Mỗi lần mở modal (và khi đổi tài khoản trong lúc modal đang mở sẵn trong
+  // cây component, không unmount) nạp lại mẫu nhận xét. Tab Nhóm luôn mặc
+  // định "Bỏ Tag TOP" — dù trên thiết bị nào — vì đây là nơi hay xuất ảnh
+  // gửi nhóm, không tag TOP cá nhân.
   useEffect(() => {
-    const cfg = getLocalRemarkConfig(accountId);
-    setRemarkDisplayMode(cfg.displayMode);
-    setBotCount(cfg.botCount);
-  }, [accountId]);
+    if (!isOpen) return;
+    setRemarkDisplayMode('no_tag_top');
+    setBotCount(getLocalRemarkConfig(accountId).botCount);
+  }, [isOpen, accountId]);
 
   // Lưu displayMode/botCount vào Firebase + localStorage riêng theo accountId,
   // giữ nguyên các field khác (templateType, emoji, cta) đã lưu trước đó.

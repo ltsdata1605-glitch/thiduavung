@@ -581,17 +581,23 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   const accountId = currentUser?.accountId || 'global';
   const [copied, setCopied] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(() => getLocalRemarkConfig(accountId).displayMode);
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(() =>
+    entityScope === 'sieuthi' ? 'no_tag_top' : getLocalRemarkConfig(accountId).displayMode
+  );
   const [botCount, setBotCount] = useState<number>(() => getLocalRemarkConfig(accountId).botCount);
   const [customText, setCustomText] = useState<string>('');
 
-  // Đổi tài khoản khi modal đang mở sẵn trong cây component (không unmount) —
-  // nạp lại mẫu nhận xét đã lưu riêng của tài khoản mới thay vì giữ giá trị cũ.
+  // Mỗi lần mở modal (và khi đổi tài khoản trong lúc modal đang mở sẵn trong
+  // cây component, không unmount) nạp lại mẫu nhận xét. Riêng Tab Siêu Thị
+  // luôn mặc định "Bỏ Tag TOP" — dù trên thiết bị nào hay tài khoản đã từng
+  // lưu mẫu khác — vì đây là nơi hay xuất ảnh gửi nhóm, không tag TOP cá
+  // nhân. Tab Vùng/khác vẫn theo đúng mẫu đã lưu riêng của tài khoản.
   useEffect(() => {
+    if (!isOpen) return;
     const cfg = getLocalRemarkConfig(accountId);
-    setRemarkDisplayMode(cfg.displayMode);
+    setRemarkDisplayMode(entityScope === 'sieuthi' ? 'no_tag_top' : cfg.displayMode);
     setBotCount(cfg.botCount);
-  }, [accountId]);
+  }, [isOpen, accountId, entityScope]);
 
   // Lưu displayMode/botCount vào Firebase + localStorage riêng theo accountId,
   // giữ nguyên các field khác (templateType, emoji, cta) đã lưu trước đó.
