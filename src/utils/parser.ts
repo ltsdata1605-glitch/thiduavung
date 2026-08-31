@@ -1643,6 +1643,19 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
   const byMst = new Map<string, BossAssignmentRecord>();
   const byCode = new Map<string, BossAssignmentRecord>();
   const byNormName = new Map<string, BossAssignmentRecord>();
+  // A "mã kho" code (extractStoreCode, e.g. "DML_LAN_BLU") is sometimes
+  // shared by more than one DISTINCT store — a fixed branch and a companion
+  // "Lưu Động" mobile unit warehoused under the same code are a real,
+  // observed case (same Boss/Tỉnh, different KÊNH). "First occurrence wins"
+  // would then silently misattribute every field but Boss/Tỉnh to whichever
+  // row happens to appear first in the BOSS file. Track codes seen from more
+  // than one distinct sieuthi name here so they can be dropped from byCode
+  // entirely afterwards, forcing lookup to fall through to the exact-name
+  // tier below instead — which the store-name-only BI format always has
+  // enough text (the full "ĐML_LAN_BLU - Phước Lợi (Gò Đen)") to resolve
+  // correctly.
+  const codeOwnerNormName = new Map<string, string>();
+  const ambiguousCodes = new Set<string>();
 
   // First occurrence wins for a given key — matches Array.find()'s
   // "first match in array order" semantics exactly.
@@ -1653,7 +1666,16 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
     if (mstFromSieuthi && !byMst.has(mstFromSieuthi)) byMst.set(mstFromSieuthi, b);
 
     const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '') || extractStoreCode(b.sieuthiNgan || '');
-    if (code && !byCode.has(code)) byCode.set(code, b);
+    if (code) {
+      const normB = normalizeVietnameseForMatch(b.sieuthi);
+      const ownerNormName = codeOwnerNormName.get(code);
+      if (!ownerNormName) {
+        codeOwnerNormName.set(code, normB);
+        byCode.set(code, b);
+      } else if (ownerNormName !== normB) {
+        ambiguousCodes.add(code);
+      }
+    }
 
     const normB = normalizeVietnameseForMatch(b.sieuthi);
     if (normB && !byNormName.has(normB)) byNormName.set(normB, b);
@@ -1665,6 +1687,8 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
     const normNgan = normalizeVietnameseForMatch(b.sieuthiNgan || '');
     if (normNgan && !byNormName.has(normNgan)) byNormName.set(normNgan, b);
   });
+
+  ambiguousCodes.forEach((code) => byCode.delete(code));
 
   const index: BossAssignmentIndex = { byMst, byCode, byNormName };
   bossIndexCache.set(bossAssignments, index);
