@@ -581,21 +581,27 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
   const accountId = currentUser?.accountId || 'global';
   const [copied, setCopied] = useState(false);
   const [activeTemplateTab, setActiveTemplateTab] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
+  // LƯU Ý: giá trị entityScope bị đặt tên ngược với nhãn nút bấm trên UI —
+  // nút "SIÊU THỊ" gọi setEntityScope('vung'), nút "VÙNG" gọi
+  // setEntityScope('sieuthi') (xem HeaderBanner.tsx). Nên Tab Siêu Thị (theo
+  // đúng nhãn người dùng nhìn thấy) ứng với entityScope === 'vung'.
+  const isTabSieuThi = entityScope === 'vung';
   const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(() =>
-    entityScope === 'sieuthi' ? 'no_tag_top' : getLocalRemarkConfig(accountId).displayMode
+    isTabSieuThi ? 'no_tag_top' : getLocalRemarkConfig(accountId).displayMode
   );
   const [botCount, setBotCount] = useState<number>(() => getLocalRemarkConfig(accountId).botCount);
   const [customText, setCustomText] = useState<string>('');
 
   // Mỗi lần mở modal (và khi đổi tài khoản trong lúc modal đang mở sẵn trong
   // cây component, không unmount) nạp lại mẫu nhận xét. Riêng Tab Siêu Thị
-  // luôn mặc định "Bỏ Tag TOP" — dù trên thiết bị nào hay tài khoản đã từng
-  // lưu mẫu khác — vì đây là nơi hay xuất ảnh gửi nhóm, không tag TOP cá
-  // nhân. Tab Vùng/khác vẫn theo đúng mẫu đã lưu riêng của tài khoản.
+  // luôn mặc định "Bỏ Tag TOP" — dù trên thiết bị nào, tài khoản nào (admin
+  // hay viewer), hay đã từng lưu mẫu khác — vì đây là nơi hay xuất ảnh gửi
+  // nhóm, không tag TOP cá nhân. Tab Vùng/khác vẫn theo đúng mẫu đã lưu
+  // riêng của tài khoản.
   useEffect(() => {
     if (!isOpen) return;
     const cfg = getLocalRemarkConfig(accountId);
-    setRemarkDisplayMode(entityScope === 'sieuthi' ? 'no_tag_top' : cfg.displayMode);
+    setRemarkDisplayMode(isTabSieuThi ? 'no_tag_top' : cfg.displayMode);
     setBotCount(cfg.botCount);
   }, [isOpen, accountId, entityScope]);
 
