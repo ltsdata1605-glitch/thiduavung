@@ -833,10 +833,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           // different achieved/target ratio that ignores "dự kiến" entirely.
           cur.rateSum += (s.rate || 0);
           cur.rateCount += 1;
-          const catKeys = new Set([
-            ...Object.keys(s.categoryMap || {}),
-            ...ALL_HARDCODED_CATEGORY_NAMES,
-          ]);
+          const catKeys = Object.keys(s.categoryMap || {});
           catKeys.forEach((cat) => {
             const data = getCategoryData(s, cat);
             if (data.target > 0 || data.achieved > 0 || data.rate > 0) {
@@ -924,10 +921,24 @@ export const ReportView: React.FC<ReportViewProps> = ({
     );
   };
 
-  // Ordered list of 38 categories grouped by categoryGroupMap (falling back to DEFAULT_CATEGORY_GROUP) and ordered by categoryOrderMap
+  // Every ngành hàng name that actually has data in the currently loaded
+  // dataset (union of every store's categoryMap keys).
+  const liveCategoryNames = useMemo(() => {
+    const set = new Set<string>();
+    stores.forEach((s) => {
+      if (s.categoryMap) Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
+    });
+    return set;
+  }, [stores]);
+
+  const activeSourceCategories = useMemo(() => {
+    return liveCategoryNames.size > 0 ? Array.from(liveCategoryNames) : ALL_HARDCODED_CATEGORY_NAMES;
+  }, [liveCategoryNames]);
+
+  // Ordered list of active categories grouped by categoryGroupMap (falling back to DEFAULT_CATEGORY_GROUP) and ordered by categoryOrderMap
   const orderedHardcodedCategoryNames = useMemo(() => (() => {
     const grouped = new Map<string, string[]>();
-    ALL_HARDCODED_CATEGORY_NAMES.forEach((cat) => {
+    activeSourceCategories.forEach((cat) => {
       const groupName = getCategoryGroup(cat, categoryGroupMap);
       const list = grouped.get(groupName) || [];
       list.push(cat);
@@ -941,7 +952,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
       result.push(...catsInGroup);
     });
     return result;
-  })(), [categoryGroupMap, categoryOrderMap, categoryHiddenMap]);
+  })(), [categoryGroupMap, categoryOrderMap, categoryHiddenMap, activeSourceCategories]);
 
   // Selected Category Groups list (supports multi-selection e.g. "ICT,CE & GD")
   const selectedCategoryGroupsList = useMemo(() => {
@@ -952,22 +963,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   const isAllCategoryGroups = selectedCategoryGroup === 'ALL' || (!selectedCategoryGroup && selectedCategoryGroup !== 'NONE');
 
-  // Every ngành hàng name that actually has data in the currently loaded
-  // dataset (union of every store's categoryMap keys) — used below to drop
-  // stale, always-empty "unknown" columns that categoryGroupMap/
-  // categoryOrderMap/categoryDisplayNameMap keep referencing after a BOSS
-  // paste change (e.g. the old numeric-prefixed BI codes) even though no
-  // store's categoryMap has matched that exact key since. This never hides
-  // one of the 38 canonical categories — those still show even at 0%,
-  // which is real business data, not staleness.
-  const liveCategoryNames = useMemo(() => {
-    const set = new Set<string>();
-    stores.forEach((s) => {
-      if (s.categoryMap) Object.keys(s.categoryMap).forEach((cat) => set.add(cat));
-    });
-    return set;
-  }, [stores]);
-
   // Ngành hàng belonging to the selected Nhóm (Category Groups) — ordered by custom position ordering
   const categoriesInSelectedGroup = useMemo(() => (
     !isAllCategoryGroups
@@ -977,26 +972,22 @@ export const ReportView: React.FC<ReportViewProps> = ({
               selectedCategoryGroupsList.includes(categoryGroupMap[cat])
             )
           );
-          const list = ALL_HARDCODED_CATEGORY_NAMES.filter((cat) => selected.has(cat) && !isHiddenCat(cat));
-          const unknown = Array.from(selected).filter(
-            (cat) => !ALL_HARDCODED_CATEGORY_NAMES.includes(cat) && !isHiddenCat(cat) && liveCategoryNames.has(cat)
-          );
-          // Cluster by Nhóm (in the order the user picked them) before the
-          // within-group STT sort — sorting by categoryOrderMap alone (a
-          // cross-group global order) interleaves categories from different
-          // Nhóm whenever 2+ groups are selected, which fragments the
-          // group-band header into dozens of 1-column runs instead of a
-          // few wide contiguous ones.
+          const list = activeSourceCategories.filter((cat) => {
+            const grp = getCategoryGroup(cat, categoryGroupMap);
+            return (selected.has(cat) || selectedCategoryGroupsList.includes(grp)) && !isHiddenCat(cat);
+          });
           const groupRank = new Map(selectedCategoryGroupsList.map((g, i) => [g, i]));
-          return [...list, ...unknown].sort((a, b) => {
-            const groupA = groupRank.get(categoryGroupMap[a]) ?? 999;
-            const groupB = groupRank.get(categoryGroupMap[b]) ?? 999;
-            if (groupA !== groupB) return groupA - groupB;
+          return list.sort((a, b) => {
+            const grpA = getCategoryGroup(a, categoryGroupMap);
+            const grpB = getCategoryGroup(b, categoryGroupMap);
+            const rankA = groupRank.get(grpA) ?? 999;
+            const rankB = groupRank.get(grpB) ?? 999;
+            if (rankA !== rankB) return rankA - rankB;
             return (categoryOrderMap?.[a] ?? 999) - (categoryOrderMap?.[b] ?? 999);
           });
         })()
       : []
-  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap, categoryHiddenMap, liveCategoryNames]);
+  ), [isAllCategoryGroups, selectedCategoryGroupsList, categoryGroupMap, categoryOrderMap, categoryHiddenMap, activeSourceCategories]);
 
   // Whichever category columns are actually shown in the table right now
   const baseDisplayedCategoryNames = !isAllCategoryGroups ? categoriesInSelectedGroup : orderedHardcodedCategoryNames;
