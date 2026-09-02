@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord, getCategoryData } from '../utils/parser';
 // Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
 // instead of shipping ~1300 lines of Nhóm-only report code in the bundle
 // every user downloads to see the default VÙNG/SIÊU THỊ view.
@@ -128,7 +128,7 @@ const resolveStyleByGroupName = (groupName: string) => {
 const getPresetGroupStyle = (cat: string, groupMap?: Record<string, string>) =>
   resolveStyleByGroupName(getCategoryGroup(cat, groupMap));
 
-export { getCategoryData } from '../utils/parser';
+export { getCategoryData };
 
 // Coarse ict/dichvu/ce tag stamped as data-group on every group-column
 // element (col/th/td) — the image-export feature (exportGroupSpecificElement
