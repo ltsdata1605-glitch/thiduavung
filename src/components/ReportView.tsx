@@ -128,12 +128,7 @@ const resolveStyleByGroupName = (groupName: string) => {
 const getPresetGroupStyle = (cat: string, groupMap?: Record<string, string>) =>
   resolveStyleByGroupName(getCategoryGroup(cat, groupMap));
 
-export const getCategoryData = (s: StoreRecord, cName: string): { target: number; achieved: number; rate: number } => {
-  if (s.categoryMap?.[cName]) {
-    return s.categoryMap[cName];
-  }
-  return { target: 0, achieved: 0, rate: 0 };
-};
+export { getCategoryData } from '../utils/parser';
 
 // Coarse ict/dichvu/ce tag stamped as data-group on every group-column
 // element (col/th/td) — the image-export feature (exportGroupSpecificElement

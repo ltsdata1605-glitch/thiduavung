@@ -130,6 +130,70 @@ export const getShortCategoryName = (catName: string): string => {
 };
 
 /**
+ * Smart Canonical Category Resolver.
+ * Normalizes raw category names from various BI export formats into the 38 standard canonical names.
+ */
+export function canonicalizeCategoryName(rawName: string): string {
+  if (!rawName) return '';
+  // 1. Strip leading BI numeric codes ("827-Nồi cơm" -> "Nồi cơm") and trailing hyphens/punctuation
+  let cleaned = rawName.trim().replace(/^\d+\s*-\s*/, '').replace(/[\s-]+$/, '').trim();
+  if (!cleaned) return '';
+
+  const norm = normalizeHeaderText(cleaned); // diacritics stripped, uppercase, trimmed
+
+  // DỊCH VỤ
+  if (norm === 'BAO HIEM TONG' || norm === 'BAO HIEM' || norm === 'BH TONG' || norm.startsWith('BAO HIEM TONG')) return 'Bảo hiểm';
+  if (norm.includes('THO DMX') || norm.includes('THO DIEN MAY XANH') || norm.includes('BH THO')) return 'Bảo hiểm thợ Điện Máy Xanh';
+  if (norm.includes('SIM MOBIFONE') || norm.includes('SIM VINAPHONE') || norm.includes('SIM VINA') || norm.includes('SIM DMX') || norm.includes('VINA & DMX') || norm.includes('VINAPHONE & SIM DMX')) {
+    if (!norm.includes('SIM TONG') && !norm.includes('SIMTONG')) return 'Sim Vinaphone & Sim ĐMX';
+  }
+  if (norm === 'SIM TONG' || norm === 'SIMTONG' || norm.includes('SIM TONG')) return 'Sim Tổng';
+  if (norm.includes('MANGO') || norm.includes('ICALLME') || norm.includes('ICALL ME')) return 'OTT Mango+, iCallMe';
+  if (norm === 'VAS' || norm === 'DICH VU VAS' || norm.includes('VAS')) return 'Dịch vụ VAS';
+  if (norm.includes('TPBANK') || norm.includes('VPBANK') || norm.includes('MO THE TIN DUNG') || norm.includes('THE TIN DUNG')) return 'Mở thẻ tín dụng TPBank EVO và VPBank MWG';
+  if (norm.includes('VAY TIEN MAT') || norm === 'VAY TMT' || norm.includes('VAY TIEN')) return 'Vay tiền mặt';
+  if (norm.includes('VI TRA SAU') || norm === 'TRA SAU' || norm.includes('VI TRA')) return 'Ví trả sau';
+  if (norm.includes('NAP RUT') || norm.includes('TAI KHOAN NGAN HANG') || norm.includes('RUT TIEN')) return 'Nạp rút tiền tài khoản ngân hàng';
+  if (norm.includes('HOMECREDIT') || norm.includes('HOME CREDIT')) return 'Trả chậm HomeCredit';
+  if (norm.includes('FECREDIT') || norm.includes('FE CREDIT') || norm.includes('SHINHAN') || norm.includes('SAMSUNG FINANCE') || norm.includes('SS+')) return 'Trả chậm FECredit, Shinhan, Samsung Finance+';
+  if (norm.includes('DIEN MAY VA GIA DUNG') || norm.includes('DIEN MAY & GIA DUNG') || norm.includes('DIEN MAY & GD') || norm.includes('DM & GD') || norm.includes('TRA CHAM DIEN MAY')) return 'Trả chậm Điện máy và Gia dụng';
+
+  // ICT
+  if (norm.includes('FLAGSHIP') || norm.includes('GALAXY S/Z') || norm.includes('GALAXY S') || norm.includes('GALAXY Z')) return 'Điện thoại Flagship Samsung Galaxy S/Z Series';
+  if (norm.includes('ANDROID') || norm.includes('TABLET ANDROID') || norm.includes('SMP & TAB')) return 'Điện thoại & Tablet Android';
+  if (norm.includes('REALME')) return 'Điện thoại Realme';
+  if (norm.includes('VIVO')) return 'Điện thoại Vivo';
+  if (norm.includes('LAPTOP')) return 'Laptop';
+  if (norm.includes('PHU KIEN - DONG HO') || norm.includes('PHU KIEN & DONG HO') || norm.includes('PHU KIEN DONG HO')) return 'Phụ kiện - Đồng hồ';
+  if (norm.includes('DHTT') || norm.includes('SMW') || norm.includes('SMARTWATCH') || (norm.includes('DONG HO') && !norm.includes('PHU KIEN'))) return 'Đồng hồ (DHTT + SMW)';
+  if (norm.includes('CAMERA')) return 'Camera';
+  if (norm.includes('LOA')) return 'Loa';
+  if (norm.includes('SAC DU PHONG') || norm.includes('PIN SAC')) return 'Sạc dự phòng';
+  if (norm.includes('TAI NGHE') || norm.includes('BLUETOOTH')) return 'Tai nghe Bluetooth';
+  if (norm.includes('NANG LUONG MAT TROI') || norm.includes('NLMT') || norm.includes('DEN NANG LUONG')) return 'Đèn năng lượng mặt trời';
+
+  // CE & GD
+  if (norm.includes('DIEN TU SAMSUNG') || norm.includes('DIEN TU SS') || norm.includes('TV SAMSUNG') || norm.includes('TIVI SAMSUNG')) return 'Điện tử Samsung';
+  if (norm.includes('AQUA') || norm.includes('HAIER')) return 'Điện tử điện lạnh Aqua + Haier';
+  if (norm === 'TIVI' || norm === 'TI VI' || norm === 'TV' || norm.includes('TIVI')) {
+    if (!norm.includes('SAMSUNG') && !norm.includes('TOSHIBA')) return 'Tivi';
+  }
+  if (norm.includes('TOSHIBA')) return 'Điện tử toshiba';
+  if (norm.includes('AUDIO') || norm.includes('AM THANH')) return 'Tăng cường Audio';
+  if (norm.includes('TU LANH') || norm.includes('TU DONG') || norm.includes('TU MAT')) return 'Tủ lạnh, Tủ đông, Tủ mát';
+  if (norm.includes('MAY GIAT') || norm.includes('MAY SAY') || norm.includes('RUA CHEN')) return 'Máy giặt, Máy sấy, Máy rửa chén';
+  if (norm.includes('DAIKIN')) return 'Máy lạnh Daikin';
+  if (norm.includes('CASPER')) return 'Máy lạnh Casper';
+  if (norm.includes('LOC NUOC')) return 'Máy lọc nước';
+  if (norm.includes('QUAT GIO') || norm === 'QUAT') return 'Quạt gió';
+  if (norm.includes('NOI COM') || norm.includes('NOI CHIEN')) return 'Nồi cơm';
+  if (norm.includes('LOC KHONG KHI') || norm.includes('HUT BUI') || norm.includes('HUT AM') || norm.includes('LOC KKI')) return 'Máy lọc không khí - Hút bụi - Hút ẩm';
+
+  // Fallback to cleaned original name
+  return cleaned;
+}
+
+/**
  * Resolves the display name for a Ngành hàng, preferring a user-defined
  * custom short name (set via the "Quản lý Nhóm & Vị trí" modal) over the
  * built-in auto-abbreviation dictionary in getShortCategoryName.
@@ -141,6 +205,8 @@ export const resolveCategoryDisplayName = (
   if (!catName) return '';
   const custom = customNameMap[catName];
   if (custom && custom.trim()) return custom.trim();
+  const canonical = canonicalizeCategoryName(catName);
+  if (customNameMap[canonical] && customNameMap[canonical].trim()) return customNameMap[canonical].trim();
   return getShortCategoryName(catName);
 };
 
@@ -987,7 +1053,7 @@ function parseStoreNameOnlyFormat(lines: string[], isRealtime: boolean, bossAssi
       // ReportView.tsx) exactly, or the category silently falls into "Chưa
       // phân nhóm" and every column for it renders as 0 — the code prefix
       // is a BI-internal id, not part of that established category identity.
-      if (pendingLabel) currentCategoryName = pendingLabel.replace(/^\d+\s*-\s*/, '');
+      if (pendingLabel) currentCategoryName = canonicalizeCategoryName(pendingLabel);
       colAchieved = norm.findIndex(
         (h) => h.includes('DOANH THU') || h.includes('DAT') || h.includes('REALTIME') || h.includes('LUY KE') || h.includes('SO LUONG')
       );
@@ -1208,7 +1274,7 @@ export function parsePastedData(
       // Strip a leading BI numeric code ("827-Nồi cơm" -> "Nồi cơm") so this
       // categoryMap key matches the app's established category taxonomy —
       // see the matching comment in parseStoreNameOnlyFormat above.
-      currentCategoryName = cells[0].trim().replace(/^\d+\s*-\s*/, '');
+      currentCategoryName = canonicalizeCategoryName(cells[0]);
       currentCategoryIsRevenue = tAchieved === -1 || !upper[tAchieved].includes('SLLK');
     }
   };
@@ -1992,13 +2058,16 @@ export function computeCompletionRate(
 }
 
 /**
- * Helper to safely extract category data from StoreRecord
+ * Helper to safely extract category data from StoreRecord with smart canonical alias fallback.
  */
 export function getCategoryData(
   s: StoreRecord,
   cName: string
 ): { target: number; achieved: number; rate: number } {
-  if (s.categoryMap && s.categoryMap[cName]) {
+  if (!s || !s.categoryMap) return { target: 0, achieved: 0, rate: 0 };
+
+  // 1. Direct exact match
+  if (s.categoryMap[cName]) {
     const item = s.categoryMap[cName];
     return {
       target: item.target || 0,
@@ -2006,6 +2075,40 @@ export function getCategoryData(
       rate: item.rate || 0,
     };
   }
+
+  // 2. Canonicalized name match
+  const canonical = canonicalizeCategoryName(cName);
+  if (s.categoryMap[canonical]) {
+    const item = s.categoryMap[canonical];
+    return {
+      target: item.target || 0,
+      achieved: item.achieved || 0,
+      rate: item.rate || 0,
+    };
+  }
+
+  // 3. Match against all keys in categoryMap via canonical/normalized comparison
+  const keys = Object.keys(s.categoryMap);
+  const targetNorm = normalizeHeaderText(cName);
+  const canonicalNorm = normalizeHeaderText(canonical);
+
+  for (const k of keys) {
+    const kCanonical = canonicalizeCategoryName(k);
+    if (
+      kCanonical === canonical ||
+      kCanonical === cName ||
+      normalizeHeaderText(k) === targetNorm ||
+      normalizeHeaderText(kCanonical) === canonicalNorm
+    ) {
+      const item = s.categoryMap[k];
+      return {
+        target: item.target || 0,
+        achieved: item.achieved || 0,
+        rate: item.rate || 0,
+      };
+    }
+  }
+
   return { target: 0, achieved: 0, rate: 0 };
 }
 
