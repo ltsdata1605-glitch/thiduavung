@@ -27,6 +27,8 @@ import { ExportLoadingModal } from './components/ExportLoadingModal';
 import { ExportSuccessModal } from './components/ExportSuccessModal';
 import { RefreshCw, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { getCurrentSession, logoutUser } from './services/authService';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './services/firebase';
 import {
   subscribeToFirebaseData,
   saveRealtimeStoresToFirebase,
@@ -50,6 +52,7 @@ import {
   getLocalRemarkConfig,
   type DocKey,
 } from './services/storeService';
+import { idbGet, idbSet } from './services/indexedDbCache';
 import { usePersistedState } from './hooks/usePersistedState';
 import { exportElementAsImage, exportGroupSpecificElement, exportCategoryGroupImages } from './services/imageExport';
 import confetti from 'canvas-confetti';
@@ -188,19 +191,8 @@ function AppInner() {
   );
 
   // Revenue Cùng Kỳ Năm list, hydrated from local cache first
-  const [revenueCungKy, setRevenueCungKy] = usePersistedState<RevenueCungKyRecord[]>(
-    'tnb_revenue_cung_ky',
-    (() => {
-      if (cachedData.revenueCungKy?.length) return cachedData.revenueCungKy;
-      try {
-        const rawAlt = localStorage.getItem('tnb_revenue_cung_ky_records');
-        if (rawAlt) {
-          const parsed = JSON.parse(rawAlt);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-      return [];
-    })()
+  const [revenueCungKy, setRevenueCungKy] = useState<RevenueCungKyRecord[]>(
+    () => (cachedData.revenueCungKy?.length ? cachedData.revenueCungKy : [])
   );
 
   // Settings (global, shared by every account) & User Profile (per-account
@@ -467,96 +459,124 @@ function AppInner() {
     }, 600);
   };
 
-  // Subscribe to Firebase Firestore Realtime Database updates
+  // Subscribe to Firebase Firestore Realtime Database updates — gated on
+  // Firebase Auth actually being ready (onAuthStateChanged), not on this
+  // app's own `currentUser` (a synchronous localStorage read via
+  // getCurrentSession() that can report "logged in" well before Firebase
+  // Auth's own async session restoration from IndexedDB finishes). Every
+  // onSnapshot listener here needs a live request.auth to pass this app's
+  // Firestore rules; if it attaches before that credential exists, Firestore
+  // rejects it with "Missing or insufficient permissions" — and unlike a
+  // transient network error, Firestore does NOT auto-retry a listener that
+  // already received a hard permission denial, even once the user
+  // successfully signs in moments later. The whole app is then stuck on
+  // stale local cache (and every write in "Cập nhật" hangs) until a lucky
+  // reload wins the race. onAuthStateChanged fires once auth's restore
+  // attempt settles and again on every sign-in/out, so re-subscribing there
+  // removes the race entirely.
   useEffect(() => {
-    const unsubscribe = subscribeToFirebaseData((payload, meta) => {
-      if (payload.realtimeStoresVung && payload.realtimeStoresVung.length > 0) {
-        setRealtimeStoresVung(payload.realtimeStoresVung);
-      }
-      if (payload.luykeStoresVung && payload.luykeStoresVung.length > 0) {
-        setLuyKeStoresVung(payload.luykeStoresVung);
-      }
-      if (payload.realtimeDtStores && payload.realtimeDtStores.length > 0) {
-        setRealtimeDtStores(payload.realtimeDtStores);
-      }
-      if (payload.realtimeTcStores && payload.realtimeTcStores.length > 0) {
-        setRealtimeTcStores(payload.realtimeTcStores);
-      }
-      if (payload.luykeDtStores && payload.luykeDtStores.length > 0) {
-        setLuyKeDtStores(payload.luykeDtStores);
-      }
-      if (payload.luykeTcStores && payload.luykeTcStores.length > 0) {
-        setLuyKeTcStores(payload.luykeTcStores);
-      }
-      if (payload.lastUpdateRealtimeDt) {
-        setLastUpdateRealtimeDt(payload.lastUpdateRealtimeDt);
-      }
-      if (payload.lastUpdateRealtimeTc) {
-        setLastUpdateRealtimeTc(payload.lastUpdateRealtimeTc);
-      }
-      if (payload.lastUpdateLuyKeDt) {
-        setLastUpdateLuyKeDt(payload.lastUpdateLuyKeDt);
-      }
-      if (payload.lastUpdateLuyKeTc) {
-        setLastUpdateLuyKeTc(payload.lastUpdateLuyKeTc);
-      }
-      if (payload.bossAssignments && payload.bossAssignments.length > 0) {
-        setBossAssignments(payload.bossAssignments);
-      }
-      if (payload.revenueCungKy && payload.revenueCungKy.length > 0) {
-        setRevenueCungKy(payload.revenueCungKy);
-      }
-      if (payload.settings) {
-        setSettings((prev) => ({ ...prev, ...payload.settings }));
-      }
-      if (payload.userPreferences) {
-        setUserPreferencesMap(payload.userPreferences);
-      }
-      if (payload.userFilters) {
-        setUserFiltersMap(payload.userFilters);
-      }
-      if (payload.categoryGroups) {
-        setCategoryGroupMap((prev) => ({ ...DEFAULT_CATEGORY_GROUP_MAP, ...prev, ...payload.categoryGroups }));
-      }
-      if (payload.categoryOrderMap) {
-        setCategoryOrderMap(payload.categoryOrderMap);
-      }
-      if (payload.categoryDisplayNames) {
-        setCategoryDisplayNameMap(payload.categoryDisplayNames);
-      }
-      if (payload.categoryHiddenMap) {
-        setCategoryHiddenMap(payload.categoryHiddenMap);
-      }
-      if (payload.groupSummaryCards && Array.isArray(payload.groupSummaryCards) && payload.groupSummaryCards.length > 0) {
-        try {
-          localStorage.setItem('tnb_summary_cards', JSON.stringify(payload.groupSummaryCards));
-        } catch {}
-      }
+    let unsubscribeData: (() => void) | null = null;
 
-      // Notify for genuine remote pushes (app already open, data changed
-      // elsewhere) always. Also notify on this listener's own initial
-      // snapshot IF the loading modal never ran this session — that's the
-      // "reopened the app already logged in, cache still had yesterday's
-      // data" case: nothing else ever told this user a refresh was
-      // happening, so the silent background swap needs its own signal too.
-      if (!meta.isInitial || !cloudSyncShownRef.current) {
-        const label = REMOTE_UPDATE_LABELS[meta.docKey];
-        if (label) notifyRemoteUpdate(label);
-      }
+    const authUnsub = auth
+      ? onAuthStateChanged(auth, (fbUser) => {
+          if (unsubscribeData) {
+            unsubscribeData();
+            unsubscribeData = null;
+          }
+          if (!fbUser) return;
+          unsubscribeData = subscribeToFirebaseData((payload, meta) => {
+            if (payload.realtimeStoresVung && payload.realtimeStoresVung.length > 0) {
+              setRealtimeStoresVung(payload.realtimeStoresVung);
+            }
+            if (payload.luykeStoresVung && payload.luykeStoresVung.length > 0) {
+              setLuyKeStoresVung(payload.luykeStoresVung);
+            }
+            if (payload.realtimeDtStores && payload.realtimeDtStores.length > 0) {
+              setRealtimeDtStores(payload.realtimeDtStores);
+            }
+            if (payload.realtimeTcStores && payload.realtimeTcStores.length > 0) {
+              setRealtimeTcStores(payload.realtimeTcStores);
+            }
+            if (payload.luykeDtStores && payload.luykeDtStores.length > 0) {
+              setLuyKeDtStores(payload.luykeDtStores);
+            }
+            if (payload.luykeTcStores && payload.luykeTcStores.length > 0) {
+              setLuyKeTcStores(payload.luykeTcStores);
+            }
+            if (payload.lastUpdateRealtimeDt) {
+              setLastUpdateRealtimeDt(payload.lastUpdateRealtimeDt);
+            }
+            if (payload.lastUpdateRealtimeTc) {
+              setLastUpdateRealtimeTc(payload.lastUpdateRealtimeTc);
+            }
+            if (payload.lastUpdateLuyKeDt) {
+              setLastUpdateLuyKeDt(payload.lastUpdateLuyKeDt);
+            }
+            if (payload.lastUpdateLuyKeTc) {
+              setLastUpdateLuyKeTc(payload.lastUpdateLuyKeTc);
+            }
+            if (payload.bossAssignments && payload.bossAssignments.length > 0) {
+              setBossAssignments(payload.bossAssignments);
+            }
+            if (payload.revenueCungKy && payload.revenueCungKy.length > 0) {
+              setRevenueCungKy(payload.revenueCungKy);
+            }
+            if (payload.settings) {
+              setSettings((prev) => ({ ...prev, ...payload.settings }));
+            }
+            if (payload.userPreferences) {
+              setUserPreferencesMap(payload.userPreferences);
+            }
+            if (payload.userFilters) {
+              setUserFiltersMap(payload.userFilters);
+            }
+            if (payload.categoryGroups) {
+              setCategoryGroupMap((prev) => ({ ...DEFAULT_CATEGORY_GROUP_MAP, ...prev, ...payload.categoryGroups }));
+            }
+            if (payload.categoryOrderMap) {
+              setCategoryOrderMap(payload.categoryOrderMap);
+            }
+            if (payload.categoryDisplayNames) {
+              setCategoryDisplayNameMap(payload.categoryDisplayNames);
+            }
+            if (payload.categoryHiddenMap) {
+              setCategoryHiddenMap(payload.categoryHiddenMap);
+            }
+            if (payload.groupSummaryCards && Array.isArray(payload.groupSummaryCards) && payload.groupSummaryCards.length > 0) {
+              try {
+                localStorage.setItem('tnb_summary_cards', JSON.stringify(payload.groupSummaryCards));
+              } catch {}
+            }
 
-      // First time THIS docKey has reported anything (initial or not) —
-      // resolves the cloud-sync loading modal's wait once all 3 critical
-      // datasets have checked in, without a second redundant read.
-      if (CRITICAL_SYNC_DOC_KEYS.includes(meta.docKey) && !criticalDocsSeenRef.current.has(meta.docKey)) {
-        criticalDocsSeenRef.current.add(meta.docKey);
-        if (CRITICAL_SYNC_DOC_KEYS.every((k) => criticalDocsSeenRef.current.has(k))) {
-          resolveCriticalSyncRef.current?.();
-          resolveCriticalSyncRef.current = null;
-        }
-      }
-    });
+            // Notify for genuine remote pushes (app already open, data changed
+            // elsewhere) always. Also notify on this listener's own initial
+            // snapshot IF the loading modal never ran this session — that's the
+            // "reopened the app already logged in, cache still had yesterday's
+            // data" case: nothing else ever told this user a refresh was
+            // happening, so the silent background swap needs its own signal too.
+            if (!meta.isInitial || !cloudSyncShownRef.current) {
+              const label = REMOTE_UPDATE_LABELS[meta.docKey];
+              if (label) notifyRemoteUpdate(label);
+            }
 
-    return () => unsubscribe();
+            // First time THIS docKey has reported anything (initial or not) —
+            // resolves the cloud-sync loading modal's wait once all 3 critical
+            // datasets have checked in, without a second redundant read.
+            if (CRITICAL_SYNC_DOC_KEYS.includes(meta.docKey) && !criticalDocsSeenRef.current.has(meta.docKey)) {
+              criticalDocsSeenRef.current.add(meta.docKey);
+              if (CRITICAL_SYNC_DOC_KEYS.every((k) => criticalDocsSeenRef.current.has(k))) {
+                resolveCriticalSyncRef.current?.();
+                resolveCriticalSyncRef.current = null;
+              }
+            }
+          });
+        })
+      : null;
+
+    return () => {
+      authUnsub?.();
+      unsubscribeData?.();
+    };
   }, []);
 
   // Derive the active `user` display profile from the synced preferences map
@@ -599,8 +619,16 @@ function AppInner() {
     const timer = setTimeout(() => {
       const snapshot = { activeTab, timeMode, entityScope, selectedChannels, selectedProvince, selectedBoss, selectedCategory, selectedCategoryGroup };
       setUserFiltersMap((prev) => {
-        const next = { ...prev, [currentUser.accountId]: snapshot };
+        const userPrev = prev[currentUser.accountId] || {};
+        const next = {
+          ...prev,
+          [currentUser.accountId]: {
+            ...userPrev,
+            ...snapshot,
+          },
+        };
         void saveUserFiltersToFirebase(next, currentUser.name);
+        void idbSet('tnb_user_filters', next);
         return next;
       });
     }, 800);
@@ -654,6 +682,15 @@ function AppInner() {
       if (!cachedData.bossAssignments?.length && idbCache.bossAssignments?.length) {
         setBossAssignments(idbCache.bossAssignments);
       }
+      if (!cachedData.revenueCungKy?.length && idbCache.revenueCungKy?.length) {
+        setRevenueCungKy(idbCache.revenueCungKy);
+      }
+      try {
+        const directIdb = await idbGet<RevenueCungKyRecord[]>('tnb_revenue_cung_ky');
+        if (directIdb && directIdb.length > 0) {
+          setRevenueCungKy(directIdb);
+        }
+      } catch (e) {}
       if (!cachedData.settings && idbCache.settings) {
         setSettings((prev) => ({ ...prev, ...idbCache.settings }));
       }
@@ -1014,6 +1051,7 @@ function AppInner() {
 
   const handleUpdateRevenueCungKy = async (records: RevenueCungKyRecord[]) => {
     setRevenueCungKy(records);
+    void idbSet('tnb_revenue_cung_ky', records);
     const res = await saveRevenueCungKyToFirebase(records, currentUser?.name || 'Super Admin');
     if (!res.success) {
       showErrorToast(res.error || 'Đồng bộ Doanh thu cùng kỳ lên Firebase thất bại!');
@@ -1028,6 +1066,24 @@ function AppInner() {
       const userPrev = prev[currentUser.accountId] || {};
       const next = { ...prev, [currentUser.accountId]: { ...userPrev, revenueProvince: province } };
       void saveUserFiltersToFirebase(next, currentUser.name);
+      void idbSet('tnb_user_filters', next);
+      return next;
+    });
+  };
+
+  const handleSaveUserFilters = (filterUpdates: Record<string, any>) => {
+    if (!currentUser) return;
+    setUserFiltersMap((prev) => {
+      const userPrev = prev[currentUser.accountId] || {};
+      const next = {
+        ...prev,
+        [currentUser.accountId]: {
+          ...userPrev,
+          ...filterUpdates,
+        },
+      };
+      void saveUserFiltersToFirebase(next, currentUser.name);
+      void idbSet('tnb_user_filters', next);
       return next;
     });
   };
@@ -1556,6 +1612,7 @@ function AppInner() {
                   onNavigateToUpdate={() => setActiveTab('update')}
                   savedUserFilters={currentUser ? userFiltersMap[currentUser.accountId] : undefined}
                   onSaveRevenueProvince={handleSaveRevenueProvince}
+                  onSaveUserFilters={handleSaveUserFilters}
                 />
               </ErrorBoundary>
             </React.Suspense>

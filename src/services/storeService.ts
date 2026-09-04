@@ -157,12 +157,17 @@ function flushLocalCachePersist() {
   }
   if (!memCache) return;
   try {
-    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(memCache));
+    // Không ghi revenueCungKy (hàng chục nghìn dòng, >4MB) vào localStorage để tránh QuotaExceededError và nghẽn main thread
+    const { revenueCungKy, ...cacheWithoutCungKy } = memCache;
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(cacheWithoutCungKy));
   } catch (e) {
     // localStorage quota exceeded or unavailable — IndexedDB below has much
     // more headroom and is the fallback that actually survives this.
   }
   void idbSet(LOCAL_CACHE_KEY, memCache);
+  if (memCache.revenueCungKy && memCache.revenueCungKy.length > 0) {
+    void idbSet('tnb_revenue_cung_ky', memCache.revenueCungKy);
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -253,46 +258,68 @@ async function saveChunkedStoreDataset<T>(
     return { success: false, error: 'Chưa kết nối được Firebase — dữ liệu chỉ lưu tạm trên trình duyệt này.' };
   }
 
+  const isCungKy = docKey === 'revenue_cung_ky';
+  const chunkSize = isCungKy ? 1000 : STORE_CHUNK_SIZE;
+
   const newChunks: T[][] = [];
-  for (let i = 0; i < stores.length; i += STORE_CHUNK_SIZE) {
-    newChunks.push(stores.slice(i, i + STORE_CHUNK_SIZE));
+  for (let i = 0; i < stores.length; i += chunkSize) {
+    newChunks.push(stores.slice(i, i + chunkSize));
   }
   if (newChunks.length === 0) newChunks.push([]); // write one empty chunk so reads see "cleared", not stale old data
 
   try {
     const chunksRef = collection(db, COLLECTION, docKey, 'chunks');
-    const batch = writeBatch(db);
 
-    const previousStores = (getLocalCache()[field] as T[] | undefined) || [];
-    const canSkipUnchangedChunks = previousStores.length === stores.length;
-
-    newChunks.forEach((chunk, index) => {
-      if (canSkipUnchangedChunks) {
-        const start = index * STORE_CHUNK_SIZE;
-        const prevChunk = previousStores.slice(start, start + STORE_CHUNK_SIZE);
-        const unchanged = chunk.length === prevChunk.length && chunk.every((s, i) => s === prevChunk[i]);
-        if (unchanged) return;
+    // With large datasets (20k+ rows, e.g. revenue_cung_ky), writing all 20+ chunks
+    // in a single batch easily exceeds Firestore's 10MB batch/request limits.
+    // Chunking into smaller batches of 4 documents ensures fast, reliable commits.
+    const BATCH_SIZE_LIMIT = isCungKy ? 4 : 50;
+    for (let bStart = 0; bStart < newChunks.length; bStart += BATCH_SIZE_LIMIT) {
+      const batch = writeBatch(db);
+      const bEnd = Math.min(bStart + BATCH_SIZE_LIMIT, newChunks.length);
+      for (let index = bStart; index < bEnd; index++) {
+        const chunk = newChunks[index];
+        const chunkData = isCungKy
+          ? (chunk as any[]).map((r) => ({
+              id: r.id || '',
+              maKho: r.maKho || '',
+              ngay: r.ngay || '',
+              doanhThu: Number(r.doanhThu) || 0,
+              doanhThuQd: Number(r.doanhThuQd) || 0,
+              sieuthi: r.sieuthi || '',
+              tinh: r.tinh || '',
+              kenh: r.kenh || '',
+              boss: r.boss || '',
+              phanLoaiShop: r.phanLoaiShop || '',
+            }))
+          : sanitizeForFirestore({ data: chunk, index }).data;
+        batch.set(doc(chunksRef, String(index)), { data: chunkData, index });
       }
-      batch.set(doc(chunksRef, String(index)), sanitizeForFirestore({ data: chunk, index }));
-    });
-
-    const previousChunkCount = previousStores.length > 0 ? Math.ceil(previousStores.length / STORE_CHUNK_SIZE) : 0;
-    const STALE_CHUNK_SAFETY_MARGIN = 10; // covers this device's local cache being a few saves behind
-    const staleChunkLookaheadEnd = Math.max(newChunks.length, previousChunkCount) + STALE_CHUNK_SAFETY_MARGIN;
-    for (let i = newChunks.length; i < staleChunkLookaheadEnd; i++) {
-      batch.delete(doc(chunksRef, String(i)));
+      await batch.commit();
     }
 
-    batch.set(doc(db, COLLECTION, docKey), {
+    // Clean up any stale chunks leftover from a previously larger dataset
+    const previousStores = (getLocalCache()[field] as T[] | undefined) || [];
+    const previousChunkCount = previousStores.length > 0 ? Math.ceil(previousStores.length / chunkSize) : 0;
+    const STALE_CHUNK_SAFETY_MARGIN = 10;
+    const staleChunkLookaheadEnd = Math.max(newChunks.length, previousChunkCount) + STALE_CHUNK_SAFETY_MARGIN;
+    if (staleChunkLookaheadEnd > newChunks.length) {
+      const delBatch = writeBatch(db);
+      for (let i = newChunks.length; i < staleChunkLookaheadEnd; i++) {
+        delBatch.delete(doc(chunksRef, String(i)));
+      }
+      await delBatch.commit();
+    }
+
+    // Write main doc metadata
+    await setDoc(doc(db, COLLECTION, docKey), {
       chunkCount: newChunks.length,
       lastUpdated: serverTimestamp(),
       customLastUpdated: customLastUpdated || null,
       updatedBy,
     });
 
-    const commitPromise = batch.commit();
     writeLocalCache(localPayload as Partial<FirebaseDataPayload>);
-    await commitPromise;
     return { success: true };
   } catch (error) {
     console.error(`Firestore chunked write error [${docKey}]:`, error);

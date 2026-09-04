@@ -16,6 +16,7 @@ import {
   getFormattedNow,
   checkDataFreshness,
 } from '../utils/parser';
+import { idbGet, idbSet } from '../services/indexedDbCache';
 import {
   Coins,
   TrendingUp,
@@ -121,7 +122,10 @@ export interface RevenueReportViewProps {
   onNavigateToUpdate?: () => void;
   savedUserFilters?: Record<string, any>;
   onSaveRevenueProvince?: (province: string) => void;
+  onSaveUserFilters?: (filters: Record<string, any>) => void;
 }
+
+const ALL_REVENUE_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
 
 export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   realtimeDtStores = [],
@@ -142,12 +146,142 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   onNavigateToUpdate,
   savedUserFilters,
   onSaveRevenueProvince,
+  onSaveUserFilters,
 }) => {
+  // Helper lấy kênh đã lưu cho từng tab (mặc định: TOP/BOT là DML, các tab khác là All)
+  const getSavedChannelsForScope = (scope: EntityScope): Channel[] => {
+    if (scope === 'topbot') {
+      const saved =
+        savedUserFilters?.revenue_topbot_channels ??
+        (() => {
+          try {
+            const raw = localStorage.getItem('revenue_topbot_channels');
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        })();
+      return saved && Array.isArray(saved) && saved.length > 0 ? saved : ['DML'];
+    }
+    if (scope === 'tong') {
+      const saved =
+        savedUserFilters?.revenue_tong_channels ??
+        (() => {
+          try {
+            const raw = localStorage.getItem('revenue_tong_channels');
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        })();
+      return saved && Array.isArray(saved) && saved.length > 0 ? saved : ALL_REVENUE_CHANNELS;
+    }
+    if (scope === 'sieuthi') { // Tab VÙNG trong UI
+      const saved =
+        savedUserFilters?.revenue_vung_channels ??
+        (() => {
+          try {
+            const raw = localStorage.getItem('revenue_vung_channels');
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        })();
+      return saved && Array.isArray(saved) && saved.length > 0 ? saved : ALL_REVENUE_CHANNELS;
+    }
+
+    if (scope === 'sieuthimoi') {
+      const saved =
+        savedUserFilters?.revenue_sieuthimoi_channels ??
+        (() => {
+          try {
+            const raw = localStorage.getItem('revenue_sieuthimoi_channels');
+            return raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            return null;
+          }
+        })();
+      return saved && Array.isArray(saved) && saved.length > 0 ? saved : ALL_REVENUE_CHANNELS;
+    }
+
+    // Tab SIÊU THỊ (scope === 'vung'):
+    const saved =
+      savedUserFilters?.revenue_sieuthi_channels ??
+      (() => {
+        try {
+          const raw = localStorage.getItem('revenue_sieuthi_channels');
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          return null;
+        }
+      })();
+    return saved && Array.isArray(saved) && saved.length > 0 ? saved : ALL_REVENUE_CHANNELS;
+  };
+
+  // Helper lấy tỉnh đã lưu cho từng tab (mỗi tab lưu riêng biệt, không bị đè chéo)
+  const getSavedProvinceForScope = (scope: EntityScope, availableProvinces: string[]): string => {
+    const firstProv = availableProvinces.length > 0 ? availableProvinces[0] : 'ALL';
+    if (scope === 'topbot') {
+      const saved =
+        savedUserFilters?.revenue_topbot_province ??
+        localStorage.getItem('revenue_topbot_province');
+      if (saved && (saved === 'ALL' || availableProvinces.includes(saved))) return saved;
+      return 'ALL';
+    }
+
+    if (scope === 'sieuthimoi') {
+      // 1. Ưu tiên cấu hình riêng của tab SIÊU THỊ MỚI
+      const savedMoi =
+        savedUserFilters?.revenue_sieuthimoi_province ??
+        localStorage.getItem('revenue_sieuthimoi_province');
+      if (savedMoi && (savedMoi === 'ALL' || availableProvinces.includes(savedMoi))) return savedMoi;
+
+      // 2. Fallback sang tỉnh đã chọn chung
+      const savedCommon =
+        savedUserFilters?.revenueProvince ??
+        localStorage.getItem('revenue_selected_province');
+      if (savedCommon && (savedCommon === 'ALL' || availableProvinces.includes(savedCommon))) return savedCommon;
+
+      return firstProv;
+    }
+
+    if (scope === 'vung') {
+      // Tab SIÊU THỊ: 1. Ưu tiên cấu hình riêng của tab SIÊU THỊ
+      const savedSt =
+        savedUserFilters?.revenue_sieuthi_province ??
+        localStorage.getItem('revenue_sieuthi_province');
+      if (savedSt && (savedSt === 'ALL' || availableProvinces.includes(savedSt))) return savedSt;
+
+      // 2. Fallback sang tỉnh đã chọn chung
+      const savedCommon =
+        savedUserFilters?.revenueProvince ??
+        localStorage.getItem('revenue_selected_province');
+      if (savedCommon && (savedCommon === 'ALL' || availableProvinces.includes(savedCommon))) return savedCommon;
+
+      return firstProv;
+    }
+
+    // Các tab còn lại (tong, sieuthi = VÙNG)
+    const saved =
+      savedUserFilters?.revenueProvince ??
+      localStorage.getItem('revenue_selected_province');
+    if (saved && (saved === 'ALL' || availableProvinces.includes(saved))) return saved;
+    return firstProv;
+  };
+
   // Target Configuration (Mặc định vs CK Năm, và Hệ số %)
   const [targetConfig, setTargetConfig] = usePersistedState<TargetConfig>('tnb_revenue_target_config', {
     mode: 'default',
     heSo: 100,
   });
+
+  // Đồng bộ cấu hình target từ userFilters nếu có lưu
+  useEffect(() => {
+    if (savedUserFilters?.revenue_target_config) {
+      setTargetConfig(savedUserFilters.revenue_target_config);
+    }
+  }, [savedUserFilters?.revenue_target_config]);
+
   const [isTargetConfigModalOpen, setIsTargetConfigModalOpen] = useState(false);
   const [tempTargetConfig, setTempTargetConfig] = useState<TargetConfig>(targetConfig);
 
@@ -156,6 +290,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       setTempTargetConfig(targetConfig);
     }
   }, [isTargetConfigModalOpen, targetConfig]);
+
   // Value display mode: 'percent' (% HT) | 'value' (Giá trị Triệu VND)
   const [valueDisplayMode, setValueDisplayMode] = useState<'percent' | 'value'>('percent');
 
@@ -163,9 +298,25 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   const [selectedMetricGroup, setSelectedMetricGroup] = useState<string>('ALL');
 
   // Filters
-  const [selectedChannels, setSelectedChannels] = useState<Channel[]>(['DML', 'DMM', 'DMS', 'TGD']);
+  const [selectedChannels, setSelectedChannels] = useState<Channel[]>(() => getSavedChannelsForScope(entityScope));
   const [selectedProvince, setSelectedProvince] = useState<string>(() => {
-    const saved = savedUserFilters?.revenueProvince || localStorage.getItem('revenue_selected_province');
+    if (entityScope === 'topbot') {
+      const saved = savedUserFilters?.revenue_topbot_province ?? localStorage.getItem('revenue_topbot_province');
+      return saved || 'ALL';
+    }
+    if (entityScope === 'sieuthimoi') {
+      const saved =
+        savedUserFilters?.revenue_sieuthimoi_province ??
+        localStorage.getItem('revenue_sieuthimoi_province') ??
+        savedUserFilters?.revenueProvince ??
+        localStorage.getItem('revenue_selected_province');
+      return saved || 'ALL';
+    }
+    const saved =
+      savedUserFilters?.revenue_sieuthi_province ??
+      localStorage.getItem('revenue_sieuthi_province') ??
+      savedUserFilters?.revenueProvince ??
+      localStorage.getItem('revenue_selected_province');
     return saved || 'ALL';
   });
   const [selectedBoss, setSelectedBoss] = useState<string>('ALL');
@@ -202,9 +353,22 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       ? lastUpdateRealtimeDt || lastUpdateRealtimeTc || getFormattedNow()
       : lastUpdateLuyKeDt || lastUpdateLuyKeTc || getFormattedNow();
 
-  // Fallback to local storage if props revenueCungKy is empty
+  const [idbCungKy, setIdbCungKy] = useState<RevenueCungKyRecord[]>([]);
+
+  useEffect(() => {
+    if (!revenueCungKy || revenueCungKy.length === 0) {
+      void idbGet<RevenueCungKyRecord[]>('tnb_revenue_cung_ky').then((res) => {
+        if (res && res.length > 0) {
+          setIdbCungKy(res);
+        }
+      });
+    }
+  }, [revenueCungKy]);
+
+  // Fallback to local storage or IndexedDB if props revenueCungKy is empty
   const effectiveRevenueCungKy = useMemo<RevenueCungKyRecord[]>(() => {
     if (revenueCungKy && revenueCungKy.length > 0) return revenueCungKy;
+    if (idbCungKy && idbCungKy.length > 0) return idbCungKy;
     try {
       const raw1 = localStorage.getItem('tnb_revenue_cung_ky');
       if (raw1) {
@@ -227,7 +391,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       console.warn('Error reading revenueCungKy from localStorage fallback:', e);
     }
     return [];
-  }, [revenueCungKy]);
+  }, [revenueCungKy, idbCungKy]);
 
   // Extract Day, Month, Year: Realtime luôn lấy theo ngày hôm nay thực tế (new Date())
   const dateInfo = useMemo(() => {
@@ -274,11 +438,21 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       if (p.length === 3) {
         const d = p[0].padStart(2, '0');
         const m = p[1].padStart(2, '0');
-        const y = p[2];
-        const dateKey1 = `${d}/${m}/${y}`;
-        const dateKey2 = `${parseInt(d, 10)}/${parseInt(m, 10)}/${y}`;
-        const monthKey1 = `${m}/${y}`;
-        const monthKey2 = `${parseInt(m, 10)}/${y}`;
+        let y = p[2].trim().split(/\s+/)[0];
+        if (y.length === 2) {
+          y = Number(y) < 50 ? `20${y}` : `19${y}`;
+        }
+        const shortY = y.slice(-2);
+
+        const dateKey1 = `${d}/${m}/${y}`; // "04/09/2025"
+        const dateKey2 = `${parseInt(d, 10)}/${parseInt(m, 10)}/${y}`; // "4/9/2025"
+        const dateKey3 = `${d}/${m}/${shortY}`; // "04/09/25"
+        const dateKey4 = `${parseInt(d, 10)}/${parseInt(m, 10)}/${shortY}`; // "4/9/25"
+
+        const monthKey1 = `${m}/${y}`; // "09/2025"
+        const monthKey2 = `${parseInt(m, 10)}/${y}`; // "9/2025"
+        const monthKey3 = `${m}/${shortY}`; // "09/25"
+        const monthKey4 = `${parseInt(m, 10)}/${shortY}`; // "9/25"
 
         // Collect all possible store identifiers
         const keysToStore = new Set<string>([rawMaKho, numMaKho]);
@@ -290,21 +464,28 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           keysToStore.add(String(parseInt(mstFromSieuthi, 10) || mstFromSieuthi));
         }
 
+        const allKeys = new Set<string>();
         keysToStore.forEach((k) => {
           if (!k) return;
+          allKeys.add(k);
+          allKeys.add(k.toLowerCase());
+        });
+
+        allKeys.forEach((k) => {
           byStoreDate.set(`${k}_${dateKey1}`, row);
           byStoreDate.set(`${k}_${dateKey2}`, row);
-          byStoreDate.set(`${k.toLowerCase()}_${dateKey1}`, row);
-          byStoreDate.set(`${k.toLowerCase()}_${dateKey2}`, row);
+          byStoreDate.set(`${k}_${dateKey3}`, row);
+          byStoreDate.set(`${k}_${dateKey4}`, row);
         });
 
         const dtQdVal = row.doanhThuQd || 0;
-        keysToStore.forEach((k) => {
-          if (!k) return;
-          byStoreMonth.set(`${k}_${monthKey1}`, (byStoreMonth.get(`${k}_${monthKey1}`) || 0) + dtQdVal);
-          byStoreMonth.set(`${k}_${monthKey2}`, (byStoreMonth.get(`${k}_${monthKey2}`) || 0) + dtQdVal);
-          byStoreMonth.set(`${k.toLowerCase()}_${monthKey1}`, (byStoreMonth.get(`${k.toLowerCase()}_${monthKey1}`) || 0) + dtQdVal);
-          byStoreMonth.set(`${k.toLowerCase()}_${monthKey2}`, (byStoreMonth.get(`${k.toLowerCase()}_${monthKey2}`) || 0) + dtQdVal);
+        const uniqueMonthKeys = Array.from(new Set([monthKey1, monthKey2, monthKey3, monthKey4]));
+
+        allKeys.forEach((k) => {
+          uniqueMonthKeys.forEach((mk) => {
+            const compositeKey = `${k}_${mk}`;
+            byStoreMonth.set(compositeKey, (byStoreMonth.get(compositeKey) || 0) + dtQdVal);
+          });
         });
       }
     });
@@ -355,16 +536,27 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       if (targetConfig.mode === 'cung_ky') {
         if (timeMode === 'realtime') {
           // Realtime: lookup store on cungKyDayMonthYear (e.g. "04/09/2025")
-          const dKey1 = dateInfo.cungKyDayMonthYear;
-          const dKey2 = `${parseInt(dateInfo.dStr, 10)}/${parseInt(dateInfo.mStr, 10)}/${dateInfo.prevYearStr}`;
+          const dKey1 = dateInfo.cungKyDayMonthYear; // "04/09/2025"
+          const dKey2 = `${parseInt(dateInfo.dStr, 10)}/${parseInt(dateInfo.mStr, 10)}/${dateInfo.prevYearStr}`; // "4/9/2025"
+          const shortY = dateInfo.prevYearStr.slice(-2);
+          const dKey3 = `${dateInfo.dStr}/${dateInfo.mStr}/${shortY}`; // "04/09/25"
+          const dKey4 = `${parseInt(dateInfo.dStr, 10)}/${parseInt(dateInfo.mStr, 10)}/${shortY}`; // "4/9/25"
 
-          const matchedRow =
-            cungKyIndex.byStoreDate.get(`${rawMst}_${dKey1}`) ||
-            cungKyIndex.byStoreDate.get(`${cleanMst}_${dKey1}`) ||
-            cungKyIndex.byStoreDate.get(`${rawMst}_${dKey2}`) ||
-            cungKyIndex.byStoreDate.get(`${cleanMst}_${dKey2}`) ||
-            (code ? cungKyIndex.byStoreDate.get(`${code}_${dKey1}`) : undefined) ||
-            (code ? cungKyIndex.byStoreDate.get(`${code}_${dKey2}`) : undefined);
+          const keysToTry = [
+            `${rawMst}_${dKey1}`, `${cleanMst}_${dKey1}`,
+            `${rawMst}_${dKey2}`, `${cleanMst}_${dKey2}`,
+            `${rawMst}_${dKey3}`, `${cleanMst}_${dKey3}`,
+            `${rawMst}_${dKey4}`, `${cleanMst}_${dKey4}`,
+          ];
+          if (code) {
+            keysToTry.push(`${code}_${dKey1}`, `${code}_${dKey2}`, `${code}_${dKey3}`, `${code}_${dKey4}`);
+          }
+
+          let matchedRow: RevenueCungKyRecord | undefined;
+          for (const k of keysToTry) {
+            matchedRow = cungKyIndex.byStoreDate.get(k) || cungKyIndex.byStoreDate.get(k.toLowerCase());
+            if (matchedRow && matchedRow.doanhThuQd > 0) break;
+          }
 
           if (matchedRow && matchedRow.doanhThuQd > 0) {
             const rawVal = matchedRow.doanhThuQd;
@@ -372,18 +564,32 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           }
         } else {
           // Luỹ kế: sum of all days in cungKyMonthYear (e.g. "09/2025")
-          const mKey1 = dateInfo.cungKyMonthYear;
-          const mKey2 = `${parseInt(dateInfo.mStr, 10)}/${dateInfo.prevYearStr}`;
+          const mKey1 = dateInfo.cungKyMonthYear; // "09/2025"
+          const mKey2 = `${parseInt(dateInfo.mStr, 10)}/${dateInfo.prevYearStr}`; // "9/2025"
+          const shortY = dateInfo.prevYearStr.slice(-2);
+          const mKey3 = `${dateInfo.mStr}/${shortY}`; // "09/25"
+          const mKey4 = `${parseInt(dateInfo.mStr, 10)}/${shortY}`; // "9/25"
 
-          const monthSum =
-            cungKyIndex.byStoreMonth.get(`${rawMst}_${mKey1}`) ||
-            cungKyIndex.byStoreMonth.get(`${cleanMst}_${mKey1}`) ||
-            cungKyIndex.byStoreMonth.get(`${rawMst}_${mKey2}`) ||
-            cungKyIndex.byStoreMonth.get(`${cleanMst}_${mKey2}`) ||
-            (code ? cungKyIndex.byStoreMonth.get(`${code}_${mKey1}`) : undefined) ||
-            (code ? cungKyIndex.byStoreMonth.get(`${code}_${mKey2}`) : undefined);
+          const mKeysToTry = [
+            `${rawMst}_${mKey1}`, `${cleanMst}_${mKey1}`,
+            `${rawMst}_${mKey2}`, `${cleanMst}_${mKey2}`,
+            `${rawMst}_${mKey3}`, `${cleanMst}_${mKey3}`,
+            `${rawMst}_${mKey4}`, `${cleanMst}_${mKey4}`,
+          ];
+          if (code) {
+            mKeysToTry.push(`${code}_${mKey1}`, `${code}_${mKey2}`, `${code}_${mKey3}`, `${code}_${mKey4}`);
+          }
 
-          if (monthSum && monthSum > 0) {
+          let monthSum = 0;
+          for (const k of mKeysToTry) {
+            const val = cungKyIndex.byStoreMonth.get(k) || cungKyIndex.byStoreMonth.get(k.toLowerCase()) || 0;
+            if (val > 0) {
+              monthSum = val;
+              break;
+            }
+          }
+
+          if (monthSum > 0) {
             baseTarget = monthSum > 100_000 ? (monthSum / 1_000_000) : monthSum;
           }
         }
@@ -493,42 +699,101 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     [mergedItems]
   );
 
-  // Khi mới mở ứng dụng lần đầu tiên: Khôi phục tỉnh từ Firebase / LocalStorage, nếu chưa từng chọn bao giờ thì mới lấy tỉnh đầu tiên
+  // Khi mới mở ứng dụng hoặc khi uniqueProvinces sẵn sàng: Khôi phục Kênh & Tỉnh theo tab hiện tại
   useEffect(() => {
-    if (isInitialProvinceLoadedRef.current) return;
     if (uniqueProvinces.length === 0) return;
-
-    const savedProv = savedUserFilters?.revenueProvince ?? localStorage.getItem('revenue_selected_province');
-
-    if (savedProv !== null && savedProv !== undefined && savedProv !== '') {
-      if (savedProv === 'ALL' || uniqueProvinces.includes(savedProv)) {
-        setSelectedProvince(savedProv);
-        isInitialProvinceLoadedRef.current = true;
-        return;
-      }
+    if (!isInitialProvinceLoadedRef.current) {
+      setSelectedChannels(getSavedChannelsForScope(entityScope));
+      const savedProv = getSavedProvinceForScope(entityScope, uniqueProvinces);
+      setSelectedProvince(savedProv);
+      isInitialProvinceLoadedRef.current = true;
     }
+  }, [uniqueProvinces, entityScope]);
 
-    // Chưa từng chọn hoặc mới mở lần đầu: mặc định 1 tỉnh đầu tiên
-    const firstProv = uniqueProvinces[0] || 'ALL';
-    setSelectedProvince(firstProv);
-    localStorage.setItem('revenue_selected_province', firstProv);
-    onSaveRevenueProvince?.(firstProv);
-    isInitialProvinceLoadedRef.current = true;
-  }, [uniqueProvinces, savedUserFilters?.revenueProvince]);
-
-  // When switching to TOP/BOT: Ensure exactly 1 channel is selected
+  // Lắng nghe khi savedUserFilters từ Firebase / IndexedDB thay đổi
+  const prevSavedFiltersJsonRef = useRef<string>('');
   useEffect(() => {
-    if (entityScope === 'topbot') {
-      if (selectedChannels.length !== 1) {
-        setSelectedChannels(['DML']);
+    if (!savedUserFilters) return;
+    const currentJson = JSON.stringify(savedUserFilters);
+    if (currentJson !== prevSavedFiltersJsonRef.current) {
+      prevSavedFiltersJsonRef.current = currentJson;
+      setSelectedChannels(getSavedChannelsForScope(entityScope));
+      if (uniqueProvinces.length > 0) {
+        // Chỉ cập nhật nếu savedUserFilters có giá trị hợp lệ cho scope này
+        let scopeSavedProv: string | undefined;
+        if (entityScope === 'topbot') {
+          scopeSavedProv = savedUserFilters.revenue_topbot_province;
+        } else if (entityScope === 'sieuthimoi') {
+          scopeSavedProv = savedUserFilters.revenue_sieuthimoi_province ?? savedUserFilters.revenueProvince;
+        } else if (entityScope === 'vung') {
+          scopeSavedProv = savedUserFilters.revenue_sieuthi_province ?? savedUserFilters.revenueProvince;
+        }
+
+        if (scopeSavedProv && (scopeSavedProv === 'ALL' || uniqueProvinces.includes(scopeSavedProv))) {
+          setSelectedProvince(scopeSavedProv);
+        } else if (!uniqueProvinces.includes(selectedProvince)) {
+          // Chỉ fallback về firstProv nếu tỉnh hiện tại không hợp lệ
+          setSelectedProvince(getSavedProvinceForScope(entityScope, uniqueProvinces));
+        }
+      }
+      if (savedUserFilters.revenue_target_config) {
+        setTargetConfig(savedUserFilters.revenue_target_config);
       }
     }
-  }, [entityScope]);
+  }, [savedUserFilters, entityScope, uniqueProvinces, selectedProvince]);
+
+  const handleChannelsChange = (newChannels: Channel[]) => {
+    setSelectedChannels(newChannels);
+    let key = '';
+    if (entityScope === 'topbot') key = 'revenue_topbot_channels';
+    else if (entityScope === 'tong') key = 'revenue_tong_channels';
+    else if (entityScope === 'sieuthi') key = 'revenue_vung_channels'; // Tab VÙNG
+    else if (entityScope === 'vung') key = 'revenue_sieuthi_channels'; // Tab SIÊU THỊ
+    else if (entityScope === 'sieuthimoi') key = 'revenue_sieuthimoi_channels';
+
+    if (key) {
+      onSaveUserFilters?.({ [key]: newChannels });
+      try {
+        localStorage.setItem(key, JSON.stringify(newChannels));
+        void idbSet(key, newChannels);
+      } catch (e) {}
+    }
+  };
 
   const handleProvinceChange = (newProvince: string) => {
     setSelectedProvince(newProvince);
-    localStorage.setItem('revenue_selected_province', newProvince);
+    let key = '';
+    if (entityScope === 'vung') key = 'revenue_sieuthi_province'; // Tab SIÊU THỊ
+    else if (entityScope === 'sieuthimoi') key = 'revenue_sieuthimoi_province';
+    else if (entityScope === 'topbot') key = 'revenue_topbot_province';
+
+    const updates: Record<string, any> = {
+      revenueProvince: newProvince,
+    };
+    if (key) {
+      updates[key] = newProvince;
+      try {
+        localStorage.setItem(key, newProvince);
+        void idbSet(key, newProvince);
+      } catch (e) {}
+    }
+    try {
+      localStorage.setItem('revenue_selected_province', newProvince);
+      void idbSet('revenue_selected_province', newProvince);
+    } catch (e) {}
+
+    onSaveUserFilters?.(updates);
     onSaveRevenueProvince?.(newProvince);
+  };
+
+  const handleTabSwitch = (newScope: EntityScope) => {
+    setEntityScope(newScope);
+    // 1. Khôi phục Kênh cho tab mới
+    setSelectedChannels(getSavedChannelsForScope(newScope));
+    // 2. Khôi phục Tỉnh cho tab mới
+    setSelectedProvince(getSavedProvinceForScope(newScope, uniqueProvinces));
+    setSelectedTinhMoi('ALL');
+    setSelectedPhanLoaiShop('ALL');
   };
 
   // Filtered Store Items
@@ -986,17 +1251,19 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   };
 
   const toggleChannel = (channel: Channel) => {
+    let nextChannels: Channel[] = [];
     if (entityScope === 'topbot') {
-      setSelectedChannels([channel]);
-      return;
-    }
-    if (selectedChannels.includes(channel)) {
+      nextChannels = [channel];
+    } else if (selectedChannels.includes(channel)) {
       if (selectedChannels.length > 1) {
-        setSelectedChannels(selectedChannels.filter((c) => c !== channel));
+        nextChannels = selectedChannels.filter((c) => c !== channel);
+      } else {
+        return;
       }
     } else {
-      setSelectedChannels([...selectedChannels, channel]);
+      nextChannels = [...selectedChannels, channel];
     }
+    handleChannelsChange(nextChannels);
   };
 
   const removeVietnameseTones = (str: string) => {
@@ -1317,13 +1584,7 @@ ${botLines || 'Đang cập nhật'}
             {/* Scope Selector: TỔNG / VÙNG / SIÊU THỊ */}
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shrink-0">
               <button
-                onClick={() => {
-                  setEntityScope('tong');
-                  setSelectedProvince('ALL');
-                  setSelectedTinhMoi('ALL');
-                  setSelectedPhanLoaiShop('ALL');
-                  setSelectedChannels(['DML', 'DMM', 'DMS', 'TGD', 'TopZone']);
-                }}
+                onClick={() => handleTabSwitch('tong')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'tong'
                     ? 'bg-amber-50 text-amber-800 border-amber-300 ring-2 ring-amber-200/60 shadow-2xs'
@@ -1335,12 +1596,7 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => {
-                  setEntityScope('sieuthi');
-                  setSelectedProvince('ALL');
-                  setSelectedTinhMoi('ALL');
-                  setSelectedPhanLoaiShop('ALL');
-                }}
+                onClick={() => handleTabSwitch('sieuthi')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'sieuthi'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-200/60 shadow-2xs'
@@ -1352,7 +1608,7 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => setEntityScope('vung')}
+                onClick={() => handleTabSwitch('vung')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'vung'
                     ? 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-200/60 shadow-2xs'
@@ -1364,13 +1620,7 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => {
-                  setEntityScope('sieuthimoi');
-                  if (selectedProvince === 'ALL' && uniqueProvinces.length > 0) {
-                    const defaultProv = uniqueProvinces.includes('Sóc Trăng') ? 'Sóc Trăng' : uniqueProvinces[0];
-                    setSelectedProvince(defaultProv);
-                  }
-                }}
+                onClick={() => handleTabSwitch('sieuthimoi')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'sieuthimoi'
                     ? 'bg-purple-50 text-purple-700 border-purple-300 ring-2 ring-purple-200/60 shadow-2xs'
@@ -1382,12 +1632,7 @@ ${botLines || 'Đang cập nhật'}
               </button>
 
               <button
-                onClick={() => {
-                  setEntityScope('topbot');
-                  if (selectedChannels.length !== 1) {
-                    setSelectedChannels([selectedChannels[0] || 'DML']);
-                  }
-                }}
+                onClick={() => handleTabSwitch('topbot')}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                   entityScope === 'topbot'
                     ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-200/60 shadow-2xs'
@@ -1427,28 +1672,26 @@ ${botLines || 'Đang cập nhật'}
 
           {/* Right Action Group: Realtime/Luỹ Kế, Cập nhật, Link BI */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* Nút Cấu hình Target: CHỈ HIỂN THỊ Ở TAB TỔNG */}
-            {entityScope === 'tong' && (
-              <button
-                type="button"
-                onClick={() => setIsTargetConfigModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs border-amber-600"
-                title="Cấu hình nguồn và hệ số Target"
-              >
-                <Sliders className="w-3.5 h-3.5 text-white" />
-                <span>Cấu hình Target</span>
-                {targetConfig.mode === 'cung_ky' && (
-                  <span className="px-1.5 py-0.5 text-[9.5px] bg-white text-orange-800 font-black rounded-md uppercase tracking-tight">
-                    CK
-                  </span>
-                )}
-                {targetConfig.heSo !== 100 && (
-                  <span className="px-1.5 py-0.5 text-[9.5px] bg-amber-950/40 text-amber-100 font-mono font-black rounded-md">
-                    x{targetConfig.heSo}%
-                  </span>
-                )}
-              </button>
-            )}
+            {/* Nút Cấu hình Target: HIỂN THỊ Ở TẤT CẢ CÁC TAB */}
+            <button
+              type="button"
+              onClick={() => setIsTargetConfigModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs border-amber-600"
+              title="Cấu hình nguồn và hệ số Target cho tất cả các tab"
+            >
+              <Sliders className="w-3.5 h-3.5 text-white" />
+              <span>Cấu hình Target</span>
+              {targetConfig.mode === 'cung_ky' && (
+                <span className="px-1.5 py-0.5 text-[9.5px] bg-white text-orange-800 font-black rounded-md uppercase tracking-tight">
+                  CK
+                </span>
+              )}
+              {targetConfig.heSo !== 100 && (
+                <span className="px-1.5 py-0.5 text-[9.5px] bg-amber-950/40 text-amber-100 font-mono font-black rounded-md">
+                  x{targetConfig.heSo}%
+                </span>
+              )}
+            </button>
 
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shrink-0">
               <button
@@ -1514,7 +1757,7 @@ ${botLines || 'Đang cập nhật'}
                     return (
                       <button
                         key={ch}
-                        onClick={() => setSelectedChannels([ch])}
+                        onClick={() => handleChannelsChange([ch])}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-blue-600 text-white shadow-2xs font-black'
@@ -3109,6 +3352,7 @@ ${botLines || 'Đang cập nhật'}
                   onClick={() => {
                     setTargetConfig(tempTargetConfig);
                     setIsTargetConfigModalOpen(false);
+                    onSaveUserFilters?.({ revenue_target_config: tempTargetConfig });
                   }}
                   className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >

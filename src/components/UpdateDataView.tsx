@@ -13,6 +13,7 @@ import {
   parseRevenueCungKyExcelData,
   parseExcelDate
 } from '../utils/parser';
+import { idbSet, idbGet } from '../services/indexedDbCache';
 import { 
   ClipboardPaste, 
   Trophy, 
@@ -435,21 +436,23 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
   // --- DOANH THU CÙNG KỲ NĂM STATE ---
   const cungKyFileInputRef = useRef<HTMLInputElement>(null);
-  const [parsedCungKyItems, setParsedCungKyItems] = usePersistedState<RevenueCungKyRecord[]>(
-    'tnb_revenue_cung_ky',
-    currentRevenueCungKy && currentRevenueCungKy.length > 0
-      ? currentRevenueCungKy.map((i) => ({ ...i, ngay: parseExcelDate(i.ngay) }))
-      : []
+  const [parsedCungKyItems, setParsedCungKyItems] = useState<RevenueCungKyRecord[]>(
+    () => (currentRevenueCungKy && currentRevenueCungKy.length > 0 ? currentRevenueCungKy : [])
   );
 
   useEffect(() => {
     if (currentRevenueCungKy && currentRevenueCungKy.length > 0) {
-      setParsedCungKyItems(
-        currentRevenueCungKy.map((i) => ({
-          ...i,
-          ngay: parseExcelDate(i.ngay),
-        }))
-      );
+      setParsedCungKyItems(currentRevenueCungKy);
+    }
+  }, [currentRevenueCungKy]);
+
+  useEffect(() => {
+    if (!currentRevenueCungKy || currentRevenueCungKy.length === 0) {
+      void idbGet<RevenueCungKyRecord[]>('tnb_revenue_cung_ky').then((res) => {
+        if (res && res.length > 0) {
+          setParsedCungKyItems(res);
+        }
+      });
     }
   }, [currentRevenueCungKy]);
 
@@ -514,21 +517,25 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         const q = cungKySearchQuery.toLowerCase().trim();
         const rawMaKho = String(item.maKho || '').toLowerCase().trim();
         const numMaKho = String(parseInt(rawMaKho, 10) || rawMaKho);
-        const qNum = String(parseInt(q, 10) || q);
         const isPureNum = /^\d+$/.test(q);
 
-        // If user searched for pure number like "910" or "54", match exact mã kho first
-        const matchMaKho = isPureNum
-          ? (rawMaKho === q || numMaKho === qNum || rawMaKho.startsWith(q))
-          : (rawMaKho.includes(q) || numMaKho.includes(q));
-
-        const match =
-          matchMaKho ||
-          (item.sieuthi && item.sieuthi.toLowerCase().includes(q)) ||
-          (item.boss && item.boss.toLowerCase().includes(q)) ||
-          (item.tinh && item.tinh.toLowerCase().includes(q)) ||
-          (item.ngay && item.ngay.includes(q));
-        if (!match) return false;
+        if (isPureNum) {
+          // Người dùng nhập mã kho (số): chỉ khớp chính xác mã kho
+          const qNum = String(parseInt(q, 10) || q);
+          const mstSieuthi = extractMst(item.sieuthi || '');
+          const matchMaKho = rawMaKho === q || numMaKho === qNum || mstSieuthi === q;
+          if (!matchMaKho) return false;
+        } else {
+          // Người dùng nhập chữ: tìm kiếm theo tên siêu thị, mã kho, BOSS, tỉnh
+          const match =
+            rawMaKho.includes(q) ||
+            numMaKho.includes(q) ||
+            (item.sieuthi && item.sieuthi.toLowerCase().includes(q)) ||
+            (item.boss && item.boss.toLowerCase().includes(q)) ||
+            (item.tinh && item.tinh.toLowerCase().includes(q)) ||
+            (item.ngay && item.ngay.includes(q));
+          if (!match) return false;
+        }
       }
       if (selectedCungKyNgays.length > 0 && !selectedCungKyNgays.includes(item.ngay)) return false;
       if (selectedCungKyTinhs.length > 0 && !selectedCungKyTinhs.includes(item.tinh || '')) return false;
@@ -637,9 +644,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
         setParsedCungKyItems(records);
         setCungKyCurrentPage(1);
-        try {
-          localStorage.setItem('tnb_revenue_cung_ky', JSON.stringify(records));
-        } catch {}
+        void idbSet('tnb_revenue_cung_ky', records);
 
         if (onUpdateRevenueCungKy) {
           setProcessingState({
@@ -647,7 +652,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             stepText: `☁️ 3. Đang đồng bộ ${records.length} dòng dữ liệu cùng kỳ lên hệ thống...`,
             progress: 88,
           });
-          await onUpdateRevenueCungKy(records);
+          // Yield thread để modal kịp render tiến trình 88%
+          await new Promise((r) => setTimeout(r, 80));
+          try {
+            await onUpdateRevenueCungKy(records);
+          } catch (syncErr) {
+            console.warn('Lỗi khi đồng bộ Firebase cùng kỳ (dữ liệu đã an toàn trong IndexedDB):', syncErr);
+          }
         }
 
         setProcessingState({
@@ -655,10 +666,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
           stepText: `✨ 4. Đã lưu thành công ${records.length} dòng doanh thu cùng kỳ (${new Set(records.map(r => r.maKho)).size} siêu thị)!`,
           progress: 100,
         });
-        await new Promise((r) => setTimeout(r, 400));
+        await new Promise((r) => setTimeout(r, 600));
       } catch (err) {
-        console.error(err);
-        alert('Có lỗi khi đọc file Excel Doanh thu cùng kỳ. Vui lòng kiểm tra lại cấu trúc file!');
+        console.error('Lỗi khi đọc file Excel Cùng Kỳ:', err);
+        alert('Có lỗi khi đọc file Excel Doanh thu cùng kỳ. Vui lòng kiểm tra lại file của bạn!');
       } finally {
         setProcessingState(null);
       }
@@ -672,19 +683,30 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     try {
       const XLSX = await import('xlsx');
       const sampleData = [
-        { 'MÃ KHO': 54, 'NGÀY': '01/09/2025', 'DOANH THU': 477256551, 'DOANH THU QĐ': 831953898 },
-        { 'MÃ KHO': 54, 'NGÀY': '02/09/2025', 'DOANH THU': 489708510, 'DOANH THU QĐ': 776621717 },
-        { 'MÃ KHO': 54, 'NGÀY': '03/09/2025', 'DOANH THU': 272954995, 'DOANH THU QĐ': 466791572 },
-        { 'MÃ KHO': 910, 'NGÀY': '01/09/2025', 'DOANH THU': 310500000, 'DOANH THU QĐ': 550800000 },
-        { 'MÃ KHO': 910, 'NGÀY': '02/09/2025', 'DOANH THU': 295400000, 'DOANH THU QĐ': 510200000 },
+        { 'MÃ SIÊU THỊ': 54, 'NGÀY': '01/09/2025', 'DOANH THU': 477256551, 'DOANH THU QĐ': 831953898 },
+        { 'MÃ SIÊU THỊ': 54, 'NGÀY': '02/09/2025', 'DOANH THU': 489708510, 'DOANH THU QĐ': 776621717 },
+        { 'MÃ SIÊU THỊ': 54, 'NGÀY': '03/09/2025', 'DOANH THU': 272954995, 'DOANH THU QĐ': 466791572 },
+        { 'MÃ SIÊU THỊ': 910, 'NGÀY': '01/09/2025', 'DOANH THU': 310500000, 'DOANH THU QĐ': 550800000 },
+        { 'MÃ SIÊU THỊ': 910, 'NGÀY': '02/09/2025', 'DOANH THU': 295400000, 'DOANH THU QĐ': 510200000 },
       ];
       const worksheet = XLSX.utils.json_to_sheet(sampleData);
       worksheet['!cols'] = [
-        { wch: 12 }, // MÃ KHO
+        { wch: 14 }, // MÃ SIÊU THỊ
         { wch: 14 }, // NGÀY
         { wch: 18 }, // DOANH THU
         { wch: 18 }, // DOANH THU QĐ
       ];
+
+      // Đặt định dạng text cho cột NGÀY để khi dán vào không bị Excel tự biến thành số serial date
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:D6');
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: 1 });
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].t = 's';
+          worksheet[cellRef].z = '@';
+        }
+      }
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'DOANH THU CUNG KY');
       XLSX.writeFile(workbook, 'Mau_Nhap_Doanh_Thu_Cung_Ky.xlsx');
@@ -743,6 +765,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         localStorage.removeItem('tnb_revenue_cung_ky');
         localStorage.removeItem('tnb_revenue_cung_ky_records');
       } catch {}
+      void idbSet('tnb_revenue_cung_ky', []);
       if (onUpdateRevenueCungKy) {
         await onUpdateRevenueCungKy([]);
       }
@@ -1755,7 +1778,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Hidden File Input for Excel */}
             <input
               type="file"
@@ -1770,20 +1793,20 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
               type="button"
               onClick={handleDownloadCungKyTemplate}
               title="Tải file mẫu Excel (.xlsx)"
-              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs border border-slate-200"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs border border-slate-200 whitespace-nowrap"
             >
               <Download className="w-4 h-4 text-slate-600" />
-              Tải file mẫu
+              <span>Tải file mẫu</span>
             </button>
 
             {/* Excel Upload Button */}
             <button
               type="button"
               onClick={() => cungKyFileInputRef.current?.click()}
-              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs whitespace-nowrap"
             >
               <Upload className="w-4 h-4" />
-              Upload file Cùng Kỳ
+              <span>Upload file Cùng Kỳ</span>
             </button>
           </div>
         </div>

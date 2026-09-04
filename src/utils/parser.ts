@@ -2446,17 +2446,25 @@ export function parseExcelDate(val: any): string {
     const str = String(val).trim();
     if (!str) return '';
 
-    // Match d/m/yyyy, dd/mm/yyyy, d-m-yyyy, dd-mm-yyyy
-    const slashMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    // Match d/m/yyyy, dd/mm/yyyy, d-m-yyyy, dd-mm-yyyy, d/m/yy, dd/mm/yy (allow optional time e.g. 4/9/25 0:00)
+    const slashMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})(?:\s+.*)?$/);
     if (slashMatch) {
       d = parseInt(slashMatch[1], 10);
       m = parseInt(slashMatch[2], 10);
-      y = slashMatch[3];
+      let yearPart = slashMatch[3];
+      if (yearPart.length === 2) {
+        yearPart = Number(yearPart) < 50 ? `20${yearPart}` : `19${yearPart}`;
+      }
+      y = yearPart;
     } else {
-      // Match yyyy-mm-dd or yyyy/mm/dd
-      const isoMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      // Match yyyy-mm-dd or yyyy/mm/dd or yy-mm-dd
+      const isoMatch = str.match(/^(\d{2,4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:\s+.*)?$/);
       if (isoMatch) {
-        y = isoMatch[1];
+        let yearPart = isoMatch[1];
+        if (yearPart.length === 2) {
+          yearPart = Number(yearPart) < 50 ? `20${yearPart}` : `19${yearPart}`;
+        }
+        y = yearPart;
         m = parseInt(isoMatch[2], 10);
         d = parseInt(isoMatch[3], 10);
       } else {
@@ -2470,7 +2478,19 @@ export function parseExcelDate(val: any): string {
           m = date_info.getUTCMonth() + 1;
           y = String(date_info.getUTCFullYear());
         } else {
-          return str;
+          // Fallback: check if matches d/m/yy or similar anywhere in string
+          const fallbackMatch = str.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+          if (fallbackMatch) {
+            d = parseInt(fallbackMatch[1], 10);
+            m = parseInt(fallbackMatch[2], 10);
+            let yearPart = fallbackMatch[3];
+            if (yearPart.length === 2) {
+              yearPart = Number(yearPart) < 50 ? `20${yearPart}` : `19${yearPart}`;
+            }
+            y = yearPart;
+          } else {
+            return str;
+          }
         }
       }
     }
@@ -2481,6 +2501,10 @@ export function parseExcelDate(val: any): string {
   if (d === 9 && m >= 1 && m <= 12 && m !== 9) {
     d = m;
     m = 9;
+  }
+
+  if (y && y.length === 2) {
+    y = Number(y) < 50 ? `20${y}` : `19${y}`;
   }
 
   const dStr = String(d).padStart(2, '0');
@@ -2525,7 +2549,19 @@ export function parseRevenueCungKyExcelData(
 
     for (let c = 0; c < row.length; c++) {
       const cell = String(row[c] || '').trim().toLowerCase().normalize('NFC');
-      if (cell.includes('mã kho') || cell.includes('ma kho') || cell === 'mst' || cell === 'mã st') {
+      if (
+        cell.includes('mã siêu thị') ||
+        cell.includes('ma sieu thi') ||
+        cell.includes('mã st') ||
+        cell.includes('ma st') ||
+        cell.includes('mã kho') ||
+        cell.includes('ma kho') ||
+        cell.includes('siêu thị') ||
+        cell.includes('sieu thi') ||
+        cell.includes('kho') ||
+        cell === 'mst' ||
+        cell === 'st'
+      ) {
         foundMaKho = c;
       } else if (cell.includes('ngày') || cell.includes('ngay') || cell === 'date') {
         foundNgay = c;
@@ -2590,7 +2626,21 @@ export function parseRevenueCungKyExcelData(
     if (!Array.isArray(row) || row.length === 0) continue;
 
     const rawMaKho = String(row[colMaKho] ?? '').trim();
-    if (!rawMaKho || rawMaKho.toLowerCase() === 'mã kho' || rawMaKho.toLowerCase() === 'tổng') continue;
+    const lowerMaKho = rawMaKho.toLowerCase();
+    if (
+      !rawMaKho ||
+      lowerMaKho === 'mã kho' ||
+      lowerMaKho === 'ma kho' ||
+      lowerMaKho === 'mã siêu thị' ||
+      lowerMaKho === 'ma sieu thi' ||
+      lowerMaKho === 'mã st' ||
+      lowerMaKho === 'siêu thị' ||
+      lowerMaKho === 'tổng' ||
+      lowerMaKho === 'tong' ||
+      lowerMaKho === 'stt'
+    ) {
+      continue;
+    }
 
     const rawNgay = row[colNgay];
     const ngay = parseExcelDate(rawNgay);
