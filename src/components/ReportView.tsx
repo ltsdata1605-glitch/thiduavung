@@ -1155,6 +1155,20 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   // Sort stores
   const sortedStores = useMemo(() => [...storesToDisplay].sort((a, b) => {
+    // ═══ UNIVERSAL PRIMARY SORT (Luôn áp dụng) ═══
+    // 1. Kênh: ĐML → ĐMM → ĐMS → TGD → TopZone
+    const aKenhPrimary = resolveKenh(a.sieuthi, a.kenh);
+    const bKenhPrimary = resolveKenh(b.sieuthi, b.kenh);
+    const channelPrimaryDiff = getChannelRank(aKenhPrimary) - getChannelRank(bKenhPrimary);
+    if (channelPrimaryDiff !== 0) return channelPrimaryDiff;
+
+    // 2. DK Đạt giảm dần (trong cùng kênh)
+    const aAchievedPrimary = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
+    const bAchievedPrimary = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
+    const achievedPrimaryDiff = bAchievedPrimary - aAchievedPrimary;
+    if (achievedPrimaryDiff !== 0) return achievedPrimaryDiff;
+
+    // ═══ SECONDARY SORT (Theo cột user bấm) ═══
     // 1. Sort by CỘT ĐẠT (achieved count or achieved revenue)
     if (sortField === 'achieved') {
       const aAchievedCount = displayedCategoryNames.length > 0
