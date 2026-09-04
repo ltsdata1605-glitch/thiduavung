@@ -289,21 +289,41 @@ function AppInner() {
   const appliedFiltersForAccountRef = useRef<string | null>(null);
   const lastReportScopeRef = useRef<EntityScope>(entityScope);
 
+  // Bản sao luôn-mới-nhất của userFiltersMap, để các hàm lưu bên dưới dựng
+  // `next` mà KHÔNG phải đặt side-effect vào trong updater của setState.
+  const userFiltersMapRef = useRef(userFiltersMap);
+  userFiltersMapRef.current = userFiltersMap;
+
+  // Gộp nhiều thay đổi bộ lọc liên tiếp thành MỘT lệnh ghi Firestore.
+  // Trước đây mỗi cú click lọc là một setDoc riêng, và vì lệnh ghi nằm trong
+  // updater của setState nên React StrictMode (dev) gọi updater 2 lần → nhân
+  // đôi số lệnh ghi. Khi mạng chậm, đống lệnh này dồn vào mutation queue của
+  // SDK cho tới khi tràn ("Write stream exhausted") và làm chết mọi lệnh ghi
+  // khác — kể cả lưu Doanh thu/Thi đua. Debounce + ghi 1 lần cắt hẳn nguồn đó.
+  const userFiltersSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueUserFiltersSave = (next: Record<string, any>, updatedBy: string) => {
+    void idbSet('tnb_user_filters', next);
+    if (userFiltersSaveTimerRef.current) clearTimeout(userFiltersSaveTimerRef.current);
+    userFiltersSaveTimerRef.current = setTimeout(() => {
+      userFiltersSaveTimerRef.current = null;
+      void saveUserFiltersToFirebase(userFiltersMapRef.current, updatedBy);
+    }, 1200);
+  };
+
   const handleSaveUserFilters = (filterUpdates: Record<string, any>) => {
     if (!currentUser) return;
-    setUserFiltersMap((prev) => {
-      const userPrev = prev[currentUser.accountId] || {};
-      const next = {
-        ...prev,
-        [currentUser.accountId]: {
-          ...userPrev,
-          ...filterUpdates,
-        },
-      };
-      void saveUserFiltersToFirebase(next, currentUser.name);
-      void idbSet('tnb_user_filters', next);
-      return next;
-    });
+    const prev = userFiltersMapRef.current;
+    const userPrev = prev[currentUser.accountId] || {};
+    const next = {
+      ...prev,
+      [currentUser.accountId]: {
+        ...userPrev,
+        ...filterUpdates,
+      },
+    };
+    userFiltersMapRef.current = next; // để nhiều lượt gọi trong cùng một tick nối tiếp đúng
+    setUserFiltersMap(next);
+    queueUserFiltersSave(next, currentUser.name);
   };
 
   const handleReportChannelsChange = (newChannels: Channel[]) => {
@@ -618,19 +638,23 @@ function AppInner() {
   // "Write stream exhausted maximum allowed queued writes" hang. Detect
   // sibling tabs via BroadcastChannel and warn the user to close the extras,
   // since that failure mode otherwise looks like a generic slow save.
+  // Also mirrored into a ref (not just the one-shot toast) so a LATER sync
+  // failure — which overwrites this warning toast via the shared toastBanner
+  // state — can still tell the user multi-tab is the likely cause instead of
+  // just looking like a generic Firebase error.
+  const multiTabDetectedRef = useRef(false);
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return;
     const channel = new BroadcastChannel('tnb_leader_tab_presence');
     const myTabId = Math.random().toString(36).slice(2);
-    let warned = false;
     channel.onmessage = (e) => {
       const data = e.data as { type?: string; id?: string } | null;
       if (!data || data.id === myTabId) return;
       if (data.type === 'announce') {
         channel.postMessage({ type: 'ack', id: myTabId });
       }
-      if (!warned) {
-        warned = true;
+      if (!multiTabDetectedRef.current) {
+        multiTabDetectedRef.current = true;
         setToastBanner({
           type: 'warning',
           text: '⚠️ Bạn đang mở ứng dụng này ở nhiều tab/cửa sổ cùng lúc — chỉ tab đầu tiên giữ được kết nối lưu dữ liệu, các tab còn lại có thể bị treo/lỗi khi lưu. Vui lòng đóng bớt, chỉ giữ 1 tab, rồi tải lại trang.',
@@ -932,19 +956,27 @@ function AppInner() {
     if (!currentUser) return;
     const timer = setTimeout(() => {
       const snapshot = { activeTab, timeMode, entityScope };
-      setUserFiltersMap((prev) => {
-        const userPrev = prev[currentUser.accountId] || {};
-        const next = {
-          ...prev,
-          [currentUser.accountId]: {
-            ...userPrev,
-            ...snapshot,
-          },
-        };
-        void saveUserFiltersToFirebase(next, currentUser.name);
-        void idbSet('tnb_user_filters', next);
-        return next;
-      });
+      const prev = userFiltersMapRef.current;
+      const userPrev = prev[currentUser.accountId] || {};
+      // Không ghi gì nếu điều hướng không thực sự đổi — trước đây effect này
+      // ghi Firestore lại mỗi lần chạy, kể cả khi nội dung y hệt.
+      if (
+        userPrev.activeTab === snapshot.activeTab &&
+        userPrev.timeMode === snapshot.timeMode &&
+        userPrev.entityScope === snapshot.entityScope
+      ) {
+        return;
+      }
+      const next = {
+        ...prev,
+        [currentUser.accountId]: {
+          ...userPrev,
+          ...snapshot,
+        },
+      };
+      userFiltersMapRef.current = next;
+      setUserFiltersMap(next);
+      queueUserFiltersSave(next, currentUser.name);
     }, 800);
     return () => clearTimeout(timer);
   }, [currentUser, activeTab, timeMode, entityScope]);
@@ -1371,13 +1403,12 @@ function AppInner() {
 
   const handleSaveRevenueProvince = (province: string) => {
     if (!currentUser) return;
-    setUserFiltersMap((prev) => {
-      const userPrev = prev[currentUser.accountId] || {};
-      const next = { ...prev, [currentUser.accountId]: { ...userPrev, revenueProvince: province } };
-      void saveUserFiltersToFirebase(next, currentUser.name);
-      void idbSet('tnb_user_filters', next);
-      return next;
-    });
+    const prev = userFiltersMapRef.current;
+    const userPrev = prev[currentUser.accountId] || {};
+    const next = { ...prev, [currentUser.accountId]: { ...userPrev, revenueProvince: province } };
+    userFiltersMapRef.current = next;
+    setUserFiltersMap(next);
+    queueUserFiltersSave(next, currentUser.name);
   };
 
 
@@ -1388,7 +1419,17 @@ function AppInner() {
   };
 
   const showErrorToast = (msg: string) => {
-    setToastBanner({ type: 'error', text: msg });
+    // A sync failure often overwrites the earlier multi-tab warning toast
+    // (both share toastBanner) before the user gets to read it — if this
+    // session already saw a sibling tab announce itself, and the failure
+    // looks like a Firebase/sync error, fold that likely root cause back in
+    // so it isn't lost.
+    const isSyncFailure = /Firebase|Firestore|đồng bộ|kết nối/i.test(msg);
+    const text =
+      multiTabDetectedRef.current && isSyncFailure
+        ? `${msg} (⚠️ Lưu ý: hệ thống phát hiện bạn đang mở nhiều tab/cửa sổ của ứng dụng này — đây là nguyên nhân phổ biến nhất gây lỗi này. Hãy đóng bớt, chỉ giữ 1 tab, rồi tải lại trang.)`
+        : msg;
+    setToastBanner({ type: 'error', text });
     // Kept up noticeably longer than the success toast — sync failures are
     // easy to miss otherwise, which previously left users thinking a paste
     // had saved when it had actually silently failed.

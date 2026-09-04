@@ -352,7 +352,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   const [isRemarksModalOpen, setIsRemarksModalOpen] = useState(false);
   const [remarkCopied, setRemarkCopied] = useState(false);
   const [activeRemarkTemplate, setActiveRemarkTemplate] = useState<'template_1' | 'template_2' | 'template_3'>('template_1');
-  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>('user');
+  const [remarkDisplayMode, setRemarkDisplayMode] = useState<RemarkDisplayMode>(
+    () => (entityScope === 'vung' || entityScope === 'sieuthimoi' || entityScope === 'topbot') ? 'no_tag_top' : 'user'
+  );
   const [customRemarkText, setCustomRemarkText] = useState<string>('');
 
   // Export State
@@ -769,6 +771,10 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       setSelectedPhanLoaiShop(getSavedSizeForScope(entityScope));
       setSelectedTinhMoi(getSavedTinhMoiForScope(entityScope));
       setSearchTerm(getSavedSearchForScope(entityScope));
+      // Tab SIÊU THỊ / SIÊU THỊ MỚI / TOP-BOT luôn mặc định "Bỏ Tag TOP" khi nhận xét
+      setRemarkDisplayMode(
+        (entityScope === 'vung' || entityScope === 'sieuthimoi' || entityScope === 'topbot') ? 'no_tag_top' : 'user'
+      );
       setCurrentPage(1);
     }
   }, [entityScope, uniqueProvinces]);

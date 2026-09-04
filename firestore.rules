@@ -84,12 +84,21 @@ service cloud.firestore {
       allow read: if isActiveUser();
       allow write: if isCompetitionDataDoc(docId) ? isAdminOrAbove() : isEditorOrAbove();
 
-      // Large per-store datasets (Realtime/Luỹ Kế Siêu Thị) are split into
-      // chunk documents here — a single doc can exceed Firestore's 1MiB
-      // limit once every store carries a full per-category breakdown.
-      // Firestore rules aren't recursive, so this subcollection needs its
-      // own explicit grant matching the parent's.
+      // Chunk documents của ĐỊNH DẠNG CŨ. Các dataset lớn từng bị cắt nhỏ ở
+      // đây để né trần 1MiB/doc; nay dữ liệu đã được nén gzip nên nằm gọn
+      // trong chính document cha. Vẫn giữ quyền đọc/xoá để bản cũ còn đọc
+      // được và để tiến trình dọn chunk thừa chạy xong.
+      // Firestore rules không đệ quy nên subcollection phải khai báo riêng.
       match /chunks/{chunkId} {
+        allow read: if isActiveUser();
+        allow write: if isAdminOrAbove();
+      }
+
+      // Doanh thu cùng kỳ được cắt MỖI THÁNG một document nén
+      // (competition_tracker/revenue_cung_ky/months/YYYY-MM) vì đây là dữ
+      // liệu chuỗi thời gian, tích luỹ qua nhiều tháng sẽ vượt trần 1MiB kể
+      // cả sau khi nén. Quyền khớp với document cha.
+      match /months/{monthId} {
         allow read: if isActiveUser();
         allow write: if isAdminOrAbove();
       }

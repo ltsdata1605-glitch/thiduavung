@@ -337,6 +337,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
   const [bossText, setBossText] = useState('');
 
+  // Firebase ghi chạy NỀN, xếp HÀNG TUẦN TỰ trên toàn component (không phụ
+  // thuộc ô Realtime/Luỹ Kế nào) — mỗi lượt lưu mới được nối vào cuối hàng
+  // đợi thay vì gọi song song, nên Firestore không bao giờ nhận nhiều
+  // batch.commit() chồng lên nhau (đó là nguyên nhân gốc gây "Write stream
+  // exhausted"/nghẽn, không phải bản thân việc mở nhiều tab). Nhờ vậy
+  // processRevenueData bên dưới có thể trả về NGAY sau khi parse xong, không
+  // cần đợi mạng — giống cách bản backup gốc (bakup_dataBI_report.zip) hoạt
+  // động, nên người dùng không phải đóng bớt tab mới thao tác tiếp được.
+  const backgroundSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+
   // Revenue & Installment Processing Helper
   const processRevenueData = async (
     title: string,
@@ -349,16 +359,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     setLastUpdated: (ts: string) => void
   ) => {
     if (!text || !text.trim()) return;
-
-    // Chặn dán chồng: mỗi lượt lưu chỉ tạo vài write nhỏ, nhưng nếu Firestore
-    // đang bị nghẽn (đợi ~25s hoặc "resource-exhausted"), người dùng có xu
-    // hướng mở khoá ô khác và dán tiếp trong lúc lượt cũ vẫn treo — mỗi lượt
-    // chồng thêm sẽ dồn thêm batch.commit() lên write-stream đã nghẽn, khiến
-    // nó nghẽn nặng hơn theo cấp số nhân thay vì tự hồi phục.
-    if (processingState) {
-      alert(`⚠️ Đang có một lượt đồng bộ khác chạy dở (${processingState.title}). Vui lòng đợi lượt đó lưu xong (xem đồng hồ trên popup) rồi mới dán tiếp — dán chồng lúc đang lưu là nguyên nhân chính gây treo rất lâu.`);
-      return;
-    }
 
     // [PERF] Timing breakdown for this save — logged to the console so a
     // slow paste can be diagnosed (parse vs. Firebase write vs. something
@@ -406,37 +406,47 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       setLastUpdateLuyKeTc(nowStr);
     }
 
-    setProcessingState({
-      title: `ĐANG ĐỒNG BỘ LÊN FIREBASE`,
-      stepText: `☁️ 2. Đang lưu ${parsed.length} dòng ${title} lên Firebase...`,
-      progress: 85,
-    });
-
+    // Lưu Firebase chạy NỀN — không await ở đây nên UI không bị treo chờ
+    // mạng (khác với trước, khi popup "Đang đồng bộ" đứng yên tới 60s nếu
+    // Firestore bị nghẽn). Local state (setParsed/setLastUpdated ở trên) đã
+    // cập nhật ngay nên báo cáo/bảng xếp hạng phản ánh dữ liệu mới tức thì;
+    // các handler onUpdate* trong App.tsx tự hiện toast báo thành công/thất
+    // bại khi lượt lưu Firebase thật sự xong. dt/tc của cùng một lượt dán vẫn
+    // lưu tuần tự (không song song) để không dồn 2x batch.commit() cùng lúc;
+    // và được nối tiếp vào backgroundSaveQueueRef để KHÔNG lượt dán nào (kể
+    // cả ở ô khác) chạy chồng lên lượt trước trên Firestore.
     const tSaveStart = performance.now();
-    // Đồng bộ tuần tự (không song song) để tránh quá tải connection Firestore
-    // khi một dataset lớn (715+ dòng) bị chia thành nhiều chunks/batches —
-    // song parallel tạo ra 2x batch queues cùng lúc, làm connection bị exhausted.
-    // Tuần tự chậm hơn nhưng an toàn, không bị timeout.
-    if (isRealtime && dataType === 'doanhthu') {
-      await onUpdateRealtimeDt?.(parsed, nowStr);
-      await onUpdateRealtimeTc?.(parsed, nowStr);
-    } else if (isRealtime && dataType === 'tracham') {
-      await onUpdateRealtimeTc?.(parsed, nowStr);
-    } else if (!isRealtime && dataType === 'doanhthu') {
-      await onUpdateLuyKeDt?.(parsed, nowStr);
-      await onUpdateLuyKeTc?.(parsed, nowStr);
-    } else if (!isRealtime && dataType === 'tracham') {
-      await onUpdateLuyKeTc?.(parsed, nowStr);
-    }
-    const tSaveMs = performance.now() - tSaveStart;
+    const runSave = async () => {
+      try {
+        if (isRealtime && dataType === 'doanhthu') {
+          await onUpdateRealtimeDt?.(parsed, nowStr);
+          await onUpdateRealtimeTc?.(parsed, nowStr);
+        } else if (isRealtime && dataType === 'tracham') {
+          await onUpdateRealtimeTc?.(parsed, nowStr);
+        } else if (!isRealtime && dataType === 'doanhthu') {
+          await onUpdateLuyKeDt?.(parsed, nowStr);
+          await onUpdateLuyKeTc?.(parsed, nowStr);
+        } else if (!isRealtime && dataType === 'tracham') {
+          await onUpdateLuyKeTc?.(parsed, nowStr);
+        }
+      } catch (err) {
+        // Lỗi thật (mạng/quyền) đã được các handler onUpdate* trong App.tsx
+        // tự bắt & hiện toast đỏ riêng — bắt lại ở đây chỉ để log, tránh
+        // unhandled promise rejection làm rối console.
+        console.error(`${perfTag} — lỗi lưu Firebase (chạy nền):`, err);
+      }
+      console.log(`${perfTag} — Firebase save (chạy nền) mất ${(performance.now() - tSaveStart).toFixed(0)}ms`);
+    };
+    backgroundSaveQueueRef.current = backgroundSaveQueueRef.current.then(runSave);
+
     const tTotalMs = performance.now() - tStart;
     console.log(
-      `${perfTag} — Firebase save mất ${tSaveMs.toFixed(0)}ms | TỔNG ${tTotalMs.toFixed(0)}ms (parse ${tParseMs.toFixed(0)}ms + save ${tSaveMs.toFixed(0)}ms + UI overhead ${Math.max(0, tTotalMs - tParseMs - tSaveMs).toFixed(0)}ms)`
+      `${perfTag} — TỔNG (UI, chưa gồm lưu Firebase chạy nền) ${tTotalMs.toFixed(0)}ms (parse ${tParseMs.toFixed(0)}ms + UI overhead ${Math.max(0, tTotalMs - tParseMs).toFixed(0)}ms)`
     );
 
     setProcessingState({
-      title: `HOÀN TẤT ĐỒNG BỘ`,
-      stepText: `✨ 3. Đã lưu & đồng bộ thành công ${parsed.length} dòng ${title} lên Firebase! (${(tTotalMs / 1000).toFixed(1)}s)`,
+      title: `HOÀN TẤT`,
+      stepText: `✨ 3. Đã lưu ${parsed.length} dòng ${title}! Đang tiếp tục đồng bộ lên Firebase ở chế độ nền...`,
       progress: 100,
     });
 
@@ -778,26 +788,24 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
         void idbSet('tnb_revenue_cung_ky', records);
 
         if (onUpdateRevenueCungKy) {
-          setProcessingState({
-            title: 'ĐANG LƯU DỮ LIỆU CÙNG KỲ',
-            stepText: `☁️ 3. Đang đồng bộ ${records.length} dòng dữ liệu cùng kỳ lên hệ thống...`,
-            progress: 88,
+          // Chạy nền, nối vào backgroundSaveQueueRef — dataset cùng kỳ có thể
+          // tới 20k+ dòng/nhiều batch, dễ mất tới hàng chục giây nếu Firestore
+          // bị nghẽn; không nên giữ modal đứng chờ mạng (xem processRevenueData).
+          backgroundSaveQueueRef.current = backgroundSaveQueueRef.current.then(async () => {
+            try {
+              await onUpdateRevenueCungKy(records);
+            } catch (syncErr) {
+              console.warn('Lỗi khi đồng bộ Firebase cùng kỳ (dữ liệu đã an toàn trong IndexedDB):', syncErr);
+            }
           });
-          // Yield thread để modal kịp render tiến trình 88%
-          await new Promise((r) => setTimeout(r, 80));
-          try {
-            await onUpdateRevenueCungKy(records);
-          } catch (syncErr) {
-            console.warn('Lỗi khi đồng bộ Firebase cùng kỳ (dữ liệu đã an toàn trong IndexedDB):', syncErr);
-          }
         }
 
         setProcessingState({
-          title: 'HOÀN TẤT ĐỒNG BỘ',
-          stepText: `✨ 4. Đã lưu thành công ${records.length} dòng doanh thu cùng kỳ (${new Set(records.map(r => r.maKho)).size} siêu thị)!`,
+          title: 'HOÀN TẤT',
+          stepText: `✨ 4. Đã lưu ${records.length} dòng doanh thu cùng kỳ (${new Set(records.map(r => r.maKho)).size} siêu thị)! Đang tiếp tục đồng bộ lên Firebase ở chế độ nền...`,
           progress: 100,
         });
-        await new Promise((r) => setTimeout(r, 600));
+        await new Promise((r) => setTimeout(r, 300));
       } catch (err) {
         console.error('Lỗi khi đọc file Excel Cùng Kỳ:', err);
         alert('Có lỗi khi đọc file Excel Doanh thu cùng kỳ. Vui lòng kiểm tra lại file của bạn!');
@@ -1034,12 +1042,6 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       return;
     }
 
-    // Chặn dán chồng — xem giải thích chi tiết ở processRevenueData bên trên.
-    if (processingState) {
-      alert(`⚠️ Đang có một lượt đồng bộ khác chạy dở (${processingState.title}). Vui lòng đợi lượt đó lưu xong (xem đồng hồ trên popup) rồi mới dán tiếp — dán chồng lúc đang lưu là nguyên nhân chính gây treo rất lâu.`);
-      return;
-    }
-
     // [PERF] Timing breakdown for this save — logged to the console so a
     // slow paste can be diagnosed (parse vs. Firebase write vs. something
     // else) without guessing. Look for "[PERF]" in DevTools console.
@@ -1088,23 +1090,27 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
     await new Promise((r) => setTimeout(r, 15));
 
-    setProcessingState({
-      title: `ĐANG ĐỒNG BỘ NỀN FIREBASE`,
-      stepText: `☁️ 3. Đang lưu giữ liệu & đồng bộ hệ thống Firebase Database...`,
-      progress: 88,
-    });
-
+    // Lưu Firebase chạy NỀN, nối vào backgroundSaveQueueRef — xem giải thích
+    // chi tiết ở processRevenueData bên trên. UI không đợi mạng nữa.
     const tSaveStart = performance.now();
-    await onUpdate(parsed, text);
-    const tSaveMs = performance.now() - tSaveStart;
+    const runSave = async () => {
+      try {
+        await onUpdate(parsed, text);
+      } catch (err) {
+        console.error(`${perfTag} — lỗi lưu Firebase (chạy nền):`, err);
+      }
+      console.log(`${perfTag} — Firebase save (chạy nền) mất ${(performance.now() - tSaveStart).toFixed(0)}ms`);
+    };
+    backgroundSaveQueueRef.current = backgroundSaveQueueRef.current.then(runSave);
+
     const tTotalMs = performance.now() - tStart;
     console.log(
-      `${perfTag} — Firebase save mất ${tSaveMs.toFixed(0)}ms | TỔNG ${tTotalMs.toFixed(0)}ms (parse ${tParseMs.toFixed(0)}ms + save ${tSaveMs.toFixed(0)}ms + UI overhead ${Math.max(0, tTotalMs - tParseMs - tSaveMs).toFixed(0)}ms)`
+      `${perfTag} — TỔNG (UI, chưa gồm lưu Firebase chạy nền) ${tTotalMs.toFixed(0)}ms (parse ${tParseMs.toFixed(0)}ms + UI overhead ${Math.max(0, tTotalMs - tParseMs).toFixed(0)}ms)`
     );
 
     setProcessingState({
-      title: `HOÀN TẤT ĐỒNG BỘ DỮ LIỆU`,
-      stepText: `✨ 4. Đã phân tích & đồng bộ ${parsed.length} siêu thị (${scopeName}) lên Firebase thành công! (${(tTotalMs / 1000).toFixed(1)}s)`,
+      title: `HOÀN TẤT`,
+      stepText: `✨ 4. Đã phân tích ${parsed.length} siêu thị (${scopeName})! Đang tiếp tục đồng bộ lên Firebase ở chế độ nền...`,
       progress: 100,
     });
 
@@ -1189,16 +1195,19 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
         if (records.length > 0) {
           if (onUpdateBossData) {
-            setProcessingState({
-              title: 'ĐANG ĐỒNG BỘ NỀN FIREBASE',
-              stepText: '☁️ 3. Đang lưu giữ liệu & đồng bộ hệ thống Firebase Database...',
-              progress: 88,
+            // Chạy nền, nối vào backgroundSaveQueueRef — xem giải thích chi
+            // tiết ở processRevenueData bên trên.
+            backgroundSaveQueueRef.current = backgroundSaveQueueRef.current.then(async () => {
+              try {
+                await onUpdateBossData(records);
+              } catch (err) {
+                console.error('Lỗi khi đồng bộ Firebase danh sách BOSS (chạy nền):', err);
+              }
             });
-            await onUpdateBossData(records);
           }
           setProcessingState({
-            title: 'HOÀN TẤT ĐỒNG BỘ DỮ LIỆU',
-            stepText: `✨ 4. Đã phân tích & đồng bộ ${records.length} siêu thị (Danh sách BOSS) lên Firebase thành công!`,
+            title: 'HOÀN TẤT',
+            stepText: `✨ 4. Đã phân tích ${records.length} siêu thị (Danh sách BOSS)! Đang tiếp tục đồng bộ lên Firebase ở chế độ nền...`,
             progress: 100,
           });
           await new Promise((r) => setTimeout(r, 300));

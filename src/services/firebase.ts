@@ -1,5 +1,13 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { initializeFirestore, getFirestore, persistentLocalCache, persistentSingleTabManager, Firestore } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  getFirestore,
+  persistentLocalCache,
+  persistentSingleTabManager,
+  terminate,
+  clearIndexedDbPersistence,
+  Firestore,
+} from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 
 const metaEnv = (import.meta as any).env || {};
@@ -44,6 +52,40 @@ try {
 }
 
 export { app, db, auth };
+
+/**
+ * Xoá sạch trạng thái Firestore lưu dưới IndexedDB (cache + HÀNG ĐỢI GHI đang
+ * treo) rồi tải lại trang.
+ *
+ * Vì sao cần: timeout ở storeService chỉ reject promise phía mình, nó KHÔNG
+ * huỷ lệnh ghi thật — lệnh đó vẫn nằm trong mutation queue của SDK và bị retry
+ * mãi. Thử lại nhiều lần khiến hàng đợi phình tới giới hạn và SDK trả
+ * "resource-exhausted: Write stream exhausted maximum allowed queued writes",
+ * lúc đó MỌI lệnh ghi sau đều chết. Do app bật persistentLocalCache, hàng đợi
+ * hỏng này nằm trong IndexedDB nên sống sót qua cả F5 — bấm F5 bao nhiêu lần
+ * cũng vô ích, và disableNetwork/enableNetwork chỉ replay lại đúng đống lỗi đó.
+ * Chỉ terminate() + clearIndexedDbPersistence() mới thực sự dọn được.
+ *
+ * An toàn về dữ liệu: đây chỉ là cache/hàng đợi cục bộ của SDK. Dữ liệu thật
+ * đã nằm trên Firestore, còn bản sao cục bộ của app được giữ riêng ở
+ * localStorage/IndexedDB key `tnb_firebase_cache` (xem storeService) nên không
+ * bị đụng tới. Đánh đổi duy nhất: các lệnh ghi đang kẹt trong hàng đợi sẽ mất
+ * — nhưng chúng vốn đã không bao giờ gửi lên được, nên phải dán/lưu lại.
+ */
+export async function resetFirestoreLocalState(): Promise<{ success: boolean; error?: unknown }> {
+  if (!db) return { success: false, error: 'Firestore chưa khởi tạo' };
+  try {
+    // Bắt buộc theo thứ tự: phải terminate trước thì clearIndexedDbPersistence
+    // mới được phép chạy. Sau bước này instance db hiện tại không dùng lại
+    // được nữa — bắt buộc tải lại trang để khởi tạo mới.
+    await terminate(db);
+    await clearIndexedDbPersistence(db);
+    return { success: true };
+  } catch (error) {
+    console.error('Không xoá được trạng thái Firestore cục bộ:', error);
+    return { success: false, error };
+  }
+}
 
 export const reinitializeFirebase = (config: typeof defaultFirebaseConfig) => {
   try {
