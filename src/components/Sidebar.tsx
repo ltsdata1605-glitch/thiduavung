@@ -227,12 +227,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* User Info Footer */}
       <div className="p-3 border-t border-slate-100 bg-slate-50/80 space-y-2">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
-          <div className="relative shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-black text-xs flex items-center justify-center border-2 border-white shadow-xs">
+          <button
+              type="button"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="relative shrink-0 cursor-pointer focus:outline-hidden group"
+              title={isCollapsed ? 'Nhấn để mở rộng Menu' : 'Nhấn để thu gọn Menu'}
+            >
+            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white font-black text-xs flex items-center justify-center border-2 border-white shadow-xs group-hover:scale-110 transition-transform duration-200">
               {currentUser?.accountId.substring(0, 2).toUpperCase() || '37'}
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
-          </div>
+          </button>
 
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
