@@ -1490,10 +1490,10 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     };
 
     // ----------------------------------------------------------------------
-    // KHI Ở TAB TỔNG: NHẬN XÉT XẾP HẠNG THEO TÊN TỈNH, TUYỆT ĐỐI KHÔNG TAG USER
+    // KHI Ở TAB TỔNG HOẶC VÙNG: NHẬN XÉT XẾP HẠNG THEO TÊN TỈNH, TUYỆT ĐỐI KHÔNG TAG USER
     // ----------------------------------------------------------------------
-    if (entityScope === 'tong') {
-      const scopeTitleTong = 'TOÀN VÙNG TNB';
+    if (entityScope === 'tong' || entityScope === 'sieuthi') {
+      const scopeTitleProvince = entityScope === 'tong' ? 'TỔNG TOÀN VÙNG TNB' : 'VÙNG TNB';
       const totalProvincesCount = provinceSummaryRows.length;
 
       if (template === 'template_2') {
@@ -1505,9 +1505,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           })
           .join('\n');
 
-        return `📈 CẬP NHẬT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitleTong} - ${lastUpdatedTime}
+        return `📈 CẬP NHẬT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitleProvince} - ${lastUpdatedTime}
 ━━━━━━━━━━━━━━
-🎯 Target Toàn ${scopeTitleTong}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+🎯 Target Toàn ${scopeTitleProvince}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
 💳 Doanh Thu Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}% tổng DT)
 📊 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
 
@@ -1526,9 +1526,9 @@ ${lines || 'Tất cả các tỉnh đều đang đạt tiến độ rất tốt!
           })
           .join('\n');
 
-        return `📊 BẢNG XẾP HẠNG DOANH THU CÁC TỈNH - ${scopeTitleTong} - ${lastUpdatedTime}
+        return `📊 BẢNG XẾP HẠNG DOANH THU CÁC TỈNH - ${scopeTitleProvince} - ${lastUpdatedTime}
 ━━━━━━━━━━━━━━
-🎯 Target Toàn ${scopeTitleTong}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+🎯 Target Toàn ${scopeTitleProvince}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
 💳 Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (${totalSummary.totalTcRatio}% DT) | 🏆 ${totalSummary.reachedStoresCount}/${totalSummary.totalStores} ST đạt ≥ 100%
 
 🏆 XẾP HẠNG DOANH THU ${totalProvincesCount} TỈNH:
@@ -1560,9 +1560,9 @@ ${allProvinceLines || 'Đang cập nhật'}
         })
         .join('\n');
 
-      return `📈 BẢNG XẾP HẠNG DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitleTong} - ${lastUpdatedTime}
+      return `📈 BẢNG XẾP HẠNG DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitleProvince} - ${lastUpdatedTime}
 ━━━━━━━━━━━━━━
-🎯 Target Toàn ${scopeTitleTong}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+🎯 Target Toàn ${scopeTitleProvince}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
 💳 Tổng Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}%)
 🏆 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
 
@@ -1575,6 +1575,8 @@ ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━
 👉 Đề nghị Ban Giám đốc các Tỉnh bám sát, tăng tốc tư vấn trả chậm để bứt phá mục tiêu! 💪🏼🔥`;
     }
+
+    const totalStoresCount = sortedItems.length;
 
     if (template === 'template_2') {
       const warningStores = sortedItems.filter((i) => i.rateDt < 80 && i.targetDt > 0).slice(0, 15);
@@ -1597,7 +1599,7 @@ ${botLines || 'Đang cập nhật'}
 
       return `📈 CẬP NHẬT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitle} - ${lastUpdatedTime}
 ━━━━━━━━━━━━━━
-🎯 Target Doanh Thu: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+🎯 Target Toàn ${scopeTitle}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
 💳 Doanh Thu Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}% tổng DT)
 📊 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
 
@@ -1609,8 +1611,10 @@ ${lines || 'Tất cả siêu thị đều đang đạt tiến độ rất tốt!
     }
 
     if (template === 'template_3') {
-      const top3 = sortedItems.slice(0, 3);
-      const bot3 = sortedItems.filter((i) => i.targetDt > 0).slice(-3).reverse();
+      const top3Count = Math.min(3, Math.ceil(totalStoresCount / 2));
+      const bot3Count = Math.min(3, totalStoresCount - top3Count);
+      const top3 = sortedItems.slice(0, top3Count);
+      const bot3 = sortedItems.filter((i) => i.targetDt > 0).slice(-bot3Count).reverse();
 
       const topLines = top3
         .map((s, idx) => {
@@ -1631,7 +1635,7 @@ ${lines || 'Tất cả siêu thị đều đang đạt tiến độ rất tốt!
 
       const botLines = bot3
         .map((s, idx) => {
-          const prefix = `🔻 #${sortedItems.length - idx}`;
+          const prefix = `🔻 #${totalStoresCount - idx}`;
           const valPart = `${formatVND(s.achievedDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
           return formatStoreRemarkLine({
             prefix,
@@ -1648,24 +1652,29 @@ ${lines || 'Tất cả siêu thị đều đang đạt tiến độ rất tốt!
 
       return `📊 TÓM TẮT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitle} - ${lastUpdatedTime}
 ━━━━━━━━━━━━━━
-🎯 Target Doanh Thu: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+🎯 Target Toàn ${scopeTitle}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
 💳 Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (${totalSummary.totalTcRatio}% DT) | 🏆 ${totalSummary.reachedStoresCount}/${totalSummary.totalStores} ST đạt ≥ 100%
 
-🏆 TOP 3 DẪN ĐẦU:
+🏆 TOP ${top3Count} DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
 
-⚠️ BOT 3 CẦN BỨT PHÁ:
-${botLines || 'Đang cập nhật'}
-
+${bot3Count > 0 ? `⚠️ BOT ${bot3Count} CẦN BỨT PHÁ:\n${botLines || 'Đang cập nhật'}\n` : ''}
 ━━━━━━━━━━━━━━
 👉 Đề nghị các Đội ngũ tập trung tối đa nguồn lực hoàn thành xuất sắc chỉ tiêu! 💪🏼🔥`;
     }
 
     // Default: Mẫu 1: TOP / BOT
-    const top10 = sortedItems.slice(0, 10);
-    const bot10 = sortedItems.filter((i) => i.targetDt > 0).slice(-10).reverse();
+    let topCount = Math.min(10, totalStoresCount);
+    let botCount = Math.min(10, totalStoresCount);
+    if (totalStoresCount <= 20) {
+      topCount = Math.min(5, Math.ceil(totalStoresCount / 2));
+      botCount = Math.min(5, totalStoresCount - topCount);
+    }
 
-    const topLines = top10
+    const topItems = sortedItems.slice(0, topCount);
+    const botItems = sortedItems.filter((i) => i.targetDt > 0).slice(-botCount).reverse();
+
+    const topLines = topItems
       .map((s, idx) => {
         const prefix = `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹'} #${idx + 1}`;
         const valPart = `${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
@@ -1682,9 +1691,9 @@ ${botLines || 'Đang cập nhật'}
       })
       .join('\n');
 
-    const botLines = bot10
+    const botLines = botItems
       .map((s, idx) => {
-        const prefix = `🔻 #${sortedItems.length - idx}`;
+        const prefix = `🔻 #${totalStoresCount - idx}`;
         const valPart = `${formatVND(s.achievedDt)} / ${formatVND(s.targetDt)} (${s.rateDt}%) | TC: ${formatVND(s.achievedTc)} (${s.tcRatio}%)`;
         return formatStoreRemarkLine({
           prefix,
@@ -1703,14 +1712,12 @@ ${botLines || 'Đang cập nhật'}
 ━━━━━━━━━━━━━━
 🎯 Target Toàn ${scopeTitle}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
 💳 Tổng Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}%)
-🏆 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target
+🏆 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
 
-🏆 TOP 10 SIÊU THỊ DẪN ĐẦU:
+🏆 TOP ${topCount} SIÊU THỊ DẪN ĐẦU:
 ${topLines || 'Đang cập nhật'}
 
-⚠️ BOT 10 SIÊU THỊ CẦN TĂNG TỐC:
-${botLines || 'Đang cập nhật'}
-
+${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLines || 'Đang cập nhật'}\n` : ''}
 ━━━━━━━━━━━━━━
 👉 Đề nghị các Siêu thị bám sát, tăng tốc tư vấn trả chậm để bứt phá mục tiêu! 💪🏼🔥`;
   };
@@ -3173,7 +3180,7 @@ ${botLines || 'Đang cập nhật'}
               <div className="flex items-center gap-2.5 font-black text-base">
                 <MessageSquare className="w-5 h-5 text-amber-200" />
                 <span>
-                  NHẬN XÉT DỮ LIỆU ĐANG LỌC ({entityScope === 'tong' ? 'TỔNG TOÀN VÙNG TNB' : currentProvinceTitle ? (currentProvinceTitle.startsWith('TỈNH') ? currentProvinceTitle : `TỈNH ${currentProvinceTitle}`) : 'TOÀN VÙNG TNB'})
+                  NHẬN XÉT DỮ LIỆU ĐANG LỌC ({entityScope === 'tong' ? 'TỔNG TOÀN VÙNG TNB' : entityScope === 'sieuthi' ? 'VÙNG TNB' : currentProvinceTitle ? (currentProvinceTitle.startsWith('TỈNH') ? currentProvinceTitle : `TỈNH ${currentProvinceTitle}`) : 'TOÀN VÙNG TNB'})
                 </span>
               </div>
               <button
@@ -3193,8 +3200,8 @@ ${botLines || 'Đang cập nhật'}
                     Chọn mẫu nội dung nhận xét:
                   </label>
 
-                  {/* Khi ở Tab TỔNG: Nhận xét theo Tỉnh, không tag user */}
-                  {entityScope === 'tong' ? (
+                  {/* Khi ở Tab TỔNG hoặc VÙNG: Nhận xét theo Tỉnh, không tag user */}
+                  {entityScope === 'tong' || entityScope === 'sieuthi' ? (
                     <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200 text-xs font-bold text-amber-800">
                       <span>📍 Nhận xét theo Tên Tỉnh (Không Tag User)</span>
                     </div>

@@ -67,6 +67,14 @@ interface UpdateDataViewProps {
   currentLuyKeStoresVung: StoreRecord[];
   currentBossAssignments: BossAssignmentRecord[];
   currentRevenueCungKy?: RevenueCungKyRecord[];
+  currentRealtimeDtStores?: StoreRecord[];
+  currentRealtimeTcStores?: StoreRecord[];
+  currentLuyKeDtStores?: StoreRecord[];
+  currentLuyKeTcStores?: StoreRecord[];
+  currentLastUpdateRealtimeDt?: string;
+  currentLastUpdateRealtimeTc?: string;
+  currentLastUpdateLuyKeDt?: string;
+  currentLastUpdateLuyKeTc?: string;
   lastUpdateRealtime?: string;
   lastUpdateLuyKe?: string;
   // Only Super Admin / Admin may see the DT QĐ TB column in the BOSS list.
@@ -238,6 +246,14 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   currentLuyKeStoresVung,
   currentBossAssignments,
   currentRevenueCungKy = [],
+  currentRealtimeDtStores,
+  currentRealtimeTcStores,
+  currentLuyKeDtStores,
+  currentLuyKeTcStores,
+  currentLastUpdateRealtimeDt,
+  currentLastUpdateRealtimeTc,
+  currentLastUpdateLuyKeDt,
+  currentLastUpdateLuyKeTc,
   lastUpdateRealtime,
   lastUpdateLuyKe,
   canViewDtQdTb = true,
@@ -276,17 +292,48 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   const [luykeDtText, setLuyKeDtText] = useState('');
   const [luykeTcText, setLuyKeTcText] = useState('');
 
-  // Persisted state for Doanh Thu & Trả Chậm
-  const [parsedRealtimeDt, setParsedRealtimeDt] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
-  const [parsedRealtimeTc, setParsedRealtimeTc] = usePersistedState<StoreRecord[]>('tnb_realtime_tracham', []);
-  const [parsedLuyKeDt, setParsedLuyKeDt] = usePersistedState<StoreRecord[]>('tnb_luyke_doanhthu', []);
-  const [parsedLuyKeTc, setParsedLuyKeTc] = usePersistedState<StoreRecord[]>('tnb_luyke_tracham', []);
+  // Doanh Thu & Trả Chậm preview state — plain useState hydrated from App's
+  // own already-loaded copy (current*Stores props), not usePersistedState.
+  // usePersistedState mirrors every change to its own localStorage key
+  // (synchronous JSON.stringify + setItem) on top of what saveXxxToFirebase
+  // already persists via the combined cache + IndexedDB; for a ~700-row
+  // paste that was a second full stringify+write of the same array on every
+  // single save, a real contributor to "Cập nhật" feeling stuck. The legacy
+  // read is a one-time fallback only, for a mount that somehow beats App's
+  // own hydration — every subsequent change no longer touches that key.
+  const readLegacyPersisted = <T,>(key: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) return JSON.parse(raw) as T;
+    } catch (e) {}
+    return fallback;
+  };
+  const [parsedRealtimeDt, setParsedRealtimeDt] = useState<StoreRecord[]>(
+    () => currentRealtimeDtStores ?? readLegacyPersisted('tnb_realtime_doanhthu', [])
+  );
+  const [parsedRealtimeTc, setParsedRealtimeTc] = useState<StoreRecord[]>(
+    () => currentRealtimeTcStores ?? readLegacyPersisted('tnb_realtime_tracham', [])
+  );
+  const [parsedLuyKeDt, setParsedLuyKeDt] = useState<StoreRecord[]>(
+    () => currentLuyKeDtStores ?? readLegacyPersisted('tnb_luyke_doanhthu', [])
+  );
+  const [parsedLuyKeTc, setParsedLuyKeTc] = useState<StoreRecord[]>(
+    () => currentLuyKeTcStores ?? readLegacyPersisted('tnb_luyke_tracham', [])
+  );
 
   // Update timestamps for Doanh Thu & Trả Chậm
-  const [lastUpdateRealtimeDt, setLastUpdateRealtimeDt] = usePersistedState<string>('tnb_last_update_realtime_dt', '');
-  const [lastUpdateRealtimeTc, setLastUpdateRealtimeTc] = usePersistedState<string>('tnb_last_update_realtime_tc', '');
-  const [lastUpdateLuyKeDt, setLastUpdateLuyKeDt] = usePersistedState<string>('tnb_last_update_luyke_dt', '');
-  const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = usePersistedState<string>('tnb_last_update_luyke_tc', '');
+  const [lastUpdateRealtimeDt, setLastUpdateRealtimeDt] = useState<string>(
+    () => currentLastUpdateRealtimeDt ?? readLegacyPersisted('tnb_last_update_realtime_dt', '')
+  );
+  const [lastUpdateRealtimeTc, setLastUpdateRealtimeTc] = useState<string>(
+    () => currentLastUpdateRealtimeTc ?? readLegacyPersisted('tnb_last_update_realtime_tc', '')
+  );
+  const [lastUpdateLuyKeDt, setLastUpdateLuyKeDt] = useState<string>(
+    () => currentLastUpdateLuyKeDt ?? readLegacyPersisted('tnb_last_update_luyke_dt', '')
+  );
+  const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = useState<string>(
+    () => currentLastUpdateLuyKeTc ?? readLegacyPersisted('tnb_last_update_luyke_tc', '')
+  );
 
   const [bossText, setBossText] = useState('');
 
