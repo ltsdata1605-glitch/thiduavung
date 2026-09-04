@@ -610,6 +610,36 @@ function AppInner() {
   const [isUserMgmtModalOpen, setIsUserMgmtModalOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [toastBanner, setToastBanner] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; text: string } | null>(null);
+
+  // Firestore is configured with persistentSingleTabManager (see
+  // services/firebase.ts) — only ONE browser tab can hold the persistent
+  // cache/write lease at a time; every other tab of this same app left open
+  // queues writes that never get a lease and can eventually pile up into a
+  // "Write stream exhausted maximum allowed queued writes" hang. Detect
+  // sibling tabs via BroadcastChannel and warn the user to close the extras,
+  // since that failure mode otherwise looks like a generic slow save.
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('tnb_leader_tab_presence');
+    const myTabId = Math.random().toString(36).slice(2);
+    let warned = false;
+    channel.onmessage = (e) => {
+      const data = e.data as { type?: string; id?: string } | null;
+      if (!data || data.id === myTabId) return;
+      if (data.type === 'announce') {
+        channel.postMessage({ type: 'ack', id: myTabId });
+      }
+      if (!warned) {
+        warned = true;
+        setToastBanner({
+          type: 'warning',
+          text: '⚠️ Bạn đang mở ứng dụng này ở nhiều tab/cửa sổ cùng lúc — chỉ tab đầu tiên giữ được kết nối lưu dữ liệu, các tab còn lại có thể bị treo/lỗi khi lưu. Vui lòng đóng bớt, chỉ giữ 1 tab, rồi tải lại trang.',
+        });
+      }
+    };
+    channel.postMessage({ type: 'announce', id: myTabId });
+    return () => channel.close();
+  }, []);
   const [showSummarySection, setShowSummarySection] = useState(false);
   // Export Loading Overlay state
   const [exportModalState, setExportModalState] = useState<{
