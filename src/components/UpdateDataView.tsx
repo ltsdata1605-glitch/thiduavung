@@ -1569,7 +1569,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
           </div>
 
           <a
-            href="https://bi.thegioididong.com/khoi-ban-hang-sub?id=8126&tab=bcdtst&rt=1&dm=1"
+            href="https://baocao.dienmayxanh.com/dashboard/revenue-consolidated"
             target="_blank"
             rel="noopener noreferrer"
             title="Mở trang Báo Cáo Doanh Thu Siêu Thị trên BI ở tab mới"
