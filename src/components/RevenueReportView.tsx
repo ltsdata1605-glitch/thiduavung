@@ -2215,23 +2215,25 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
             <div className="overflow-x-auto">
               <table className="w-full table-fixed text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
                 <colgroup>
-                  <col className="w-[26%]" />
-                  <col className="w-[18.5%]" />
-                  <col className="w-[18.5%]" />
-                  <col className="w-[18.5%]" />
-                  <col className="w-[18.5%]" />
+                  <col style={{ width: '26%' }} width="26%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
                 </colgroup>
                 <thead>
                   {/* Top Banner Row */}
                   <tr>
                     <th
                       colSpan={3}
+                      style={{ width: '63%' }}
                       className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight w-[63%]"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
+                      style={{ width: '18.5%' }}
                       className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">HIỆU QUẢ</div>
@@ -2241,6 +2243,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                     </th>
                     <th
                       rowSpan={2}
+                      style={{ width: '18.5%' }}
                       className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">TỈ TRỌNG</div>
@@ -2252,14 +2255,14 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Sub Header Row */}
                   <tr>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                    <th style={{ width: '26%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
+                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
+                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -2278,18 +2281,20 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                     return (
                       <tr key={ch.kenh} className="font-bold">
-                        <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 border-r border-b border-slate-300 text-black font-bold">
+                        <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 border-r border-b border-slate-300 text-black font-bold w-[26%]">
                           {ch.kenh}
                         </td>
                         <td
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono ${
+                          style={{ width: '18.5%' }}
+                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
                             isUnderPerforming ? 'bg-[#fecdd3] text-[#b91c1c]' : 'bg-white text-black'
                           }`}
                         >
                           {fmt(ch.rateDt)}
                         </td>
                         <td
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono ${
+                          style={{ width: '18.5%' }}
+                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
                             isProjectedGreen
                               ? 'bg-[#dcfce7] text-[#16a34a]'
                               : isUnderPerforming
@@ -2299,10 +2304,10 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                         >
                           {fmt(projected)}
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(ch.qdEff)}
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-b border-slate-300 font-black font-mono ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-b border-slate-300 font-black font-mono w-[18.5%] ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(ch.tcRatio)}
                         </td>
                       </tr>
@@ -2311,21 +2316,21 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Channel Summary Row */}
                   <tr className="font-black text-black">
-                    <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300">
+                    <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300 w-[26%]">
                       {summaryChannelLabel}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono">
+                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono">
+                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
                       {timeMode === 'realtime'
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalQdEff.toFixed(1)}%` : `${Math.round(totalSummary.totalQdEff)}%`}
                     </td>
-                    <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalTcRatio.toFixed(1)}%` : `${Math.round(totalSummary.totalTcRatio)}%`}
                     </td>
                   </tr>
@@ -2340,23 +2345,25 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
             <div className="overflow-x-auto">
               <table className="w-full table-fixed text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
                 <colgroup>
-                  <col className="w-[26%]" />
-                  <col className="w-[18.5%]" />
-                  <col className="w-[18.5%]" />
-                  <col className="w-[18.5%]" />
-                  <col className="w-[18.5%]" />
+                  <col style={{ width: '26%' }} width="26%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '18.5%' }} width="18.5%" />
                 </colgroup>
                 <thead>
                   {/* Top Banner Row */}
                   <tr>
                     <th
                       colSpan={3}
+                      style={{ width: '63%' }}
                       className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight w-[63%]"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
+                      style={{ width: '18.5%' }}
                       className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">HIỆU QUẢ</div>
@@ -2366,6 +2373,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                     </th>
                     <th
                       rowSpan={2}
+                      style={{ width: '18.5%' }}
                       className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">TỈ TRỌNG</div>
@@ -2377,14 +2385,14 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Sub Header Row */}
                   <tr>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                    <th style={{ width: '26%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
                       TỈNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
+                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
+                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -2403,18 +2411,20 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                     return (
                       <tr key={p.tinh} className="font-bold">
-                        <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 border-r border-b border-slate-300 text-black font-bold">
+                        <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 border-r border-b border-slate-300 text-black font-bold w-[26%]">
                           {p.tinh}
                         </td>
                         <td
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono ${
+                          style={{ width: '18.5%' }}
+                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
                             isUnderPerforming ? 'bg-[#fecdd3] text-[#b91c1c]' : 'bg-white text-black'
                           }`}
                         >
                           {fmt(p.rateDt)}
                         </td>
                         <td
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono ${
+                          style={{ width: '18.5%' }}
+                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
                             isProjectedGreen
                               ? 'bg-[#dcfce7] text-[#16a34a]'
                               : isUnderPerforming
@@ -2424,10 +2434,10 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                         >
                           {fmt(projected)}
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(p.qdEff)}
                         </td>
-                        <td className={`p-2 sm:p-2.5 text-center border-b border-slate-300 font-black font-mono ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-b border-slate-300 font-black font-mono w-[18.5%] ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(p.tcRatio)}
                         </td>
                       </tr>
@@ -2436,21 +2446,21 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Province Summary Row at Bottom */}
                   <tr className="font-black text-black">
-                    <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300">
+                    <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300 w-[26%]">
                       TOÀN VÙNG TNB
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono">
+                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono">
+                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
                       {timeMode === 'realtime'
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalQdEff.toFixed(1)}%` : `${Math.round(totalSummary.totalQdEff)}%`}
                     </td>
-                    <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalTcRatio.toFixed(1)}%` : `${Math.round(totalSummary.totalTcRatio)}%`}
                     </td>
                   </tr>
