@@ -2917,21 +2917,13 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   <th colSpan={3} data-quick-colspan="2" className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
                     TỈNH
                   </th>
-                  <th data-quick-hide="1" colSpan={2} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
+                  <th colSpan={3} data-quick-colspan="1" className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
                     <div>{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
                     <div className="text-[10px] font-bold">{targetSubHeaderStr}</div>
                   </th>
-                  <th rowSpan={2} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide align-middle">
-                    <div>HOÀN</div>
-                    <div>THÀNH</div>
-                  </th>
-                  <th data-quick-hide="1" className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
+                  <th colSpan={2} data-quick-colspan="1" className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
                     <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
                     <div className="text-[9.5px] font-bold">THEO TỈ TRỌNG TỪNG GIỜ</div>
-                  </th>
-                  <th rowSpan={2} className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide align-middle">
-                    <div>HOÀN THÀNH</div>
-                    <div className="text-[9.5px] font-bold">DỰ KIẾN</div>
                   </th>
                   <th rowSpan={2} className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r border-amber-500/40 text-xs leading-tight w-24 align-middle">
                     <div>HIỆU QUẢ</div>
@@ -2955,7 +2947,9 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   <th data-quick-hide="1" className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">SỐ ST</th>
                   <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">MỤC TIÊU</th>
                   <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC HIỆN</th>
+                  <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">HOÀN THÀNH</th>
                   <th data-quick-hide="1" className="p-2 border-r border-yellow-200 text-right bg-yellow-100 text-yellow-950 font-black">THỰC HIỆN</th>
+                  <th className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black">HOÀN THÀNH DỰ KIẾN</th>
                 </tr>
               </thead>
 
