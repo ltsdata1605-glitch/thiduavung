@@ -322,28 +322,42 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       return;
     }
 
+    let nowStr = getFormattedNow();
+    const timeMatch = text.match(/Cập nhật lúc:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    if (timeMatch) {
+      nowStr = `${timeMatch[1]} NGÀY ${timeMatch[2]}`;
+    }
+
+    setParsed(parsed);
+    setLastUpdated(nowStr);
+
+    if (isRealtime && dataType === 'doanhthu') {
+      setParsedRealtimeTc(parsed);
+      setLastUpdateRealtimeTc(nowStr);
+    } else if (!isRealtime && dataType === 'doanhthu') {
+      setParsedLuyKeTc(parsed);
+      setLastUpdateLuyKeTc(nowStr);
+    }
+
     setProcessingState({
       title: `ĐANG ĐỒNG BỘ LÊN FIREBASE`,
-      stepText: `☁️ 2. Đang lưu ${parsed.length} dòng ${title} lên Firebase Database...`,
+      stepText: `☁️ 2. Đang lưu ${parsed.length} dòng ${title} lên Firebase...`,
       progress: 85,
     });
 
-    const nowStr = getFormattedNow();
-
+    // Đồng bộ song song lên Firebase bằng Promise.all để tốc độ nhanh gấp đôi
     if (isRealtime && dataType === 'doanhthu') {
-      await onUpdateRealtimeDt?.(parsed, nowStr);
-      // Tự động đồng bộ Trả Chậm từ báo cáo Doanh Thu Hợp Nhất mới
-      await onUpdateRealtimeTc?.(parsed, nowStr);
-      setParsedRealtimeTc(parsed);
-      setLastUpdateRealtimeTc(nowStr);
+      await Promise.all([
+        onUpdateRealtimeDt?.(parsed, nowStr),
+        onUpdateRealtimeTc?.(parsed, nowStr),
+      ]);
     } else if (isRealtime && dataType === 'tracham') {
       await onUpdateRealtimeTc?.(parsed, nowStr);
     } else if (!isRealtime && dataType === 'doanhthu') {
-      await onUpdateLuyKeDt?.(parsed, nowStr);
-      // Tự động đồng bộ Trả Chậm từ báo cáo Doanh Thu Hợp Nhất mới
-      await onUpdateLuyKeTc?.(parsed, nowStr);
-      setParsedLuyKeTc(parsed);
-      setLastUpdateLuyKeTc(nowStr);
+      await Promise.all([
+        onUpdateLuyKeDt?.(parsed, nowStr),
+        onUpdateLuyKeTc?.(parsed, nowStr),
+      ]);
     } else if (!isRealtime && dataType === 'tracham') {
       await onUpdateLuyKeTc?.(parsed, nowStr);
     }
@@ -354,7 +368,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       progress: 100,
     });
 
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 150));
     setProcessingState(null);
   };
 

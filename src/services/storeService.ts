@@ -298,14 +298,12 @@ async function saveChunkedStoreDataset<T>(
       await batch.commit();
     }
 
-    // Clean up any stale chunks leftover from a previously larger dataset
+    // Clean up any stale chunks leftover ONLY if the dataset shrank from a previous larger save
     const previousStores = (getLocalCache()[field] as T[] | undefined) || [];
     const previousChunkCount = previousStores.length > 0 ? Math.ceil(previousStores.length / chunkSize) : 0;
-    const STALE_CHUNK_SAFETY_MARGIN = 10;
-    const staleChunkLookaheadEnd = Math.max(newChunks.length, previousChunkCount) + STALE_CHUNK_SAFETY_MARGIN;
-    if (staleChunkLookaheadEnd > newChunks.length) {
+    if (previousChunkCount > newChunks.length) {
       const delBatch = writeBatch(db);
-      for (let i = newChunks.length; i < staleChunkLookaheadEnd; i++) {
+      for (let i = newChunks.length; i < previousChunkCount + 2; i++) {
         delBatch.delete(doc(chunksRef, String(i)));
       }
       await delBatch.commit();
