@@ -591,7 +591,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   // Mặc định sắp xếp theo TỶ LỆ % giảm dần (Tab Vùng & Siêu thị) — người dùng
   // không cần bấm vào cột TỶ LỆ % mỗi lần mở lại tab.
-  const [sortField, setSortField] = useState<string>('rate');
+  const [sortField, setSortField] = useState<string>('default');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [showChartSection, setShowChartSection] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
