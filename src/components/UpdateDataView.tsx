@@ -413,19 +413,18 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     });
 
     const tSaveStart = performance.now();
-    // Đồng bộ song song lên Firebase bằng Promise.all để tốc độ nhanh gấp đôi
+    // Đồng bộ tuần tự (không song song) để tránh quá tải connection Firestore
+    // khi một dataset lớn (715+ dòng) bị chia thành nhiều chunks/batches —
+    // song parallel tạo ra 2x batch queues cùng lúc, làm connection bị exhausted.
+    // Tuần tự chậm hơn nhưng an toàn, không bị timeout.
     if (isRealtime && dataType === 'doanhthu') {
-      await Promise.all([
-        onUpdateRealtimeDt?.(parsed, nowStr),
-        onUpdateRealtimeTc?.(parsed, nowStr),
-      ]);
+      await onUpdateRealtimeDt?.(parsed, nowStr);
+      await onUpdateRealtimeTc?.(parsed, nowStr);
     } else if (isRealtime && dataType === 'tracham') {
       await onUpdateRealtimeTc?.(parsed, nowStr);
     } else if (!isRealtime && dataType === 'doanhthu') {
-      await Promise.all([
-        onUpdateLuyKeDt?.(parsed, nowStr),
-        onUpdateLuyKeTc?.(parsed, nowStr),
-      ]);
+      await onUpdateLuyKeDt?.(parsed, nowStr);
+      await onUpdateLuyKeTc?.(parsed, nowStr);
     } else if (!isRealtime && dataType === 'tracham') {
       await onUpdateLuyKeTc?.(parsed, nowStr);
     }

@@ -100,19 +100,22 @@ const STORE_CHUNK_SIZE = 100; // ~350KB/chunk at the ~3.5KB/record measured abov
 // second commit on top of the still-pending first one, making the backlog
 // worse. Racing every write against a timeout turns that silent multi-minute
 // hang into a fast, actionable error instead.
-const FIRESTORE_WRITE_TIMEOUT_MS = 25000;
+// Dynamic timeout: 60s base + 2s per batch to handle large datasets (20k+ rows = 100+ batches)
+const FIRESTORE_WRITE_TIMEOUT_MS = 60000;
+const FIRESTORE_WRITE_TIMEOUT_PER_BATCH_MS = 2000;
 
-function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, label: string, timeoutMs?: number): Promise<T> {
+  const timeout = timeoutMs ?? FIRESTORE_WRITE_TIMEOUT_MS;
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => {
       setTimeout(() => {
         reject(
           new Error(
-            `Mất kết nối tới Firebase quá lâu khi ${label} (>25s). Vui lòng TẢI LẠI TRANG (F5) rồi thử lại — không bấm/dán lại ngay khi chưa tải lại trang, vì sẽ chồng thêm yêu cầu lên kết nối đang bị nghẽn.`
+            `Mất kết nối tới Firebase quá lâu khi ${label} (>${(timeout / 1000).toFixed(0)}s). Vui lòng TẢI LẠI TRANG (F5) rồi thử lại — không bấm/dán lại ngay khi chưa tải lại trang, vì sẽ chồng thêm yêu cầu lên kết nối đang bị nghẽn.`
           )
         );
-      }, FIRESTORE_WRITE_TIMEOUT_MS);
+      }, timeout);
     }),
   ]);
 }
@@ -311,6 +314,10 @@ async function saveChunkedStoreDataset<T>(
     let tBuildTotalMs = 0;
     let tCommitTotalMs = 0;
     let batchCount = 0;
+
+    const totalBatches = Math.ceil(newChunks.length / BATCH_SIZE_LIMIT);
+    const PER_BATCH_TIMEOUT = 30000; // 30s per batch commit
+
     for (let bStart = 0; bStart < newChunks.length; bStart += BATCH_SIZE_LIMIT) {
       batchCount++;
       const tBuildStart = performance.now();
@@ -336,7 +343,19 @@ async function saveChunkedStoreDataset<T>(
       }
       tBuildTotalMs += performance.now() - tBuildStart;
       const tCommitStart = performance.now();
-      await withTimeout(batch.commit(), `ghi chunk ${docKey}`);
+      // Per-batch timeout: 30s each allows sequential commits to complete without hanging
+      await Promise.race([
+        batch.commit(),
+        new Promise<void>((_, reject) => {
+          setTimeout(() => {
+            reject(
+              new Error(
+                `Mất kết nối tới Firebase quá lâu khi ghi chunk ${docKey} (batch ${batchCount}/${totalBatches}, >30s). Vui lòng TẢI LẠI TRANG (F5) rồi thử lại — không bấm/dán lại ngay khi chưa tải lại trang, vì sẽ chồng thêm yêu cầu lên kết nối đang bị nghẽn.`
+              )
+            );
+          }, PER_BATCH_TIMEOUT);
+        }),
+      ]);
       tCommitTotalMs += performance.now() - tCommitStart;
     }
     console.log(
@@ -354,7 +373,7 @@ async function saveChunkedStoreDataset<T>(
       for (let i = newChunks.length; i < previousChunkCount + 2; i++) {
         delBatch.delete(doc(chunksRef, String(i)));
       }
-      await withTimeout(delBatch.commit(), `dọn chunk thừa ${docKey}`);
+      await withTimeout(delBatch.commit(), `dọn chunk thừa ${docKey}`, 30000);
       console.log(`${perfTag} — dọn chunk thừa (dataset giảm dòng) trong ${(performance.now() - tDelStart).toFixed(0)}ms`);
     }
 
@@ -367,7 +386,8 @@ async function saveChunkedStoreDataset<T>(
         customLastUpdated: customLastUpdated || null,
         updatedBy,
       }),
-      `ghi meta doc ${docKey}`
+      `ghi meta doc ${docKey}`,
+      30000
     );
     console.log(`${perfTag} — ghi meta doc trong ${(performance.now() - tMetaStart).toFixed(0)}ms`);
 
