@@ -2041,7 +2041,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4"
         >
         {/* Title Header Bar (Styled matching ReportView title header 1:1) */}
-        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 ${entityScope === 'sieuthimoi' ? 'export-hide' : ''}`}>
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 ${(entityScope === 'sieuthimoi' || entityScope === 'topbot') ? 'export-hide' : ''}`}>
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-tight">
               {timeMode === 'realtime' ? 'REALTIME DOANH THU QUY ĐỔI' : 'LUỸ KẾ DOANH THU QUY ĐỔI'} - T{currentMonthYearStr}
