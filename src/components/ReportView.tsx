@@ -1225,13 +1225,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
 
     // 10. DEFAULT TABLE SORTING (Tab Siêu thị & Vùng):
-    // 1. Kênh theo thứ tự: ĐML > ĐMM > ĐMS > TGD > TopZone
+    // 1. DK Đạt giảm dần (số ngành hàng đã đạt ≥100%)
+    const aAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
+    const bAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
+    const achievedDiff = bAchievedCount - aAchievedCount;
+    if (achievedDiff !== 0) return achievedDiff;
+
+    // 2. Kênh theo thứ tự: ĐML > ĐMM > ĐMS > TGD > TopZone
     const aKenh = resolveKenh(a.sieuthi, a.kenh);
     const bKenh = resolveKenh(b.sieuthi, b.kenh);
     const channelDiff = getChannelRank(aKenh) - getChannelRank(bKenh);
     if (channelDiff !== 0) return channelDiff;
 
-    // 2. KHI CHỈ CHỌN 1 NGÀNH HÀNG: Sắp xếp giảm dần theo %HT hoặc Doanh thu của ngành hàng đó
+    // 3. KHI CHỈ CHỌN 1 NGÀNH HÀNG: Sắp xếp giảm dần theo %HT hoặc Doanh thu của ngành hàng đó
     if (displayedCategoryNames.length === 1) {
       const singleCat = displayedCategoryNames[0];
       const aData = getCategoryData(a, singleCat);
@@ -1247,14 +1253,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
       }
     }
 
-    // 3. Tỷ lệ % giảm dần
+    // 4. Tỷ lệ % giảm dần
     const rateDiff = (b.rate || 0) - (a.rate || 0);
-    if (rateDiff !== 0) return rateDiff;
-
-    // 4. Cột ĐẠT giảm dần (phụ, khi Tỷ lệ % bằng nhau)
-    const aAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
-    const bAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
-    return bAchievedCount - aAchievedCount;
+    return rateDiff;
   }), [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss, valueDisplayMode]);
 
   // Paginate the Siêu Thị (per-store) view — Vùng rollup is already short
