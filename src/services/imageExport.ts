@@ -539,11 +539,22 @@ export async function exportElementAsImage(
     el.style.setProperty('overflow', 'visible', 'important');
   });
 
-  // Remove all colgroups in tables so they don't constrain column widths artificially
-  clone.querySelectorAll('colgroup').forEach((cg) => cg.remove());
+  const isTongCard = clone.id === 'revenue-tong-card' || !!clone.querySelector('#revenue-tong-card');
+  if (isTongCard && clone.id !== 'revenue-tong-card') {
+    const innerTongCard = clone.querySelector<HTMLElement>('#revenue-tong-card');
+    if (innerTongCard) {
+      clone.innerHTML = innerTongCard.innerHTML;
+      clone.id = 'revenue-tong-card';
+      clone.className = innerTongCard.className;
+    }
+  }
 
-  // Set all tables to table-layout: auto and width: max-content so columns naturally fit their cell contents & headers
+  // Remove all colgroups in tables so they don't constrain column widths artificially (except Tab TỔNG)
   clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+    if (isTongCard && (table.closest('#revenue-tong-card') || clone.id === 'revenue-tong-card')) {
+      return; // Keep table-fixed and colgroups for Tab TỔNG
+    }
+    table.querySelectorAll('colgroup').forEach((cg) => cg.remove());
     table.classList.remove('table-fixed');
     table.style.setProperty('width', 'max-content', 'important');
     table.style.setProperty('min-width', 'max-content', 'important');
@@ -551,8 +562,15 @@ export async function exportElementAsImage(
     table.style.setProperty('table-layout', 'auto', 'important');
   });
 
-  // Let all table cells size naturally to their contents with clean, consistent padding
+  // Let all table cells size naturally to their contents with clean, consistent padding (except Tab TỔNG)
   clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
+    if (isTongCard && (cell.closest('#revenue-tong-card') || clone.id === 'revenue-tong-card')) {
+      cell.style.setProperty('padding-left', '8px', 'important');
+      cell.style.setProperty('padding-right', '8px', 'important');
+      cell.style.setProperty('box-sizing', 'border-box', 'important');
+      cell.style.setProperty('white-space', 'nowrap', 'important');
+      return; // Keep defined column widths for Tab TỔNG
+    }
     cell.style.setProperty('width', 'auto', 'important');
     cell.style.setProperty('min-width', 'auto', 'important');
     cell.style.setProperty('max-width', 'none', 'important');
@@ -564,6 +582,9 @@ export async function exportElementAsImage(
 
   // Ensure category header titles wrap cleanly on \n breaks (max 6 chars per line)
   clone.querySelectorAll<HTMLElement>('th[data-group], th div, th span, .whitespace-pre-line').forEach((el) => {
+    if (isTongCard && (el.closest('#revenue-tong-card') || clone.id === 'revenue-tong-card')) {
+      return;
+    }
     el.style.setProperty('white-space', 'pre-line', 'important');
     el.style.setProperty('word-break', 'break-word', 'important');
     el.style.setProperty('line-height', '1.15', 'important');
@@ -606,13 +627,12 @@ export async function exportElementAsImage(
   }
 
   // Ensure Tab TỔNG (Revenue) tables have synchronized, aligned columns and no rounded corners
-  const tongCard = clone.id === 'revenue-tong-card' ? clone : clone.querySelector<HTMLElement>('#revenue-tong-card');
   if (tongCard) {
     tongCard.style.setProperty('border-radius', '0', 'important');
     tongCard.style.setProperty('width', '580px', 'important');
     tongCard.style.setProperty('min-width', '580px', 'important');
     tongCard.style.setProperty('max-width', '580px', 'important');
-    tongCard.style.setProperty('margin', '0', 'important');
+    tongCard.style.setProperty('box-sizing', 'border-box', 'important');
 
     tongCard.querySelectorAll<HTMLElement>('.overflow-x-auto').forEach((c) => {
       c.style.setProperty('width', '100%', 'important');
@@ -628,6 +648,7 @@ export async function exportElementAsImage(
       table.style.setProperty('min-width', '100%', 'important');
       table.style.setProperty('max-width', '100%', 'important');
       table.style.setProperty('table-layout', 'fixed', 'important');
+      table.style.setProperty('box-sizing', 'border-box', 'important');
 
       const tr1 = table.querySelector('thead tr:first-child');
       if (tr1 && tr1.children.length === 3) {
@@ -656,10 +677,13 @@ export async function exportElementAsImage(
   }
 
   // Remove rounded corners on the outer export frame when exporting tab TỔNG / revenue export
-  if (clone.id === 'revenue-report-export-root' || clone.id === 'revenue-tong-card' || clone.querySelector('#revenue-tong-card')) {
+  if (isTongCard || clone.id === 'revenue-report-export-root') {
     clone.style.setProperty('border-radius', '0', 'important');
-    clone.querySelectorAll<HTMLElement>('.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md').forEach((el) => {
-      el.style.setProperty('border-radius', '0', 'important');
+    clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      const cls = el.className;
+      if (typeof cls === 'string' && cls.includes('rounded')) {
+        el.style.setProperty('border-radius', '0', 'important');
+      }
     });
   }
 
@@ -727,37 +751,39 @@ export async function exportElementAsImage(
     await waitForImages(clone);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    // Re-measure after DOM attachment across all tables
+    // Re-measure after DOM attachment across all tables (skip for Tab TỔNG so table-fixed is preserved)
     const tablesInClone = Array.from(clone.querySelectorAll<HTMLElement>('table'));
     let maxTableContentWidth = 0;
 
-    tablesInClone.forEach((t) => {
-      t.style.setProperty('width', 'max-content', 'important');
-      t.style.setProperty('min-width', 'auto', 'important');
-      t.style.setProperty('max-width', 'none', 'important');
-      t.style.setProperty('table-layout', 'auto', 'important');
+    if (!isTongCard) {
+      tablesInClone.forEach((t) => {
+        t.style.setProperty('width', 'max-content', 'important');
+        t.style.setProperty('min-width', 'auto', 'important');
+        t.style.setProperty('max-width', 'none', 'important');
+        t.style.setProperty('table-layout', 'auto', 'important');
 
-      const rect = t.getBoundingClientRect();
-      const scrollW = t.scrollWidth;
-      const offsetW = t.offsetWidth;
-      let w = Math.max(scrollW, offsetW, rect.width);
+        const rect = t.getBoundingClientRect();
+        const scrollW = t.scrollWidth;
+        const offsetW = t.offsetWidth;
+        let w = Math.max(scrollW, offsetW, rect.width);
 
-      // Check rightmost cell boundary
-      t.querySelectorAll<HTMLElement>('tr').forEach((row) => {
-        const lastCell = row.lastElementChild as HTMLElement | null;
-        if (lastCell) {
-          const cellRect = lastCell.getBoundingClientRect();
-          const cellRightRelativeToTable = cellRect.right - rect.left;
-          if (cellRightRelativeToTable > w) {
-            w = cellRightRelativeToTable;
+        // Check rightmost cell boundary
+        t.querySelectorAll<HTMLElement>('tr').forEach((row) => {
+          const lastCell = row.lastElementChild as HTMLElement | null;
+          if (lastCell) {
+            const cellRect = lastCell.getBoundingClientRect();
+            const cellRightRelativeToTable = cellRect.right - rect.left;
+            if (cellRightRelativeToTable > w) {
+              w = cellRightRelativeToTable;
+            }
           }
+        });
+
+        if (w > maxTableContentWidth) {
+          maxTableContentWidth = w;
         }
       });
-
-      if (w > maxTableContentWidth) {
-        maxTableContentWidth = w;
-      }
-    });
+    }
 
     // Check if Top/Bot 2-column grid exists and calculate total combined width
     const topbotInClone = clone.querySelector<HTMLElement>('#topbot-report-container');
@@ -775,12 +801,9 @@ export async function exportElementAsImage(
       maxTableContentWidth = Math.max(maxTableContentWidth, combinedWidth, 1220);
     }
 
-    const tongCardInClone = clone.id === 'revenue-tong-card' ? clone : clone.querySelector<HTMLElement>('#revenue-tong-card');
-    if (tongCardInClone) {
-      maxTableContentWidth = Math.max(maxTableContentWidth, 580);
-    }
+    const tongCardInClone = (clone.id === 'revenue-tong-card' ? clone : clone.querySelector<HTMLElement>('#revenue-tong-card')) as HTMLElement | null;
 
-    if (maxTableContentWidth === 0) {
+    if (!isTongCard && maxTableContentWidth === 0) {
       maxTableContentWidth = Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, clone.getBoundingClientRect().width));
     }
 
@@ -792,7 +815,8 @@ export async function exportElementAsImage(
     const borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
     const totalRequiredWidth = Math.ceil(maxTableContentWidth + padLeft + padRight + borderLeft + borderRight + 12);
 
-    const finalWidth = Math.ceil(Math.max(totalRequiredWidth, 360));
+    // Tab TỔNG card has exact fixed width 580px matching on-screen design
+    const finalWidth = isTongCard ? 580 : Math.ceil(Math.max(totalRequiredWidth, 360));
 
     // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
@@ -811,12 +835,14 @@ export async function exportElementAsImage(
       }
     });
 
-    tablesInClone.forEach((table) => {
-      table.style.setProperty('width', '100%', 'important');
-      table.style.setProperty('min-width', '100%', 'important');
-      table.style.setProperty('max-width', '100%', 'important');
-      table.style.setProperty('box-sizing', 'border-box', 'important');
-    });
+    if (!isTongCard) {
+      tablesInClone.forEach((table) => {
+        table.style.setProperty('width', '100%', 'important');
+        table.style.setProperty('min-width', '100%', 'important');
+        table.style.setProperty('max-width', '100%', 'important');
+        table.style.setProperty('box-sizing', 'border-box', 'important');
+      });
+    }
 
     if (topbotInClone) {
       topbotInClone.style.setProperty('display', 'grid', 'important');
@@ -838,6 +864,8 @@ export async function exportElementAsImage(
       tongCardInClone.style.setProperty('border-radius', '0', 'important');
       tongCardInClone.style.setProperty('width', '100%', 'important');
       tongCardInClone.style.setProperty('max-width', '100%', 'important');
+      tongCardInClone.style.setProperty('margin', '0', 'important');
+      tongCardInClone.style.setProperty('box-shadow', 'none', 'important');
 
       const colWidths = ['26%', '18.5%', '18.5%', '18.5%', '18.5%'];
       tongCardInClone.querySelectorAll<HTMLElement>('table').forEach((table) => {
@@ -846,6 +874,14 @@ export async function exportElementAsImage(
         table.style.setProperty('min-width', '100%', 'important');
         table.style.setProperty('max-width', '100%', 'important');
         table.style.setProperty('table-layout', 'fixed', 'important');
+
+        // Apply to col elements
+        const cols = table.querySelectorAll<HTMLElement>('colgroup col');
+        if (cols.length === 5) {
+          cols.forEach((c, idx) => {
+            c.style.setProperty('width', colWidths[idx], 'important');
+          });
+        }
 
         const tr1 = table.querySelector('thead tr:first-child');
         if (tr1 && tr1.children.length === 3) {
@@ -867,56 +903,69 @@ export async function exportElementAsImage(
               (td as HTMLElement).style.setProperty('width', colWidths[idx], 'important');
               (td as HTMLElement).style.setProperty('min-width', colWidths[idx], 'important');
               (td as HTMLElement).style.setProperty('max-width', colWidths[idx], 'important');
+              (td as HTMLElement).style.setProperty('box-sizing', 'border-box', 'important');
             });
           }
         });
       });
     }
 
-    if (clone.id === 'revenue-report-export-root' || clone.id === 'revenue-tong-card' || clone.querySelector('#revenue-tong-card')) {
+    if (isTongCard || clone.id === 'revenue-report-export-root' || clone.id === 'revenue-tong-card') {
       clone.style.setProperty('border-radius', '0', 'important');
-      clone.querySelectorAll<HTMLElement>('.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md').forEach((el) => {
+      clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
         el.style.setProperty('border-radius', '0', 'important');
       });
     }
 
     // Calculate exact content height reliably without trailing white space
-    let contentBottom = 0;
+    let height = 0;
     const cloneRect = clone.getBoundingClientRect();
 
-    Array.from(clone.children).forEach((child) => {
-      const el = child as HTMLElement;
-      if (el.offsetHeight > 0 || el.scrollHeight > 0) {
+    if (isTongCard) {
+      // For Tab TỔNG: lock height directly to the bottom border of the last row of Table 2
+      let maxBottom = 0;
+      clone.querySelectorAll<HTMLElement>('table, tr:last-child').forEach((el) => {
         const r = el.getBoundingClientRect();
-        const bottomRel = r.bottom - cloneRect.top;
-        if (bottomRel > contentBottom) {
-          contentBottom = bottomRel;
-        }
-      }
-    });
-
-    clone.querySelectorAll<HTMLElement>('table, tr:last-child, #revenue-tong-card').forEach((el) => {
-      if (el.offsetHeight > 0) {
-        const r = el.getBoundingClientRect();
-        const bottomRel = r.bottom - cloneRect.top;
-        if (bottomRel > contentBottom) {
-          contentBottom = bottomRel;
-        }
-      }
-    });
-
-    const cloneComputed = window.getComputedStyle(clone);
-    const padBottom = parseFloat(cloneComputed.paddingBottom) || 0;
-    const borderBottom = parseFloat(cloneComputed.borderBottomWidth) || 0;
-
-    let height = 0;
-    if (contentBottom > 0) {
-      height = Math.ceil(contentBottom + padBottom + borderBottom);
+        const rel = r.bottom - cloneRect.top;
+        if (rel > maxBottom) maxBottom = rel;
+      });
+      const cardBorderBottom = parseFloat(window.getComputedStyle(clone).borderBottomWidth) || 1;
+      height = Math.ceil(maxBottom + cardBorderBottom);
     } else {
-      const cloneScrollHeight = Math.ceil(clone.scrollHeight);
-      const cloneOffsetHeight = Math.ceil(clone.offsetHeight);
-      const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
-      height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
+      let contentBottom = 0;
+      Array.from(clone.children).forEach((child) => {
+        const el = child as HTMLElement;
+        if (el.offsetHeight > 0 || el.scrollHeight > 0) {
+          const r = el.getBoundingClientRect();
+          const bottomRel = r.bottom - cloneRect.top;
+          if (bottomRel > contentBottom) {
+            contentBottom = bottomRel;
+          }
+        }
+      });
+
+      clone.querySelectorAll<HTMLElement>('table, tr:last-child, #revenue-tong-card').forEach((el) => {
+        if (el.offsetHeight > 0) {
+          const r = el.getBoundingClientRect();
+          const bottomRel = r.bottom - cloneRect.top;
+          if (bottomRel > contentBottom) {
+            contentBottom = bottomRel;
+          }
+        }
+      });
+
+      const cloneComputed = window.getComputedStyle(clone);
+      const padBottom = parseFloat(cloneComputed.paddingBottom) || 0;
+      const borderBottom = parseFloat(cloneComputed.borderBottomWidth) || 0;
+
+      if (contentBottom > 0) {
+        height = Math.ceil(contentBottom + padBottom + borderBottom);
+      } else {
+        const cloneScrollHeight = Math.ceil(clone.scrollHeight);
+        const cloneOffsetHeight = Math.ceil(clone.offsetHeight);
+        const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
+        height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
+      }
     }
 
     // Lock clone and captureContainer to exact height so no excess bottom space is rendered
@@ -927,7 +976,8 @@ export async function exportElementAsImage(
     captureContainer.style.setProperty('min-height', `${height}px`, 'important');
     captureContainer.style.setProperty('max-height', `${height}px`, 'important');
 
-    const blob = await rasterizeToBlob(clone, finalWidth, height, scale, borderWidth);
+    const effectiveBorderWidth = isTongCard ? 0 : borderWidth;
+    const blob = await rasterizeToBlob(clone, finalWidth, height, scale, effectiveBorderWidth);
     if (!blob) throw new Error('Không thể kết xuất ảnh do kích thước quá lớn.');
     downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
     return blob;
