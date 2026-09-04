@@ -872,10 +872,10 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
   // Filtered Store Items
   const filteredItems = useMemo(() => {
-    // Khi đang tìm kiếm ở tab SIÊU THỊ (vung): bỏ qua bộ lọc Tỉnh để rà soát
-    // tất cả siêu thị — người dùng thường gõ mã kho và muốn tìm nhanh bất kể
-    // đang lọc tỉnh nào.
-    const isSearchBypassProvince = !!(searchTerm && searchTerm.trim() && entityScope === 'vung');
+    // Khi đang tìm kiếm ở tab SIÊU THỊ hoặc SIÊU THỊ MỚI: bỏ qua bộ lọc Tỉnh
+    // để rà soát tất cả siêu thị — người dùng thường gõ mã kho và muốn tìm nhanh
+    // bất kể đang lọc tỉnh nào.
+    const isSearchBypassProvince = !!(searchTerm && searchTerm.trim() && (entityScope === 'vung' || entityScope === 'sieuthimoi'));
 
     return mergedItems.filter((item) => {
       // 1. Kênh
