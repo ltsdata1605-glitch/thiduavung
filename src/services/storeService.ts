@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { doc, setDoc, getDoc, collection, writeBatch, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { StoreRecord, AppSettings, RemarkTemplateConfig, DEFAULT_REMARK_CONFIG } from '../types';
+import { StoreRecord, AppSettings, RemarkTemplateConfig, DEFAULT_REMARK_CONFIG, RevenueCungKyRecord } from '../types';
 import { BossAssignmentRecord } from '../utils/parser';
 import { idbGet, idbSet } from './indexedDbCache';
 
@@ -19,6 +19,8 @@ export interface FirebaseDataPayload {
   lastUpdateLuyKeDt?: string;
   lastUpdateLuyKeTc?: string;
   bossAssignments?: BossAssignmentRecord[];
+  revenueCungKy?: RevenueCungKyRecord[];
+  lastUpdateRevenueCungKy?: string;
   settings?: AppSettings;
   userPreferences?: Record<string, any>;
   userFilters?: Record<string, any>;
@@ -41,6 +43,7 @@ export type DocKey =
   | 'luyke_revenue_dt'
   | 'luyke_revenue_tc'
   | 'boss_assignments'
+  | 'revenue_cung_ky'
   | 'settings'
   | 'user_preferences'
   | 'user_filters'
@@ -58,6 +61,7 @@ const FIELD_BY_DOC: Record<DocKey, keyof FirebaseDataPayload> = {
   luyke_revenue_dt: 'luykeDtStores',
   luyke_revenue_tc: 'luykeTcStores',
   boss_assignments: 'bossAssignments',
+  revenue_cung_ky: 'revenueCungKy',
   settings: 'settings',
   user_preferences: 'userPreferences',
   user_filters: 'userFilters',
@@ -85,6 +89,7 @@ const CHUNKED_STORE_DOC_KEYS = new Set<DocKey>([
   'realtime_revenue_tc',
   'luyke_revenue_dt',
   'luyke_revenue_tc',
+  'revenue_cung_ky',
 ]);
 const STORE_CHUNK_SIZE = 100; // ~350KB/chunk at the ~3.5KB/record measured above — comfortable margin under 1MiB
 
@@ -223,9 +228,9 @@ function firestoreErrorMessage(error: unknown): string {
  * chunks left over from a previous, larger save are deleted in the same
  * batch so stale records can't reappear after a shrink.
  */
-async function saveChunkedStoreDataset(
+async function saveChunkedStoreDataset<T>(
   docKey: DocKey,
-  stores: StoreRecord[],
+  stores: T[],
   updatedBy: string,
   customLastUpdated?: string
 ): Promise<{ success: boolean; error?: string }> {
@@ -248,7 +253,7 @@ async function saveChunkedStoreDataset(
     return { success: false, error: 'Chưa kết nối được Firebase — dữ liệu chỉ lưu tạm trên trình duyệt này.' };
   }
 
-  const newChunks: StoreRecord[][] = [];
+  const newChunks: T[][] = [];
   for (let i = 0; i < stores.length; i += STORE_CHUNK_SIZE) {
     newChunks.push(stores.slice(i, i + STORE_CHUNK_SIZE));
   }
@@ -258,7 +263,7 @@ async function saveChunkedStoreDataset(
     const chunksRef = collection(db, COLLECTION, docKey, 'chunks');
     const batch = writeBatch(db);
 
-    const previousStores = (getLocalCache()[field] as StoreRecord[] | undefined) || [];
+    const previousStores = (getLocalCache()[field] as T[] | undefined) || [];
     const canSkipUnchangedChunks = previousStores.length === stores.length;
 
     newChunks.forEach((chunk, index) => {
@@ -350,6 +355,16 @@ export async function saveLuyKeTcToFirebase(stores: StoreRecord[], lastUpdated: 
 
 export async function saveBossAssignmentsToFirebase(bossItems: BossAssignmentRecord[], updatedBy: string = 'Super Admin') {
   return saveDataset('boss_assignments', bossItems, updatedBy);
+}
+
+export async function saveRevenueCungKyToFirebase(records: RevenueCungKyRecord[], updatedBy: string = 'Super Admin') {
+  // Doanh thu cùng kỳ is one row per siêu thị per NGÀY — a full month across
+  // ~700 siêu thị is 20k+ records, easily several MB serialized. It's
+  // already listed in CHUNKED_STORE_DOC_KEYS (the read side expects chunks —
+  // see subscribeToFirebaseData) but was still being written through
+  // saveDataset as a single document, which silently exceeds Firestore's
+  // 1MiB/doc limit and hangs/fails the upload instead of chunking it.
+  return saveChunkedStoreDataset('revenue_cung_ky', records, updatedBy);
 }
 
 export async function saveSettingsToFirebase(settings: AppSettings, updatedBy: string = 'Super Admin') {

@@ -56,9 +56,31 @@ export interface StoreRecord {
   categoryMap?: Record<string, { target: number; achieved: number; rate: number }>;
 
   achievedCategories?: number;
-  dtThuc?: number; // Doanh thu thực trước quy đổi (DT Realtime / DTLK)
-  dtQd?: number;   // Doanh thu sau quy đổi (DT Realtime QĐ / DTQĐ)
+  dtThuc?: number; // Doanh thu thực trước quy đổi (DT Realtime / DTLK / DOANH THU)
+  dtQd?: number;   // Doanh thu sau quy đổi (DT Realtime QĐ / DTQĐ / DOANH THU QĐ)
   lastUpdated?: string;
+
+  // Cấu trúc dữ liệu Doanh thu hợp nhất BI mới:
+  soLuong?: number;       // SỐ LƯỢNG
+  dtTraGop?: number;      // DT TRẢ GÓP
+  tiTrongTraGop?: number; // % TRẢ GÓP (TỈ TRỌNG TRẢ CHẬM)
+  tb3Thang?: number;      // TB 3 THÁNG
+  growthRate?: number;    // % TT
+  targetThang?: number;   // TARGET nguyên gốc từ BI
+  htTargetRate?: number;  // % HT TARGET (LK) / % HT TARGET
+}
+
+export interface RevenueCungKyRecord {
+  id?: string;
+  maKho: string;
+  ngay: string; // dd/mm/yyyy
+  doanhThu: number;
+  doanhThuQd: number;
+  sieuthi?: string;
+  tinh?: string;
+  kenh?: string;
+  boss?: string;
+  phanLoaiShop?: string;
 }
 
 export interface RegionSummary {

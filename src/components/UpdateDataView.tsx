@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { StoreRecord, UserAccount } from '../types';
+import { StoreRecord, UserAccount, RevenueCungKyRecord } from '../types';
 import {
   parsePastedData,
   parseRevenuePastedData,
@@ -9,7 +9,9 @@ import {
   BossValidationResult,
   cleanKenhValue,
   extractMst,
-  getFormattedNow
+  getFormattedNow,
+  parseRevenueCungKyExcelData,
+  parseExcelDate
 } from '../utils/parser';
 import { 
   ClipboardPaste, 
@@ -45,7 +47,8 @@ import {
   BookmarkPlus,
   ExternalLink,
   Coins,
-  CreditCard
+  CreditCard,
+  Calendar
 } from 'lucide-react';
 import { copyTextToClipboard } from '../services/imageExport';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -58,9 +61,11 @@ interface UpdateDataViewProps {
   onUpdateRealtimeTc?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
   onUpdateLuyKeDt?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
   onUpdateLuyKeTc?: (data: StoreRecord[], timestamp?: string) => Promise<void> | void;
+  onUpdateRevenueCungKy?: (records: RevenueCungKyRecord[]) => Promise<void> | void;
   currentRealtimeStoresVung: StoreRecord[];
   currentLuyKeStoresVung: StoreRecord[];
   currentBossAssignments: BossAssignmentRecord[];
+  currentRevenueCungKy?: RevenueCungKyRecord[];
   lastUpdateRealtime?: string;
   lastUpdateLuyKe?: string;
   // Only Super Admin / Admin may see the DT QĐ TB column in the BOSS list.
@@ -227,9 +232,11 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   onUpdateRealtimeTc,
   onUpdateLuyKeDt,
   onUpdateLuyKeTc,
+  onUpdateRevenueCungKy,
   currentRealtimeStoresVung,
   currentLuyKeStoresVung,
   currentBossAssignments,
+  currentRevenueCungKy = [],
   lastUpdateRealtime,
   lastUpdateLuyKe,
   canViewDtQdTb = true,
@@ -323,12 +330,28 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     });
 
     setParsed(parsed);
-    const nowStr = getFormattedNow();
+    let nowStr = getFormattedNow();
+    const timeMatch = text.match(/Cập nhật lúc:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    if (timeMatch) {
+      nowStr = `${timeMatch[1]} NGÀY ${timeMatch[2]}`;
+    }
     setLastUpdated(nowStr);
 
-    if (isRealtime && dataType === 'doanhthu') onUpdateRealtimeDt?.(parsed, nowStr);
+    if (isRealtime && dataType === 'doanhthu') {
+      onUpdateRealtimeDt?.(parsed, nowStr);
+      // Tự động đồng bộ Trả Chậm từ báo cáo Doanh Thu Hợp Nhất mới
+      onUpdateRealtimeTc?.(parsed, nowStr);
+      setParsedRealtimeTc(parsed);
+      setLastUpdateRealtimeTc(nowStr);
+    }
     if (isRealtime && dataType === 'tracham') onUpdateRealtimeTc?.(parsed, nowStr);
-    if (!isRealtime && dataType === 'doanhthu') onUpdateLuyKeDt?.(parsed, nowStr);
+    if (!isRealtime && dataType === 'doanhthu') {
+      onUpdateLuyKeDt?.(parsed, nowStr);
+      // Tự động đồng bộ Trả Chậm từ báo cáo Doanh Thu Hợp Nhất mới
+      onUpdateLuyKeTc?.(parsed, nowStr);
+      setParsedLuyKeTc(parsed);
+      setLastUpdateLuyKeTc(nowStr);
+    }
     if (!isRealtime && dataType === 'tracham') onUpdateLuyKeTc?.(parsed, nowStr);
 
     await new Promise((r) => setTimeout(r, 30));
@@ -409,6 +432,323 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   // Pagination state (20 items per page)
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+
+  // --- DOANH THU CÙNG KỲ NĂM STATE ---
+  const cungKyFileInputRef = useRef<HTMLInputElement>(null);
+  const [parsedCungKyItems, setParsedCungKyItems] = usePersistedState<RevenueCungKyRecord[]>(
+    'tnb_revenue_cung_ky',
+    currentRevenueCungKy && currentRevenueCungKy.length > 0
+      ? currentRevenueCungKy.map((i) => ({ ...i, ngay: parseExcelDate(i.ngay) }))
+      : []
+  );
+
+  useEffect(() => {
+    if (currentRevenueCungKy && currentRevenueCungKy.length > 0) {
+      setParsedCungKyItems(
+        currentRevenueCungKy.map((i) => ({
+          ...i,
+          ngay: parseExcelDate(i.ngay),
+        }))
+      );
+    }
+  }, [currentRevenueCungKy]);
+
+  const [isCungKyTableVisible, setIsCungKyTableVisible] = useState(false);
+
+  // Filters for Cùng Kỳ list
+  const [cungKySearchQuery, setCungKySearchQuery] = useState('');
+  const [selectedCungKyNgays, setSelectedCungKyNgays] = useState<string[]>([]);
+  const [selectedCungKyTinhs, setSelectedCungKyTinhs] = useState<string[]>([]);
+  const [selectedCungKyBosses, setSelectedCungKyBosses] = useState<string[]>([]);
+  const [selectedCungKyKenhs, setSelectedCungKyKenhs] = useState<string[]>([]);
+  const [selectedCungKyPhanLoais, setSelectedCungKyPhanLoais] = useState<string[]>([]);
+
+  // Sorting for Cùng Kỳ (default: sort by ngày asc: 01/09 -> 30/09)
+  const [cungKySortField, setCungKySortField] = useState<string>('ngay');
+  const [cungKySortDirection, setCungKySortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Pagination for Cùng Kỳ (default: 50 items so all days in month fit on page 1)
+  const [cungKyCurrentPage, setCungKyCurrentPage] = useState(1);
+  const [cungKyPageSize, setCungKyPageSize] = useState(50);
+
+  const handleCungKySort = (field: string) => {
+    if (cungKySortField === field) {
+      setCungKySortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setCungKySortField(field);
+      setCungKySortDirection('asc');
+    }
+    setCungKyCurrentPage(1);
+  };
+
+  // Options
+  const uniqueCungKyNgays = useMemo(() => Array.from(new Set(parsedCungKyItems.map(i => i.ngay).filter(Boolean))).sort(), [parsedCungKyItems]);
+  const uniqueCungKyTinhs = useMemo(() => Array.from(new Set(parsedCungKyItems.map(i => i.tinh).filter(Boolean))).sort() as string[], [parsedCungKyItems]);
+  const uniqueCungKyBosses = useMemo(() => Array.from(new Set(parsedCungKyItems.map(i => i.boss).filter(Boolean))).sort() as string[], [parsedCungKyItems]);
+  const uniqueCungKyKenhs = useMemo(() => Array.from(new Set(parsedCungKyItems.map(i => i.kenh).filter(Boolean))).sort() as string[], [parsedCungKyItems]);
+  const uniqueCungKyPhanLoais = useMemo(() => Array.from(new Set(parsedCungKyItems.map(i => i.phanLoaiShop).filter(Boolean))).sort() as string[], [parsedCungKyItems]);
+
+  const isAnyCungKyFilterActive = Boolean(
+    cungKySearchQuery ||
+    selectedCungKyNgays.length > 0 ||
+    selectedCungKyTinhs.length > 0 ||
+    selectedCungKyBosses.length > 0 ||
+    selectedCungKyKenhs.length > 0 ||
+    selectedCungKyPhanLoais.length > 0
+  );
+
+  const resetCungKyFilters = () => {
+    setCungKySearchQuery('');
+    setSelectedCungKyNgays([]);
+    setSelectedCungKyTinhs([]);
+    setSelectedCungKyBosses([]);
+    setSelectedCungKyKenhs([]);
+    setSelectedCungKyPhanLoais([]);
+    setCungKyCurrentPage(1);
+  };
+
+  // Filtered Cùng Kỳ items
+  const filteredCungKyItems = useMemo(() => {
+    return parsedCungKyItems.filter((item) => {
+      if (cungKySearchQuery) {
+        const q = cungKySearchQuery.toLowerCase().trim();
+        const rawMaKho = String(item.maKho || '').toLowerCase().trim();
+        const numMaKho = String(parseInt(rawMaKho, 10) || rawMaKho);
+        const qNum = String(parseInt(q, 10) || q);
+        const isPureNum = /^\d+$/.test(q);
+
+        // If user searched for pure number like "910" or "54", match exact mã kho first
+        const matchMaKho = isPureNum
+          ? (rawMaKho === q || numMaKho === qNum || rawMaKho.startsWith(q))
+          : (rawMaKho.includes(q) || numMaKho.includes(q));
+
+        const match =
+          matchMaKho ||
+          (item.sieuthi && item.sieuthi.toLowerCase().includes(q)) ||
+          (item.boss && item.boss.toLowerCase().includes(q)) ||
+          (item.tinh && item.tinh.toLowerCase().includes(q)) ||
+          (item.ngay && item.ngay.includes(q));
+        if (!match) return false;
+      }
+      if (selectedCungKyNgays.length > 0 && !selectedCungKyNgays.includes(item.ngay)) return false;
+      if (selectedCungKyTinhs.length > 0 && !selectedCungKyTinhs.includes(item.tinh || '')) return false;
+      if (selectedCungKyBosses.length > 0 && !selectedCungKyBosses.includes(item.boss || '')) return false;
+      if (selectedCungKyKenhs.length > 0 && !selectedCungKyKenhs.includes(item.kenh || '')) return false;
+      if (selectedCungKyPhanLoais.length > 0 && !selectedCungKyPhanLoais.includes(item.phanLoaiShop || '')) return false;
+      return true;
+    });
+  }, [parsedCungKyItems, cungKySearchQuery, selectedCungKyNgays, selectedCungKyTinhs, selectedCungKyBosses, selectedCungKyKenhs, selectedCungKyPhanLoais]);
+
+  // Sorted Cùng Kỳ items
+  const sortedCungKyItems = useMemo(() => {
+    const items = [...filteredCungKyItems];
+    return items.sort((a, b) => {
+      let valA: any = a[cungKySortField as keyof RevenueCungKyRecord] ?? '';
+      let valB: any = b[cungKySortField as keyof RevenueCungKyRecord] ?? '';
+
+      if (cungKySortField === 'doanhThu' || cungKySortField === 'doanhThuQd') {
+        valA = Number(valA) || 0;
+        valB = Number(valB) || 0;
+      } else if (cungKySortField === 'ngay') {
+        const parseD = (s: string) => {
+          const p = (s || '').split('/');
+          if (p.length === 3) return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime();
+          return 0;
+        };
+        valA = parseD(valA);
+        valB = parseD(valB);
+      } else if (cungKySortField === 'maKho') {
+        valA = Number(valA) || valA;
+        valB = Number(valB) || valB;
+      } else if (typeof valA === 'string') {
+        valA = valA.toLowerCase();
+        valB = String(valB).toLowerCase();
+      }
+
+      if (valA < valB) return cungKySortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return cungKySortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredCungKyItems, cungKySortField, cungKySortDirection]);
+
+  // Paginated
+  const cungKyTotalPages = cungKyPageSize === -1 ? 1 : Math.ceil(sortedCungKyItems.length / cungKyPageSize) || 1;
+  const paginatedCungKyItems = useMemo(() => {
+    if (cungKyPageSize === -1) return sortedCungKyItems;
+    const start = (cungKyCurrentPage - 1) * cungKyPageSize;
+    return sortedCungKyItems.slice(start, start + cungKyPageSize);
+  }, [sortedCungKyItems, cungKyCurrentPage, cungKyPageSize]);
+
+  const totalCungKyDt = useMemo(() => filteredCungKyItems.reduce((acc, i) => acc + (i.doanhThu || 0), 0), [filteredCungKyItems]);
+  const totalCungKyDtQd = useMemo(() => filteredCungKyItems.reduce((acc, i) => acc + (i.doanhThuQd || 0), 0), [filteredCungKyItems]);
+  const uniqueCungKyStoresCount = useMemo(() => new Set(filteredCungKyItems.map(i => i.maKho)).size, [filteredCungKyItems]);
+
+  // Handle Excel Upload for Doanh Thu Cùng Kỳ
+  const handleCungKyFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        setProcessingState({
+          title: 'ĐANG ĐỌC FILE DOANH THU CÙNG KỲ',
+          stepText: '⚡ 1. Đang mở và phân tích file Excel...',
+          progress: 25,
+        });
+
+        const XLSX = await import('xlsx');
+        const buffer = evt.target?.result as ArrayBuffer;
+        const workbook = XLSX.read(buffer, { type: 'array', cellDates: false });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:D1');
+        const rawRows: any[][] = [];
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          const row: any[] = [];
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+            const cell = worksheet[cellRef];
+            if (!cell) {
+              row.push('');
+              continue;
+            }
+            // Prefer formatted text cell.w if available (e.g. "1/9/2025")
+            row.push(cell.w !== undefined ? cell.w : cell.v);
+          }
+          rawRows.push(row);
+        }
+
+        setProcessingState({
+          title: 'ĐANG ÁNH XẠ SIÊU THỊ TỪ FILE BOSS',
+          stepText: '📊 2. Đang khớp mã kho với danh sách BOSS...',
+          progress: 60,
+        });
+
+        const bossListToUse = parsedBossItems.length > 0 ? parsedBossItems : currentBossAssignments;
+        const { records, validation } = parseRevenueCungKyExcelData(rawRows, bossListToUse);
+
+        if (!validation.isValid) {
+          alert(validation.error || 'File không hợp lệ.');
+          setProcessingState(null);
+          return;
+        }
+
+        setParsedCungKyItems(records);
+        setCungKyCurrentPage(1);
+        try {
+          localStorage.setItem('tnb_revenue_cung_ky', JSON.stringify(records));
+        } catch {}
+
+        if (onUpdateRevenueCungKy) {
+          setProcessingState({
+            title: 'ĐANG LƯU DỮ LIỆU CÙNG KỲ',
+            stepText: `☁️ 3. Đang đồng bộ ${records.length} dòng dữ liệu cùng kỳ lên hệ thống...`,
+            progress: 88,
+          });
+          await onUpdateRevenueCungKy(records);
+        }
+
+        setProcessingState({
+          title: 'HOÀN TẤT ĐỒNG BỘ',
+          stepText: `✨ 4. Đã lưu thành công ${records.length} dòng doanh thu cùng kỳ (${new Set(records.map(r => r.maKho)).size} siêu thị)!`,
+          progress: 100,
+        });
+        await new Promise((r) => setTimeout(r, 400));
+      } catch (err) {
+        console.error(err);
+        alert('Có lỗi khi đọc file Excel Doanh thu cùng kỳ. Vui lòng kiểm tra lại cấu trúc file!');
+      } finally {
+        setProcessingState(null);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
+
+  // Download Sample Template for Doanh thu cùng kỳ
+  const handleDownloadCungKyTemplate = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const sampleData = [
+        { 'MÃ KHO': 54, 'NGÀY': '01/09/2025', 'DOANH THU': 477256551, 'DOANH THU QĐ': 831953898 },
+        { 'MÃ KHO': 54, 'NGÀY': '02/09/2025', 'DOANH THU': 489708510, 'DOANH THU QĐ': 776621717 },
+        { 'MÃ KHO': 54, 'NGÀY': '03/09/2025', 'DOANH THU': 272954995, 'DOANH THU QĐ': 466791572 },
+        { 'MÃ KHO': 910, 'NGÀY': '01/09/2025', 'DOANH THU': 310500000, 'DOANH THU QĐ': 550800000 },
+        { 'MÃ KHO': 910, 'NGÀY': '02/09/2025', 'DOANH THU': 295400000, 'DOANH THU QĐ': 510200000 },
+      ];
+      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      worksheet['!cols'] = [
+        { wch: 12 }, // MÃ KHO
+        { wch: 14 }, // NGÀY
+        { wch: 18 }, // DOANH THU
+        { wch: 18 }, // DOANH THU QĐ
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'DOANH THU CUNG KY');
+      XLSX.writeFile(workbook, 'Mau_Nhap_Doanh_Thu_Cung_Ky.xlsx');
+    } catch (err) {
+      console.error(err);
+      alert('Không thể tạo file mẫu.');
+    }
+  };
+
+  // Export current Cùng Kỳ records to Excel
+  const handleDownloadCungKyExcel = async () => {
+    if (!parsedCungKyItems || parsedCungKyItems.length === 0) {
+      alert('Chưa có dữ liệu Doanh thu cùng kỳ để tải xuống.');
+      return;
+    }
+    try {
+      const XLSX = await import('xlsx');
+      const exportRows = sortedCungKyItems.map((item, idx) => ({
+        'STT': idx + 1,
+        'MÃ KHO': item.maKho,
+        'TÊN SIÊU THỊ': item.sieuthi || '',
+        'TỈNH': item.tinh || '',
+        'KÊNH': item.kenh || '',
+        'BOSS': item.boss || '',
+        'PHÂN LOẠI': item.phanLoaiShop || '',
+        'NGÀY': item.ngay,
+        'DOANH THU': item.doanhThu,
+        'DOANH THU QĐ': item.doanhThuQd,
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      worksheet['!cols'] = [
+        { wch: 6 },
+        { wch: 12 },
+        { wch: 38 },
+        { wch: 16 },
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 18 },
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'DOANH THU CUNG KY');
+      XLSX.writeFile(workbook, `Doanh_Thu_Cung_Ky_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert('Có lỗi khi tải xuống file Excel.');
+    }
+  };
+
+  const handleClearCungKyData = async () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ dữ liệu Doanh thu cùng kỳ năm đã nhập?')) {
+      setParsedCungKyItems([]);
+      try {
+        localStorage.removeItem('tnb_revenue_cung_ky');
+        localStorage.removeItem('tnb_revenue_cung_ky_records');
+      } catch {}
+      if (onUpdateRevenueCungKy) {
+        await onUpdateRevenueCungKy([]);
+      }
+      alert('Đã xóa dữ liệu Doanh thu cùng kỳ năm thành công!');
+    }
+  };
 
 
   // Handle header sorting click
@@ -1231,13 +1571,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                     REALTIME
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Gồm 2 ô dán dữ liệu: Doanh thu (trên) &amp; Trả chậm (dưới)
+                    Ô dán dữ liệu: Doanh Thu Siêu Thị
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* SUB-BOX 1: DOANH THU (REALTIME) */}
+            {/* SUB-BOX: DOANH THU (REALTIME) */}
             <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
               <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
                 <span className="flex items-center gap-1.5 text-teal-700">
@@ -1305,78 +1645,9 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 </div>
               )}
             </div>
-
-            {/* SUB-BOX 2: TRẢ CHẬM (REALTIME) */}
-            <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
-                <span className="flex items-center gap-1.5 text-amber-700">
-                  <CreditCard className="w-3.5 h-3.5 text-amber-600" />
-                  Trả Chậm
-                </span>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {lastUpdateRealtimeTc && (
-                    <span className="text-[10px] bg-amber-50 text-amber-900 border border-amber-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-                      Cập nhật: {lastUpdateRealtimeTc}
-                    </span>
-                  )}
-                  <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
-                    {parsedRealtimeTc.length} dòng
-                  </span>
-                </div>
-              </div>
-
-              {isRealtimeTcLocked ? (
-                <div
-                  onClick={() => {
-                    setRealtimeTcText('');
-                    setIsRealtimeTcLocked(false);
-                  }}
-                  className="h-[52px] bg-amber-50 hover:bg-amber-100/80 border border-amber-200 hover:border-amber-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
-                  title="Bấm vào đây để dán dữ liệu mới"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span className="text-xs font-bold text-amber-950 truncate">
-                      Đã khóa dữ liệu Trả Chậm Realtime ({parsedRealtimeTc.length} dòng)
-                    </span>
-                  </div>
-                  <button className="px-2.5 py-1 bg-amber-600 group-hover:bg-amber-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
-                    <Unlock className="w-3 h-3" />
-                    Mở dán mới
-                  </button>
-                </div>
-              ) : (
-                <div className="h-[52px] relative rounded-xl overflow-hidden">
-                  <textarea
-                    autoFocus
-                    rows={2}
-                    value={realtimeTcText}
-                    onChange={(e) => processRealtimeTc(e.target.value)}
-                    onPaste={(e) => {
-                      const text = e.clipboardData.getData('text');
-                      if (text && text.trim()) {
-                        e.preventDefault();
-                        processRealtimeTc(text);
-                        setIsRealtimeTcLocked(true);
-                      }
-                    }}
-                    onBlur={() => setIsRealtimeTcLocked(true)}
-                    placeholder="Bấm Ctrl+V để dán dữ liệu Trả Chậm Realtime mới tại đây..."
-                    className="w-full h-full bg-white border-2 border-amber-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-amber-200 resize-none shadow-inner leading-normal"
-                  />
-                  <button
-                    onClick={() => setIsRealtimeTcLocked(true)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
-                  >
-                    Khóa
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* LUỸ KẾ (DOANH THU & TRẢ CHẬM) */}
+          {/* LUỸ KẾ (DOANH THU) */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -1388,13 +1659,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                     LUỸ KẾ
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Gồm 2 ô dán dữ liệu: Doanh thu (trên) &amp; Trả chậm (dưới)
+                    Ô dán dữ liệu: Doanh Thu Siêu Thị
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* SUB-BOX 1: DOANH THU (LUỸ KẾ) */}
+            {/* SUB-BOX: DOANH THU (LUỸ KẾ) */}
             <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
               <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
                 <span className="flex items-center gap-1.5 text-purple-700">
@@ -1462,79 +1733,358 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
                 </div>
               )}
             </div>
-
-            {/* SUB-BOX 2: TRẢ CHẬM (LUỸ KẾ) */}
-            <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between text-xs font-extrabold text-slate-800 flex-wrap gap-1">
-                <span className="flex items-center gap-1.5 text-rose-700">
-                  <CreditCard className="w-3.5 h-3.5 text-rose-600" />
-                  Trả Chậm
-                </span>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {lastUpdateLuyKeTc && (
-                    <span className="text-[10px] bg-rose-50 text-rose-900 border border-rose-300/80 px-2 py-0.5 rounded-md font-extrabold flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-rose-600 shrink-0" />
-                      Cập nhật: {lastUpdateLuyKeTc}
-                    </span>
-                  )}
-                  <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md font-bold">
-                    {parsedLuyKeTc.length} dòng
-                  </span>
-                </div>
-              </div>
-
-              {isLuyKeTcLocked ? (
-                <div
-                  onClick={() => {
-                    setLuyKeTcText('');
-                    setIsLuyKeTcLocked(false);
-                  }}
-                  className="h-[52px] bg-rose-50 hover:bg-rose-100/80 border border-rose-200 hover:border-rose-300 rounded-xl px-3 flex items-center justify-between cursor-pointer transition-all group"
-                  title="Bấm vào đây để dán dữ liệu mới"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <Lock className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span className="text-xs font-bold text-rose-950 truncate">
-                      Đã khóa dữ liệu Trả Chậm Luỹ Kế ({parsedLuyKeTc.length} dòng)
-                    </span>
-                  </div>
-                  <button className="px-2.5 py-1 bg-rose-600 group-hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg shrink-0 flex items-center gap-1">
-                    <Unlock className="w-3 h-3" />
-                    Mở dán mới
-                  </button>
-                </div>
-              ) : (
-                <div className="h-[52px] relative rounded-xl overflow-hidden">
-                  <textarea
-                    autoFocus
-                    rows={2}
-                    value={luykeTcText}
-                    onChange={(e) => processLuyKeTc(e.target.value)}
-                    onPaste={(e) => {
-                      const text = e.clipboardData.getData('text');
-                      if (text && text.trim()) {
-                        e.preventDefault();
-                        processLuyKeTc(text);
-                        setIsLuyKeTcLocked(true);
-                      }
-                    }}
-                    onBlur={() => setIsLuyKeTcLocked(true)}
-                    placeholder="Bấm Ctrl+V để dán dữ liệu Trả Chậm Luỹ Kế mới tại đây..."
-                    className="w-full h-full bg-white border-2 border-rose-500 text-slate-800 text-xs font-mono rounded-xl p-2.5 pr-16 focus:outline-hidden focus:ring-2 focus:ring-rose-200 resize-none shadow-inner leading-normal"
-                  />
-                  <button
-                    onClick={() => setIsLuyKeTcLocked(true)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md z-10"
-                  >
-                    Khóa
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
         </div>
       )}
+
+      {/* KHU VỰC: CẬP NHẬT DOANH THU CÙNG KỲ NĂM & EXCEL IMPORT */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Calendar className="w-4 h-4 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                <span>CẬP NHẬT DOANH THU CÙNG KỲ NĂM</span>
+              </h3>
+              <p className="text-xs text-slate-500">
+                Nhập file Excel doanh thu cùng kỳ (Cột A: Mã kho, B: Ngày dd/mm/yyyy, C: Doanh thu, D: Doanh thu QĐ) - Tự động ánh xạ thông tin siêu thị từ file BOSS
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Hidden File Input for Excel */}
+            <input
+              type="file"
+              ref={cungKyFileInputRef}
+              onChange={handleCungKyFileUpload}
+              accept=".xlsx, .xls, .csv, .tsv"
+              className="hidden"
+            />
+
+            {/* Template Download Button */}
+            <button
+              type="button"
+              onClick={handleDownloadCungKyTemplate}
+              title="Tải file mẫu Excel (.xlsx)"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs border border-slate-200"
+            >
+              <Download className="w-4 h-4 text-slate-600" />
+              Tải file mẫu
+            </button>
+
+            {/* Excel Upload Button */}
+            <button
+              type="button"
+              onClick={() => cungKyFileInputRef.current?.click()}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <Upload className="w-4 h-4" />
+              Upload file Cùng Kỳ
+            </button>
+          </div>
+        </div>
+
+        {/* CÙNG KỲ LIST FILTER BAR */}
+        {parsedCungKyItems.length > 0 && (
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                <Filter className="w-4 h-4 text-amber-600" />
+                <span>BỘ LỌC DOANH THU CÙNG KỲ:</span>
+              </div>
+              {isAnyCungKyFilterActive && (
+                <button
+                  type="button"
+                  onClick={resetCungKyFilters}
+                  className="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Xóa bộ lọc
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+              {/* Search input for store name, code, date */}
+              <div className="relative col-span-2 md:col-span-1 lg:col-span-1">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={cungKySearchQuery}
+                  onChange={(e) => { setCungKySearchQuery(e.target.value); setCungKyCurrentPage(1); }}
+                  placeholder="Tìm siêu thị, mã kho, ngày..."
+                  className="w-full pl-8 pr-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Ngày (Multi-Select) */}
+              <MultiSelectFilter
+                label="Ngày"
+                allLabel="Tất cả Ngày"
+                options={uniqueCungKyNgays}
+                selectedValues={selectedCungKyNgays}
+                onChange={(vals) => { setSelectedCungKyNgays(vals); setCungKyCurrentPage(1); }}
+              />
+
+              {/* Tỉnh (Multi-Select) */}
+              <MultiSelectFilter
+                label="Tỉnh"
+                allLabel="Tất cả Tỉnh"
+                options={uniqueCungKyTinhs}
+                selectedValues={selectedCungKyTinhs}
+                onChange={(vals) => { setSelectedCungKyTinhs(vals); setCungKyCurrentPage(1); }}
+              />
+
+              {/* Boss (Multi-Select) */}
+              <MultiSelectFilter
+                label="Boss"
+                allLabel="Tất cả Boss"
+                options={uniqueCungKyBosses}
+                selectedValues={selectedCungKyBosses}
+                onChange={(vals) => { setSelectedCungKyBosses(vals); setCungKyCurrentPage(1); }}
+              />
+
+              {/* Kênh (Multi-Select) */}
+              <MultiSelectFilter
+                label="Kênh"
+                allLabel="Tất cả Kênh"
+                options={uniqueCungKyKenhs}
+                selectedValues={selectedCungKyKenhs}
+                onChange={(vals) => { setSelectedCungKyKenhs(vals); setCungKyCurrentPage(1); }}
+              />
+
+              {/* Phân loại shop (Multi-Select) */}
+              <MultiSelectFilter
+                label="Phân Loại"
+                allLabel="Tất cả Phân Loại"
+                options={uniqueCungKyPhanLoais}
+                selectedValues={selectedCungKyPhanLoais}
+                onChange={(vals) => { setSelectedCungKyPhanLoais(vals); setCungKyCurrentPage(1); }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Action bar and Preview table for CÙNG KỲ */}
+        {parsedCungKyItems.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1.5">
+                <FileSpreadsheet className="w-4 h-4 text-amber-600" />
+                <span>
+                  Danh sách Cùng Kỳ được nhập ({filteredCungKyItems.length} dòng / {uniqueCungKyStoresCount} siêu thị):
+                </span>
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Download Excel */}
+                <button
+                  type="button"
+                  onClick={handleDownloadCungKyExcel}
+                  title="Tải xuống file Excel dữ liệu cùng kỳ (.xlsx)"
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-2xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải xuống file</span>
+                </button>
+
+                {/* Clear data */}
+                <button
+                  type="button"
+                  onClick={handleClearCungKyData}
+                  title="Xóa toàn bộ dữ liệu Doanh thu cùng kỳ đã nhập"
+                  className="px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 shadow-2xs"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Xóa dữ liệu</span>
+                </button>
+
+                {/* View / Hide Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsCungKyTableVisible((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 border ${
+                    isCungKyTableVisible
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                      : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white border-amber-600 shadow-sm'
+                  }`}
+                >
+                  {isCungKyTableVisible ? (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5" />
+                      <span>Ẩn Cùng Kỳ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Xem Cùng Kỳ ({filteredCungKyItems.length})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            {isCungKyTableVisible && (
+              <div className="space-y-3 pt-2">
+                {/* Pagination Controls top */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Hiển thị:</span>
+                    <select
+                      value={cungKyPageSize}
+                      onChange={(e) => {
+                        setCungKyPageSize(Number(e.target.value));
+                        setCungKyCurrentPage(1);
+                      }}
+                      className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
+                    >
+                      <option value={35}>35 dòng / trang (Trọn 1 tháng)</option>
+                      <option value={50}>50 dòng / trang</option>
+                      <option value={100}>100 dòng / trang</option>
+                      <option value={-1}>Tất cả ({sortedCungKyItems.length})</option>
+                    </select>
+                    <span className="text-slate-400 font-normal">
+                      (Bấm tiêu đề cột để sắp xếp)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 font-mono font-bold text-slate-700">
+                    <span>Trang {cungKyCurrentPage} / {cungKyTotalPages}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={cungKyCurrentPage <= 1}
+                        onClick={() => setCungKyCurrentPage((p) => Math.max(1, p - 1))}
+                        className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={cungKyCurrentPage >= cungKyTotalPages}
+                        onClick={() => setCungKyCurrentPage((p) => Math.min(cungKyTotalPages, p + 1))}
+                        className="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+                  <table className="w-full text-left border-collapse text-xs font-sans">
+                    <thead>
+                      <tr className="bg-slate-800 text-white font-bold text-[11px] uppercase tracking-wider select-none">
+                        <th className="p-2 border-r border-slate-700 text-center w-10">STT</th>
+                        <th onClick={() => handleCungKySort('maKho')} className="p-2 border-r border-slate-700 text-center cursor-pointer hover:bg-slate-700 transition-colors w-20">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>MÃ KHO</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('sieuthi')} className="p-2 border-r border-slate-700 text-left pl-3 cursor-pointer hover:bg-slate-700 transition-colors">
+                          <div className="flex items-center gap-1">
+                            <span>TÊN SIÊU THỊ (ÁNH XẠ TỪ BOSS)</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('tinh')} className="p-2 border-r border-slate-700 text-center cursor-pointer hover:bg-slate-700 transition-colors w-24">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>TỈNH</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('kenh')} className="p-2 border-r border-slate-700 text-center cursor-pointer hover:bg-slate-700 transition-colors w-16">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>KÊNH</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('boss')} className="p-2 border-r border-slate-700 text-center cursor-pointer hover:bg-slate-700 transition-colors w-24">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>BOSS</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('phanLoaiShop')} className="p-2 border-r border-slate-700 text-center cursor-pointer hover:bg-slate-700 transition-colors w-24">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>PHÂN LOẠI</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('ngay')} className="p-2 border-r border-slate-700 text-center cursor-pointer hover:bg-slate-700 transition-colors w-24">
+                          <div className="flex items-center justify-center gap-1">
+                            <span>NGÀY</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('doanhThu')} className="p-2 border-r border-slate-700 text-right pr-3 cursor-pointer hover:bg-slate-700 transition-colors w-32">
+                          <div className="flex items-center justify-end gap-1">
+                            <span>DOANH THU</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                        <th onClick={() => handleCungKySort('doanhThuQd')} className="p-2 text-right pr-3 cursor-pointer hover:bg-slate-700 transition-colors w-32">
+                          <div className="flex items-center justify-end gap-1">
+                            <span>DOANH THU QĐ</span>
+                            <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedCungKyItems.map((item, idx) => {
+                        const globalIdx = cungKyPageSize === -1 ? idx + 1 : (cungKyCurrentPage - 1) * cungKyPageSize + idx + 1;
+                        return (
+                          <tr
+                            key={item.id || `${item.maKho}_${item.ngay}_${idx}`}
+                            className={`border-b border-slate-200 transition-colors ${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'
+                            } hover:bg-amber-50/50`}
+                          >
+                            <td className="p-2 text-center text-slate-400 font-mono border-r border-slate-200">{globalIdx}</td>
+                            <td className="p-2 text-center font-mono font-bold text-blue-700 border-r border-slate-200">{item.maKho}</td>
+                            <td className="p-2 pl-3 font-semibold text-slate-900 border-r border-slate-200">{item.sieuthi}</td>
+                            <td className="p-2 text-center text-slate-700 border-r border-slate-200">{item.tinh}</td>
+                            <td className="p-2 text-center font-bold text-slate-800 border-r border-slate-200">{item.kenh}</td>
+                            <td className="p-2 text-center font-semibold text-slate-800 border-r border-slate-200">{item.boss}</td>
+                            <td className="p-2 text-center text-[11px] text-slate-600 border-r border-slate-200">{item.phanLoaiShop}</td>
+                            <td className="p-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200">{parseExcelDate(item.ngay)}</td>
+                            <td className="p-2 pr-3 text-right font-mono font-bold text-slate-800 border-r border-slate-200">
+                              {item.doanhThu.toLocaleString('vi-VN')}
+                            </td>
+                            <td className="p-2 pr-3 text-right font-mono font-black text-emerald-700">
+                              {item.doanhThuQd.toLocaleString('vi-VN')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="border-t-2 border-slate-300">
+                      <tr className="bg-slate-800 text-white font-black text-xs">
+                        <td colSpan={7} className="p-2.5 text-center uppercase tracking-wider text-amber-400 border-r border-slate-700">
+                          TỔNG CỘNG ({filteredCungKyItems.length} dòng / {uniqueCungKyStoresCount} siêu thị)
+                        </td>
+                        <td className="p-2.5 text-center border-r border-slate-700 text-slate-300 font-mono">-</td>
+                        <td className="p-2.5 pr-3 text-right font-mono text-amber-300 border-r border-slate-700">
+                          {totalCungKyDt.toLocaleString('vi-VN')}
+                        </td>
+                        <td className="p-2.5 pr-3 text-right font-mono text-emerald-400 font-black">
+                          {totalCungKyDtQd.toLocaleString('vi-VN')}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* KHU VỰC 3: DANH SÁCH BOSS & EXCEL IMPORT */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">

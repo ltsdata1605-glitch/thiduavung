@@ -1,4 +1,4 @@
-import { StoreRecord, Channel, RemarkDisplayMode, TimeMode } from '../types';
+import { StoreRecord, Channel, RemarkDisplayMode, TimeMode, RevenueCungKyRecord } from '../types';
 
 export interface BossAssignmentRecord {
   stt?: number;
@@ -1411,9 +1411,46 @@ const baseTarget = currentCategoryIsRevenue ? target : 0;
   return records;
 }
 
+export function extractDaysInMonthFromText(text: string): number {
+  const mFull = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (mFull) {
+    const month = parseInt(mFull[2], 10);
+    const year = parseInt(mFull[3], 10);
+    if (month >= 1 && month <= 12 && year >= 2020) {
+      return new Date(year, month, 0).getDate();
+    }
+  }
+  const mMonthYear = text.match(/(?:^|[^\d])(0?[1-9]|1[0-2])\/(\d{4})/);
+  if (mMonthYear) {
+    const month = parseInt(mMonthYear[1], 10);
+    const year = parseInt(mMonthYear[2], 10);
+    return new Date(year, month, 0).getDate();
+  }
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+}
+
+export function inferProvinceFromStoreName(sieuthi: string): string {
+  const u = sieuthi.toUpperCase();
+  if (u.includes('_STR_') || u.includes('_STR ') || u.includes(' SÓC TRĂNG') || u.includes(' SOC TRANG')) return 'Sóc Trăng';
+  if (u.includes('_TVI_') || u.includes('_TVI ') || u.includes(' TRÀ VINH') || u.includes(' TRA VINH')) return 'Trà Vinh';
+  if (u.includes('_KGI_') || u.includes('_KGI ') || u.includes(' KIÊN GIANG') || u.includes(' KIEN GIANG')) return 'Kiên Giang';
+  if (u.includes('_AGI_') || u.includes('_AGI ') || u.includes(' AN GIANG')) return 'An Giang';
+  if (u.includes('_CMA_') || u.includes('_CMA ') || u.includes(' CÀ MAU') || u.includes(' CA MAU')) return 'Cà Mau';
+  if (u.includes('_LAN_') || u.includes('_LAN ') || u.includes(' LONG AN')) return 'Long An';
+  if (u.includes('_HGI_') || u.includes('_HGI ') || u.includes(' HẬU GIANG') || u.includes(' HAU GIANG')) return 'Hậu Giang';
+  if (u.includes('_DTH_') || u.includes('_DTH ') || u.includes(' ĐỒNG THÁP') || u.includes(' DONG THAP')) return 'Đồng Tháp';
+  if (u.includes('_CTH_') || u.includes('_CTH ') || u.includes(' CẦN THƠ') || u.includes(' CAN THO')) return 'Cần Thơ';
+  if (u.includes('_TGI_') || u.includes('_TGI ') || u.includes(' TIỀN GIANG') || u.includes(' TIEN GIANG')) return 'Tiền Giang';
+  if (u.includes('_BLI_') || u.includes('_BLI ') || u.includes(' BẠC LIÊU') || u.includes(' BAC LIEU')) return 'Bạc Liêu';
+  if (u.includes('_BTR_') || u.includes('_BTR ') || u.includes(' BẾN TRE') || u.includes(' BEN TRE')) return 'Bến Tre';
+  if (u.includes('_VLO_') || u.includes('_VLO ') || u.includes(' VĨNH LONG') || u.includes(' VINH LONG')) return 'Vĩnh Long';
+  return 'Khác';
+}
+
 /**
- * Parses revenue and installment (trả chậm) pasted TSV/CSV data from BI BCDTST sheet:
- * https://bi.thegioididong.com/khoi-ban-hang-sub?id=8126&tab=bcdtst&rt=1&dm=1
+ * Parses revenue and installment (trả chậm) pasted TSV/CSV data from BI sheet:
+ * Supports BOTH the new "Doanh thu hợp nhất" layout and legacy BI formats.
  */
 export function parseRevenuePastedData(
   text: string,
@@ -1426,20 +1463,173 @@ export function parseRevenuePastedData(
   if (rawLines.length === 0) return [];
 
   const parseNum = (val: string | undefined): number => {
-    if (!val) return 0;
+    if (!val || val === '—' || val === '--' || val === '-') return 0;
     const clean = val.replace(/,/g, '').replace(/[^0-9.-]/g, '');
     const num = parseFloat(clean);
     return isNaN(num) ? 0 : num;
   };
 
   const parseRate = (val: string | undefined): number => {
-    if (!val) return 0;
-    const clean = val.replace(/%/g, '').replace(/,/g, '.').trim();
+    if (!val || val === '—' || val === '--' || val === '-') return 0;
+    const clean = val.replace(/%/g, '').replace(/,/g, '.').replace(/[^0-9.-]/g, '').trim();
     const num = parseFloat(clean);
     return isNaN(num) ? 0 : num;
   };
 
+  // 1. Detect if this is the new "Doanh thu hợp nhất" format
+  const isDoanhThuHopNhat =
+    /DOANH THU QĐ|DOANH THU QD/i.test(text) ||
+    /DT TRẢ GÓP|DT TRA GOP/i.test(text) ||
+    /% TRẢ GÓP|% TRA GOP/i.test(text) ||
+    /Doanh thu hợp nhất/i.test(text) ||
+    /% HT TARGET/i.test(text);
 
+  if (isDoanhThuHopNhat) {
+    const daysInMonth = extractDaysInMonthFromText(text);
+    const results: StoreRecord[] = [];
+
+    const isPureNumber = (str: string) => /^[0-9.,\s%+—\-]+$/.test(str.trim());
+    const isStoreHeader = (str: string): boolean => {
+      if (!str || isPureNumber(str)) return false;
+      const u = str.toUpperCase();
+      if (
+        u.startsWith('TỔNG') ||
+        u.startsWith('TONG') ||
+        u.includes('CẤP CHA') ||
+        u.includes('KÝ TỰ') ||
+        u.includes('ĐANG CHỌN') ||
+        u.includes('SAO CHÉP') ||
+        u.includes('DASHBOARDS') ||
+        u.includes('DANH MỤC') ||
+        u.includes('HIỆU QUẢ') ||
+        u.includes('NGÀNH HÀNG')
+      ) {
+        return false;
+      }
+      return (
+        /^\d+\s*[-–]\s*[a-zA-ZÀ-ỹ]/.test(str) ||
+        (str.length > 5 &&
+          (str.includes('_') ||
+            str.includes('Kho chứa') ||
+            /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE|AAR|Kho/i.test(str)))
+      );
+    };
+
+    for (let i = 0; i < rawLines.length; i++) {
+      const line = rawLines[i];
+      if (line.toUpperCase().startsWith('TỔNG') || line.toUpperCase().startsWith('TONG')) continue;
+
+      // Format B: Same line tab-separated (Store\tCol1\tCol2...)
+      const tabs = line.split('\t');
+      if (tabs.length >= 10 && isStoreHeader(tabs[0])) {
+        const sieuthi = tabs[0];
+        const soLuong = parseNum(tabs[1]);
+        const dtQd = parseNum(tabs[2]);
+        const dtThuc = parseNum(tabs[4]);
+        const rawTarget = parseNum(tabs[5]);
+        const htTargetRaw = parseRate(tabs[6]);
+        const tb3Thang = parseNum(tabs[7]);
+        const growthRate = parseRate(tabs[8]);
+        const dtTraGop = parseNum(tabs[9]);
+        const tiTrongTraGop = parseRate(tabs[10]);
+
+        const target = isRealtime
+          ? (daysInMonth > 0 ? Math.round((rawTarget / daysInMonth) * 100) / 100 : rawTarget)
+          : rawTarget;
+        const achieved = dtQd;
+        const rate = target > 0
+          ? Number(((achieved / target) * 100).toFixed(1))
+          : (isRealtime ? 0 : htTargetRaw);
+
+        const tinh = inferProvinceFromStoreName(sieuthi);
+        const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+
+        results.push({
+          stt: results.length + 1,
+          rank: results.length + 1,
+          id: mst,
+          sieuthi,
+          tinh,
+          target,
+          achieved,
+          rate,
+          dtThuc,
+          dtQd,
+          dtTraGop,
+          tiTrongTraGop,
+          soLuong,
+          tb3Thang,
+          growthRate,
+          targetThang: rawTarget,
+          htTargetRate: htTargetRaw,
+          kenh: inferKenhFromSieuThiName(sieuthi),
+          boss: '',
+          categoryMap: {},
+        });
+        continue;
+      }
+
+      // Format A: Store on line i, numbers on line i+1
+      if (isStoreHeader(line) && i + 1 < rawLines.length) {
+        const nextLine = rawLines[i + 1];
+        const nextCells = nextLine.split('\t');
+        if (nextCells.length >= 9) {
+          const sieuthi = line;
+          const soLuong = parseNum(nextCells[0]);
+          const dtQd = parseNum(nextCells[1]);
+          const dtThuc = parseNum(nextCells[3]);
+          const rawTarget = parseNum(nextCells[4]);
+          const htTargetRaw = parseRate(nextCells[5]);
+          const tb3Thang = parseNum(nextCells[6]);
+          const growthRate = parseRate(nextCells[7]);
+          const dtTraGop = parseNum(nextCells[8]);
+          const tiTrongTraGop = parseRate(nextCells[9]);
+
+          const target = isRealtime
+            ? (daysInMonth > 0 ? Math.round((rawTarget / daysInMonth) * 100) / 100 : rawTarget)
+            : rawTarget;
+          const achieved = dtQd;
+          const rate = target > 0
+            ? Number(((achieved / target) * 100).toFixed(1))
+            : (isRealtime ? 0 : htTargetRaw);
+
+          const tinh = inferProvinceFromStoreName(sieuthi);
+          const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+
+          results.push({
+            stt: results.length + 1,
+            rank: results.length + 1,
+            id: mst,
+            sieuthi,
+            tinh,
+            target,
+            achieved,
+            rate,
+            dtThuc,
+            dtQd,
+            dtTraGop,
+            tiTrongTraGop,
+            soLuong,
+            tb3Thang,
+            growthRate,
+            targetThang: rawTarget,
+            htTargetRate: htTargetRaw,
+            kenh: inferKenhFromSieuThiName(sieuthi),
+            boss: '',
+            categoryMap: {},
+          });
+          i++; // Skip the numbers row
+          continue;
+        }
+      }
+    }
+
+    if (results.length > 0) {
+      return results;
+    }
+  }
+
+  // 2. Legacy BI Parser fallback
   const results: StoreRecord[] = [];
 
   for (let i = 0; i < rawLines.length; i++) {
@@ -1477,9 +1667,9 @@ export function parseRevenuePastedData(
     }
 
     // Identify if this row is a valid store row (has store code \d+ - or standard store naming)
-    const isPureNumber = (str: string) => /^[0-9.,\s%+-]+$/.test(str.trim());
-    const isStore1 = (/\d+\s*-\s*[a-zA-ZÀ-ỹ]/.test(col1) || (col1.length > 5 && (col1.includes('_') || col1.includes('Kho chứa') || /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE/i.test(col1)))) && !isPureNumber(col1);
-    const isStore0 = (/\d+\s*-\s*[a-zA-ZÀ-ỹ]/.test(col0) || (col0.length > 5 && (col0.includes('_') || col0.includes('Kho chứa') || /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE/i.test(col0)))) && !isPureNumber(col0);
+    const isPureNumber = (str: string) => /^[0-9.,\s%+-—\-]+$/.test(str.trim());
+    const isStore1 = (/\d+\s*[-–]\s*[a-zA-ZÀ-ỹ]/.test(col1) || (col1.length > 5 && (col1.includes('_') || col1.includes('Kho chứa') || /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE/i.test(col1)))) && !isPureNumber(col1);
+    const isStore0 = (/\d+\s*[-–]\s*[a-zA-ZÀ-ỹ]/.test(col0) || (col0.length > 5 && (col0.includes('_') || col0.includes('Kho chứa') || /ĐML|DML|ĐMM|DMM|ĐMS|DMS|TGD|TOPZONE/i.test(col0)))) && !isPureNumber(col0);
 
     if (!isStore1 && !isStore0) continue;
 
@@ -1490,7 +1680,7 @@ export function parseRevenuePastedData(
     // In case province column is missing and store is in col0
     if (isStore0 && !isStore1) {
       sieuthi = col0;
-      tinh = 'Khác';
+      tinh = inferProvinceFromStoreName(sieuthi) || 'Khác';
       colOffset = 0;
     } else {
       tinh = col0;
@@ -1507,12 +1697,6 @@ export function parseRevenuePastedData(
     let dtQd = 0;
 
     if (dataType === 'tracham') {
-      // Trả Chậm table structure (BI BCTCK):
-      // Col 0: Tỉnh / Tên miền (if offset=1)
-      // Col 1: Tên siêu thị
-      // Col 2: DT Siêu thị (*) (Base Target / Store Revenue)
-      // Col 3: Tổng DT Trả Chậm (*) (Achieved Installment Revenue)
-      // Col 4: Tỷ Trọng Trả Chậm (%) (Installment Rate)
       const valDtStore = parseNum(cells[colOffset + 1]);
       const valTraCham = parseNum(cells[colOffset + 2]);
       const valRate = parseRate(cells[colOffset + 3]);
@@ -1521,19 +1705,9 @@ export function parseRevenuePastedData(
       achieved = valTraCham;
       rate = valRate > 0 ? valRate : target > 0 ? (achieved / target) * 100 : 0;
     } else {
-      // Doanh Thu table structure:
-      // Check if Luỹ Kế format (contains +/- DTCK Tháng column, length >= 8) or Realtime format
       const isLuyKeStructure = !isRealtime || cells.length >= colOffset + 8;
 
       if (isLuyKeStructure && cells.length >= colOffset + 7) {
-        // Luỹ Kế Doanh Thu (BI BCDTST Luỹ kế):
-        // Col offset + 1: % HT Target Dự Kiến (e.g. 91.64%)
-        // Col offset + 2: DTLK (DT Thực e.g. 14,400)
-        // Col offset + 3: Target Tháng (e.g. 21,789)
-        // Col offset + 4: +/- DTCK Tháng (e.g. 23.72%)
-        // Col offset + 5: % HT Target Dự Kiến (QĐ) (e.g. 100.22%)
-        // Col offset + 6: DTQĐ (THỰC HIỆN e.g. 22,269)
-        // Col offset + 7: Target (QĐ) (MỤC TIÊU e.g. 30,809)
         const valRateRaw = parseRate(cells[colOffset + 1]);
         const valDtRaw = parseNum(cells[colOffset + 2]);
         const valTargetRaw = parseNum(cells[colOffset + 3]);
@@ -1547,18 +1721,10 @@ export function parseRevenuePastedData(
 
         achieved = dtQd;
         target = valTargetQd > 0 ? valTargetQd : valTargetRaw;
-        // Luỹ kế ưu tiên lấy trực tiếp cột: % HT Target Dự Kiến (QĐ)
         rate = cells[colOffset + 5] !== undefined && cells[colOffset + 5].trim() !== ''
           ? valRateQd
           : (target > 0 ? (achieved / target) * 100 : valRateRaw);
       } else {
-        // Realtime Doanh Thu (BI BCDTST Realtime):
-        // Col offset + 1: % HT Target Ngày (e.g. 53.43%)
-        // Col offset + 2: DT Realtime (DT Thực e.g. 482)
-        // Col offset + 3: Target Ngày (e.g. 902)
-        // Col offset + 4: % HT Target Ngày (QĐ) (e.g. 57.27%)
-        // Col offset + 5: DT Realtime (QĐ) (THỰC HIỆN e.g. 730)
-        // Col offset + 6: Target Ngày (QĐ) (MỤC TIÊU e.g. 1,275)
         const valRateRaw = parseRate(cells[colOffset + 1]);
         const valDtRaw = parseNum(cells[colOffset + 2]);
         const valTargetRaw = parseNum(cells[colOffset + 3]);
@@ -1572,7 +1738,6 @@ export function parseRevenuePastedData(
 
         achieved = valDtQd > 0 ? valDtQd : valDtRaw;
         target = valTargetQd > 0 ? valTargetQd : valTargetRaw;
-        // Realtime ưu tiên lấy trực tiếp cột: % HT Target Ngày (QĐ)
         rate = cells[colOffset + 4] !== undefined && cells[colOffset + 4].trim() !== ''
           ? valRateQd
           : (target > 0 ? (achieved / target) * 100 : valRateRaw);
@@ -1586,7 +1751,7 @@ export function parseRevenuePastedData(
       rank: results.length + 1,
       id: mst,
       sieuthi,
-      tinh: tinh || 'Khác',
+      tinh: tinh || inferProvinceFromStoreName(sieuthi) || 'Khác',
       target: Math.round(target * 100) / 100,
       achieved: Math.round(achieved * 100) / 100,
       rate: Number(rate.toFixed(1)),
@@ -2261,6 +2426,223 @@ export function formatStoreRemarkLine(params: {
   return tag
     ? `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%) ${tag}`
     : `${prefixWithDot} ${storeName}: ${valuePart} (${Math.round(rate)}%)`;
+}
+
+/**
+ * Parses and standardizes date cell values from Excel to dd/mm/yyyy
+ */
+export function parseExcelDate(val: any): string {
+  if (val === null || val === undefined) return '';
+
+  let d = 0;
+  let m = 0;
+  let y = '';
+
+  if (val instanceof Date) {
+    d = val.getDate();
+    m = val.getMonth() + 1;
+    y = String(val.getFullYear());
+  } else {
+    const str = String(val).trim();
+    if (!str) return '';
+
+    // Match d/m/yyyy, dd/mm/yyyy, d-m-yyyy, dd-mm-yyyy
+    const slashMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (slashMatch) {
+      d = parseInt(slashMatch[1], 10);
+      m = parseInt(slashMatch[2], 10);
+      y = slashMatch[3];
+    } else {
+      // Match yyyy-mm-dd or yyyy/mm/dd
+      const isoMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (isoMatch) {
+        y = isoMatch[1];
+        m = parseInt(isoMatch[2], 10);
+        d = parseInt(isoMatch[3], 10);
+      } else {
+        // Match Excel numeric serial date (e.g. 45901)
+        const num = Number(str);
+        if (!isNaN(num) && num > 20000 && num < 80000) {
+          const utc_days = Math.floor(num - 25569);
+          const utc_value = utc_days * 86400;
+          const date_info = new Date(utc_value * 1000);
+          d = date_info.getUTCDate();
+          m = date_info.getUTCMonth() + 1;
+          y = String(date_info.getUTCFullYear());
+        } else {
+          return str;
+        }
+      }
+    }
+  }
+
+  // If day was interpreted as 9 and month is 1..12 due to Excel/system regional setting swapping M/D,
+  // whereas the report data is for September (month 9) for days 1..12:
+  if (d === 9 && m >= 1 && m <= 12 && m !== 9) {
+    d = m;
+    m = 9;
+  }
+
+  const dStr = String(d).padStart(2, '0');
+  const mStr = String(m).padStart(2, '0');
+  return `${dStr}/${mStr}/${y}`;
+}
+
+/**
+ * Parses Excel rows for "Doanh thu cùng kỳ năm"
+ * Expected columns:
+ * A: MÃ KHO
+ * B: NGÀY (dd/mm/yyyy)
+ * C: DOANH THU
+ * D: DOANH THU QĐ
+ * Maps MÃ KHO to store name, province, channel, and boss from bossAssignments.
+ */
+export function parseRevenueCungKyExcelData(
+  rawRows: any[][],
+  bossAssignments: BossAssignmentRecord[] = []
+): { records: RevenueCungKyRecord[]; validation: { isValid: boolean; error?: string } } {
+  if (!rawRows || rawRows.length < 2) {
+    return {
+      records: [],
+      validation: { isValid: false, error: 'File Excel không có dữ liệu hoặc chỉ có 1 dòng tiêu đề.' },
+    };
+  }
+
+  let headerRowIdx = -1;
+  let colMaKho = 0;
+  let colNgay = 1;
+  let colDoanhThu = 2;
+  let colDoanhThuQd = 3;
+
+  for (let r = 0; r < Math.min(5, rawRows.length); r++) {
+    const row = rawRows[r];
+    if (!Array.isArray(row)) continue;
+
+    let foundMaKho = -1;
+    let foundNgay = -1;
+    let foundDt = -1;
+    let foundDtQd = -1;
+
+    for (let c = 0; c < row.length; c++) {
+      const cell = String(row[c] || '').trim().toLowerCase().normalize('NFC');
+      if (cell.includes('mã kho') || cell.includes('ma kho') || cell === 'mst' || cell === 'mã st') {
+        foundMaKho = c;
+      } else if (cell.includes('ngày') || cell.includes('ngay') || cell === 'date') {
+        foundNgay = c;
+      } else if (
+        cell.includes('doanh thu q') ||
+        cell.includes('dt q') ||
+        cell.includes('quy đổi') ||
+        cell.includes('quy doi') ||
+        cell.includes('qđ') ||
+        cell.includes('qd')
+      ) {
+        foundDtQd = c;
+      } else if (cell.includes('doanh thu') || cell === 'dt' || cell.includes('thực') || cell.includes('thuc')) {
+        foundDt = c;
+      }
+    }
+
+    if (foundMaKho !== -1 && (foundNgay !== -1 || foundDt !== -1)) {
+      headerRowIdx = r;
+      colMaKho = foundMaKho;
+      colNgay = foundNgay !== -1 ? foundNgay : 1;
+      colDoanhThu = foundDt !== -1 ? foundDt : 2;
+      colDoanhThuQd = foundDtQd !== -1 ? foundDtQd : (foundDt === 2 ? 3 : (colDoanhThu === 2 ? 3 : 3));
+      break;
+    }
+  }
+
+  const startRow = headerRowIdx !== -1 ? headerRowIdx + 1 : 1;
+
+  // Build BOSS lookup map by MST and store codes
+  const bossMap = new Map<string, BossAssignmentRecord>();
+  bossAssignments.forEach((b) => {
+    if (b.mst) {
+      const raw = String(b.mst).trim();
+      bossMap.set(raw, b);
+      bossMap.set(raw.toLowerCase(), b);
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed)) {
+        bossMap.set(String(parsed), b);
+      }
+    }
+    const fromSieuthi = extractMst(b.sieuthi);
+    if (fromSieuthi) {
+      const raw = fromSieuthi.trim();
+      if (!bossMap.has(raw)) bossMap.set(raw, b);
+      if (!bossMap.has(raw.toLowerCase())) bossMap.set(raw.toLowerCase(), b);
+      const parsed = parseInt(raw, 10);
+      if (!isNaN(parsed) && !bossMap.has(String(parsed))) {
+        bossMap.set(String(parsed), b);
+      }
+    }
+    if (b.maBaseMoi) {
+      const raw = String(b.maBaseMoi).trim();
+      if (!bossMap.has(raw)) bossMap.set(raw, b);
+    }
+  });
+
+  const records: RevenueCungKyRecord[] = [];
+
+  for (let r = startRow; r < rawRows.length; r++) {
+    const row = rawRows[r];
+    if (!Array.isArray(row) || row.length === 0) continue;
+
+    const rawMaKho = String(row[colMaKho] ?? '').trim();
+    if (!rawMaKho || rawMaKho.toLowerCase() === 'mã kho' || rawMaKho.toLowerCase() === 'tổng') continue;
+
+    const rawNgay = row[colNgay];
+    const ngay = parseExcelDate(rawNgay);
+
+    const parseNum = (v: any) => {
+      if (typeof v === 'number') return isNaN(v) ? 0 : v;
+      if (!v) return 0;
+      let s = String(v).trim();
+      s = s.replace(/\.0+$/, '').replace(/,0+$/, '');
+      s = s.replace(/[,.\s₫đVND]/gi, '').trim();
+      const n = Number(s);
+      return isNaN(n) ? 0 : n;
+    };
+
+    const doanhThu = parseNum(row[colDoanhThu]);
+    const doanhThuQd = parseNum(row[colDoanhThuQd]);
+
+    // Map store info from BOSS file
+    const cleanMaKho = String(parseInt(rawMaKho, 10) || rawMaKho);
+    const matchedBoss = bossMap.get(cleanMaKho) || bossMap.get(rawMaKho) || bossMap.get(rawMaKho.toLowerCase());
+
+    const sieuthi = matchedBoss?.sieuthi || `Mã kho ${rawMaKho}`;
+    const tinh = matchedBoss?.tinh || matchedBoss?.tinhMoi || matchedBoss?.tinhBase || '-';
+    const kenh = matchedBoss?.kenh || '-';
+    const boss = matchedBoss?.boss || '-';
+    const phanLoaiShop = matchedBoss?.phanLoaiShop || '-';
+
+    records.push({
+      id: `${rawMaKho}_${ngay}_${r}`,
+      maKho: rawMaKho,
+      ngay,
+      doanhThu,
+      doanhThuQd,
+      sieuthi,
+      tinh,
+      kenh,
+      boss,
+      phanLoaiShop,
+    });
+  }
+
+  if (records.length === 0) {
+    return {
+      records: [],
+      validation: { isValid: false, error: 'Không tìm thấy dòng dữ liệu nào hợp lệ trong file Excel.' },
+    };
+  }
+
+  return {
+    records,
+    validation: { isValid: true },
+  };
 }
 
 

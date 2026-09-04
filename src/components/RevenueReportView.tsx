@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount, RemarkDisplayMode } from '../types';
+import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount, RemarkDisplayMode, RevenueCungKyRecord } from '../types';
 import {
   formatVND,
   formatPercent,
@@ -41,9 +41,19 @@ import {
   Sparkles,
   MapPin,
   Boxes,
+  Sliders,
+  Calendar,
+  Percent,
+  RotateCcw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { exportElementAsImage, copyTextToClipboard } from '../services/imageExport';
+import { usePersistedState } from '../hooks/usePersistedState';
+
+export interface TargetConfig {
+  mode: 'default' | 'cung_ky';
+  heSo: number; // e.g. 100, 120, 180 (%)
+}
 
 export function getChannelHeaderBg(kenh: string): string {
   const u = (kenh || '').toUpperCase();
@@ -98,6 +108,7 @@ export interface RevenueReportViewProps {
   luykeDtStores: StoreRecord[];
   luykeTcStores: StoreRecord[];
   bossAssignments?: BossAssignmentRecord[];
+  revenueCungKy?: RevenueCungKyRecord[];
   lastUpdateRealtimeDt?: string;
   lastUpdateRealtimeTc?: string;
   lastUpdateLuyKeDt?: string;
@@ -118,6 +129,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   luykeDtStores = [],
   luykeTcStores = [],
   bossAssignments = [],
+  revenueCungKy = [],
   lastUpdateRealtimeDt,
   lastUpdateRealtimeTc,
   lastUpdateLuyKeDt,
@@ -131,6 +143,19 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   savedUserFilters,
   onSaveRevenueProvince,
 }) => {
+  // Target Configuration (Mặc định vs CK Năm, và Hệ số %)
+  const [targetConfig, setTargetConfig] = usePersistedState<TargetConfig>('tnb_revenue_target_config', {
+    mode: 'default',
+    heSo: 100,
+  });
+  const [isTargetConfigModalOpen, setIsTargetConfigModalOpen] = useState(false);
+  const [tempTargetConfig, setTempTargetConfig] = useState<TargetConfig>(targetConfig);
+
+  useEffect(() => {
+    if (isTargetConfigModalOpen) {
+      setTempTargetConfig(targetConfig);
+    }
+  }, [isTargetConfigModalOpen, targetConfig]);
   // Value display mode: 'percent' (% HT) | 'value' (Giá trị Triệu VND)
   const [valueDisplayMode, setValueDisplayMode] = useState<'percent' | 'value'>('percent');
 
@@ -177,6 +202,116 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       ? lastUpdateRealtimeDt || lastUpdateRealtimeTc || getFormattedNow()
       : lastUpdateLuyKeDt || lastUpdateLuyKeTc || getFormattedNow();
 
+  // Fallback to local storage if props revenueCungKy is empty
+  const effectiveRevenueCungKy = useMemo<RevenueCungKyRecord[]>(() => {
+    if (revenueCungKy && revenueCungKy.length > 0) return revenueCungKy;
+    try {
+      const raw1 = localStorage.getItem('tnb_revenue_cung_ky');
+      if (raw1) {
+        const parsed = JSON.parse(raw1);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const raw2 = localStorage.getItem('tnb_revenue_cung_ky_records');
+      if (raw2) {
+        const parsed = JSON.parse(raw2);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      const rawCache = localStorage.getItem('tnb_competition_cache_v1');
+      if (rawCache) {
+        const parsedCache = JSON.parse(rawCache);
+        if (parsedCache?.revenueCungKy && Array.isArray(parsedCache.revenueCungKy) && parsedCache.revenueCungKy.length > 0) {
+          return parsedCache.revenueCungKy;
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading revenueCungKy from localStorage fallback:', e);
+    }
+    return [];
+  }, [revenueCungKy]);
+
+  // Extract Day, Month, Year: Realtime luôn lấy theo ngày hôm nay thực tế (new Date())
+  const dateInfo = useMemo(() => {
+    const now = new Date();
+    const day = now.getDate();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const dStr = String(day).padStart(2, '0');
+    const mStr = String(month).padStart(2, '0');
+    const curYearStr = String(year);
+    const prevYearStr = String(year - 1);
+
+    const curDayMonthYear = `${dStr}/${mStr}/${curYearStr}`;
+    const curMonthYear = `${mStr}/${curYearStr}`;
+    const cungKyDayMonthYear = `${dStr}/${mStr}/${prevYearStr}`;
+    const cungKyMonthYear = `${mStr}/${prevYearStr}`;
+
+    return {
+      day,
+      month,
+      year,
+      dStr,
+      mStr,
+      curYearStr,
+      prevYearStr,
+      curDayMonthYear,
+      curMonthYear,
+      cungKyDayMonthYear,
+      cungKyMonthYear,
+    };
+  }, []);
+
+  // Index revenueCungKy for fast lookup by store code and date/month
+  const cungKyIndex = useMemo(() => {
+    const byStoreDate = new Map<string, RevenueCungKyRecord>();
+    const byStoreMonth = new Map<string, number>();
+
+    effectiveRevenueCungKy.forEach((row) => {
+      const rawMaKho = String(row.maKho || '').trim();
+      const numMaKho = String(parseInt(rawMaKho, 10) || rawMaKho);
+
+      const p = (row.ngay || '').split(/[\/\-]/);
+      if (p.length === 3) {
+        const d = p[0].padStart(2, '0');
+        const m = p[1].padStart(2, '0');
+        const y = p[2];
+        const dateKey1 = `${d}/${m}/${y}`;
+        const dateKey2 = `${parseInt(d, 10)}/${parseInt(m, 10)}/${y}`;
+        const monthKey1 = `${m}/${y}`;
+        const monthKey2 = `${parseInt(m, 10)}/${y}`;
+
+        // Collect all possible store identifiers
+        const keysToStore = new Set<string>([rawMaKho, numMaKho]);
+        const storeCodeFromSieuthi = extractStoreCode(row.sieuthi || '');
+        if (storeCodeFromSieuthi) keysToStore.add(storeCodeFromSieuthi);
+        const mstFromSieuthi = extractMst(row.sieuthi || '');
+        if (mstFromSieuthi) {
+          keysToStore.add(mstFromSieuthi);
+          keysToStore.add(String(parseInt(mstFromSieuthi, 10) || mstFromSieuthi));
+        }
+
+        keysToStore.forEach((k) => {
+          if (!k) return;
+          byStoreDate.set(`${k}_${dateKey1}`, row);
+          byStoreDate.set(`${k}_${dateKey2}`, row);
+          byStoreDate.set(`${k.toLowerCase()}_${dateKey1}`, row);
+          byStoreDate.set(`${k.toLowerCase()}_${dateKey2}`, row);
+        });
+
+        const dtQdVal = row.doanhThuQd || 0;
+        keysToStore.forEach((k) => {
+          if (!k) return;
+          byStoreMonth.set(`${k}_${monthKey1}`, (byStoreMonth.get(`${k}_${monthKey1}`) || 0) + dtQdVal);
+          byStoreMonth.set(`${k}_${monthKey2}`, (byStoreMonth.get(`${k}_${monthKey2}`) || 0) + dtQdVal);
+          byStoreMonth.set(`${k.toLowerCase()}_${monthKey1}`, (byStoreMonth.get(`${k.toLowerCase()}_${monthKey1}`) || 0) + dtQdVal);
+          byStoreMonth.set(`${k.toLowerCase()}_${monthKey2}`, (byStoreMonth.get(`${k.toLowerCase()}_${monthKey2}`) || 0) + dtQdVal);
+        });
+      }
+    });
+
+    return { byStoreDate, byStoreMonth };
+  }, [effectiveRevenueCungKy]);
+
   // Combine DT and TC into unified Store Items
   const mergedItems = useMemo<RevenueRecordItem[]>(() => {
     const tcMap = new Map<string, StoreRecord>();
@@ -210,17 +345,68 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       const phanLoaiShop = getPhanLoaiShopForStore(dt.sieuthi, bossAssignments);
       const tinhMoi = getTinhMoiForStore(dt.sieuthi, bossAssignments);
 
-      const targetDt = dt.target || 0;
-      const achievedDt = dt.achieved || 0;
-      const rateDt = dt.rate ?? (targetDt > 0 ? (achievedDt / targetDt) * 100 : 0);
+      // Base Target computation: Mặc định vs Cùng Kỳ Năm
+      const storeCode = mst || extractStoreCode(dt.sieuthi) || dt.id || '';
+      const cleanMst = String(parseInt(storeCode, 10) || storeCode).trim();
+      const rawMst = storeCode.trim();
+
+      let baseTarget = dt.target || 0;
+
+      if (targetConfig.mode === 'cung_ky') {
+        if (timeMode === 'realtime') {
+          // Realtime: lookup store on cungKyDayMonthYear (e.g. "04/09/2025")
+          const dKey1 = dateInfo.cungKyDayMonthYear;
+          const dKey2 = `${parseInt(dateInfo.dStr, 10)}/${parseInt(dateInfo.mStr, 10)}/${dateInfo.prevYearStr}`;
+
+          const matchedRow =
+            cungKyIndex.byStoreDate.get(`${rawMst}_${dKey1}`) ||
+            cungKyIndex.byStoreDate.get(`${cleanMst}_${dKey1}`) ||
+            cungKyIndex.byStoreDate.get(`${rawMst}_${dKey2}`) ||
+            cungKyIndex.byStoreDate.get(`${cleanMst}_${dKey2}`) ||
+            (code ? cungKyIndex.byStoreDate.get(`${code}_${dKey1}`) : undefined) ||
+            (code ? cungKyIndex.byStoreDate.get(`${code}_${dKey2}`) : undefined);
+
+          if (matchedRow && matchedRow.doanhThuQd > 0) {
+            const rawVal = matchedRow.doanhThuQd;
+            baseTarget = rawVal > 100_000 ? (rawVal / 1_000_000) : rawVal;
+          }
+        } else {
+          // Luỹ kế: sum of all days in cungKyMonthYear (e.g. "09/2025")
+          const mKey1 = dateInfo.cungKyMonthYear;
+          const mKey2 = `${parseInt(dateInfo.mStr, 10)}/${dateInfo.prevYearStr}`;
+
+          const monthSum =
+            cungKyIndex.byStoreMonth.get(`${rawMst}_${mKey1}`) ||
+            cungKyIndex.byStoreMonth.get(`${cleanMst}_${mKey1}`) ||
+            cungKyIndex.byStoreMonth.get(`${rawMst}_${mKey2}`) ||
+            cungKyIndex.byStoreMonth.get(`${cleanMst}_${mKey2}`) ||
+            (code ? cungKyIndex.byStoreMonth.get(`${code}_${mKey1}`) : undefined) ||
+            (code ? cungKyIndex.byStoreMonth.get(`${code}_${mKey2}`) : undefined);
+
+          if (monthSum && monthSum > 0) {
+            baseTarget = monthSum > 100_000 ? (monthSum / 1_000_000) : monthSum;
+          }
+        }
+      }
+
+      // Apply multiplier % (e.g. 140% -> x1.4)
+      const multiplier = (targetConfig.heSo || 100) / 100;
+      const targetDt = Math.round(baseTarget * multiplier);
+      const achievedDt = dt.achieved || dt.dtQd || 0;
+      // Recalculate completion rate based on active targetDt
+      const rateDt = targetDt > 0 ? (achievedDt / targetDt) * 100 : (dt.rate || 0);
       const dtThuc = dt.dtThuc !== undefined ? dt.dtThuc : achievedDt;
       const dtQd = dt.dtQd !== undefined ? dt.dtQd : achievedDt;
       const qdEff = dtThuc > 0 ? ((dtQd - dtThuc) / dtThuc) * 100 : 0;
 
-      const targetTc = matchedTc?.target || 0;
-      const achievedTc = matchedTc?.achieved || 0;
-      const rateTc = matchedTc?.rate ?? (targetTc > 0 ? (achievedTc / targetTc) * 100 : 0);
-      const tcRatio = matchedTc?.rate !== undefined && matchedTc.rate > 0 ? matchedTc.rate : (achievedDt > 0 ? (achievedTc / achievedDt) * 100 : 0);
+      const achievedTc = dt.dtTraGop !== undefined ? dt.dtTraGop : (matchedTc?.achieved || 0);
+      const tcRatio = dt.tiTrongTraGop !== undefined
+        ? dt.tiTrongTraGop
+        : (matchedTc?.rate !== undefined && matchedTc.rate > 0
+          ? matchedTc.rate
+          : (achievedDt > 0 ? (achievedTc / achievedDt) * 100 : 0));
+      const targetTc = dt.targetThang || matchedTc?.target || 0;
+      const rateTc = tcRatio;
 
       items.push({
         stt: idx + 1,
@@ -280,7 +466,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     });
 
     return items;
-  }, [activeDtStores, activeTcStores, bossAssignments]);
+  }, [activeDtStores, activeTcStores, bossAssignments, targetConfig, timeMode, cungKyIndex, dateInfo]);
 
   // Unique Filter Options
   const uniqueProvinces = useMemo(
@@ -535,34 +721,6 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       });
   }, [filteredItems]);
 
-  // TOP & BOTTOM Data for Tab TOP/BOT
-  const topBotData = useMemo(() => {
-    const items = filteredItems;
-
-    // Sort by DTQĐ for Left Table (descending)
-    const byDtQd = [...items].sort((a, b) => (b.dtQd || b.achievedDt || 0) - (a.dtQd || a.achievedDt || 0));
-    const top20DtQd = byDtQd.slice(0, 20).map((item, idx) => ({ ...item, rank: idx + 1 }));
-    const bot20DtQd =
-      byDtQd.length > 20
-        ? byDtQd.slice(-20).map((item, idx) => ({ ...item, rank: byDtQd.length - 20 + idx + 1 }))
-        : [];
-
-    // Sort by % HT (rateDt) for Right Table (descending)
-    const byRate = [...items].sort((a, b) => (b.rateDt || 0) - (a.rateDt || 0));
-    const top20Rate = byRate.slice(0, 20).map((item, idx) => ({ ...item, rank: idx + 1 }));
-    const bot20Rate =
-      byRate.length > 20
-        ? byRate.slice(-20).map((item, idx) => ({ ...item, rank: byRate.length - 20 + idx + 1 }))
-        : [];
-
-    return {
-      top20DtQd,
-      bot20DtQd,
-      top20Rate,
-      bot20Rate,
-    };
-  }, [filteredItems]);
-
   const { infoTimeLabel, realtimeTimeStr, realtimeTimeAndDateStr, thoiGianSdPercent } = useMemo(() => {
     let day = new Date().getDate();
     let month = new Date().getMonth() + 1;
@@ -624,27 +782,80 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     };
   }, [lastUpdatedTime, timeMode]);
 
+  // TOP & BOTTOM Data for Tab TOP/BOT
+  const topBotData = useMemo(() => {
+    const items = filteredItems;
+
+    // Sort by DTQĐ for Left Table (descending)
+    const byDtQd = [...items].sort((a, b) => (b.dtQd || b.achievedDt || 0) - (a.dtQd || a.achievedDt || 0));
+    const top20DtQd = byDtQd.slice(0, 20).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const bot20DtQd =
+      byDtQd.length > 20
+        ? byDtQd.slice(-20).map((item, idx) => ({ ...item, rank: byDtQd.length - 20 + idx + 1 }))
+        : [];
+
+    // In Luỹ kế, right table sorts by Projected Rate (% Hoàn thành dự kiến)
+    const getEffectiveRate = (item: RevenueRecordItem) => {
+      if (timeMode === 'luyke' && thoiGianSdPercent > 0) {
+        return item.rateDt / (thoiGianSdPercent / 100);
+      }
+      return item.rateDt || 0;
+    };
+
+    const byRate = [...items].sort((a, b) => getEffectiveRate(b) - getEffectiveRate(a));
+    const top20Rate = byRate.slice(0, 20).map((item, idx) => ({
+      ...item,
+      rank: idx + 1,
+      displayRate: getEffectiveRate(item),
+    }));
+    const bot20Rate =
+      byRate.length > 20
+        ? byRate.slice(-20).map((item, idx) => ({
+            ...item,
+            rank: byRate.length - 20 + idx + 1,
+            displayRate: getEffectiveRate(item),
+          }))
+        : [];
+
+    return {
+      top20DtQd,
+      bot20DtQd,
+      top20Rate,
+      bot20Rate,
+    };
+  }, [filteredItems, timeMode, thoiGianSdPercent]);
+
   const currentDayMonthYearStr = useMemo(() => {
-    const now = new Date();
-    const d = String(now.getDate()).padStart(2, '0');
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const y = now.getFullYear();
-    return `${d}/${m}/${y}`;
-  }, []);
+    return dateInfo.curDayMonthYear;
+  }, [dateInfo]);
 
   const currentMonthYearStr = useMemo(() => {
-    const now = new Date();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const y = now.getFullYear();
-    return `${m}/${y}`;
-  }, []);
+    return dateInfo.curMonthYear;
+  }, [dateInfo]);
 
   const targetHeaderStr = useMemo(() => {
+    const isCk = targetConfig.mode === 'cung_ky';
+    const dateStr = isCk ? dateInfo.cungKyDayMonthYear : dateInfo.curDayMonthYear;
+    const monthStr = isCk ? dateInfo.cungKyMonthYear : dateInfo.curMonthYear;
+    const heSoStr = `x${targetConfig.heSo}%`;
+
     if (timeMode === 'realtime') {
-      return `MỤC TIÊU HÔM NAY = DTQĐ ${currentDayMonthYearStr} x180%`;
+      return `MỤC TIÊU HÔM NAY = DTQĐ ${dateStr} ${heSoStr}`;
     }
-    return `MỤC TIÊU THÁNG = DTQĐ THÁNG ${currentMonthYearStr}`;
-  }, [timeMode, currentDayMonthYearStr, currentMonthYearStr]);
+    return `MỤC TIÊU THÁNG = DTQĐ THÁNG ${monthStr} ${heSoStr}`;
+  }, [timeMode, targetConfig, dateInfo]);
+
+  const targetSubHeaderStr = useMemo(() => {
+    const isCk = targetConfig.mode === 'cung_ky';
+    const dateStr = isCk ? dateInfo.cungKyDayMonthYear : dateInfo.curDayMonthYear;
+    const monthStr = isCk ? dateInfo.cungKyMonthYear : dateInfo.curMonthYear;
+    const heSoStr = `x${targetConfig.heSo}%`;
+
+    if (timeMode === 'realtime') {
+      return `DTQĐ ${dateStr} ${heSoStr}`;
+    }
+    return `DTQĐ THÁNG ${monthStr} ${heSoStr}`;
+  }, [timeMode, targetConfig, dateInfo]);
 
   const mainTitleStr = useMemo(() => {
     const hasDmx = selectedChannels.some((c) => ['DML', 'DMM', 'DMS'].includes(c));
@@ -737,6 +948,14 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       let valA: any = a[sortField as keyof RevenueRecordItem] ?? 0;
       let valB: any = b[sortField as keyof RevenueRecordItem] ?? 0;
 
+      if (sortField === 'projAchieved') {
+        valA = thoiGianSdPercent > 0 ? a.achievedDt / (thoiGianSdPercent / 100) : a.achievedDt;
+        valB = thoiGianSdPercent > 0 ? b.achievedDt / (thoiGianSdPercent / 100) : b.achievedDt;
+      } else if (sortField === 'projRate') {
+        valA = thoiGianSdPercent > 0 ? a.rateDt / (thoiGianSdPercent / 100) : a.rateDt;
+        valB = thoiGianSdPercent > 0 ? b.rateDt / (thoiGianSdPercent / 100) : b.rateDt;
+      }
+
       if (typeof valA === 'string') {
         valA = valA.toLowerCase();
         valB = String(valB).toLowerCase();
@@ -746,7 +965,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filteredItems, sortField, sortDirection]);
+  }, [filteredItems, sortField, sortDirection, thoiGianSdPercent]);
 
   // Paginated Stores
   const totalPages = Math.ceil(sortedItems.length / pageSize) || 1;
@@ -1208,6 +1427,29 @@ ${botLines || 'Đang cập nhật'}
 
           {/* Right Action Group: Realtime/Luỹ Kế, Cập nhật, Link BI */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Nút Cấu hình Target: CHỈ HIỂN THỊ Ở TAB TỔNG */}
+            {entityScope === 'tong' && (
+              <button
+                type="button"
+                onClick={() => setIsTargetConfigModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all border cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-xs border-amber-600"
+                title="Cấu hình nguồn và hệ số Target"
+              >
+                <Sliders className="w-3.5 h-3.5 text-white" />
+                <span>Cấu hình Target</span>
+                {targetConfig.mode === 'cung_ky' && (
+                  <span className="px-1.5 py-0.5 text-[9.5px] bg-white text-orange-800 font-black rounded-md uppercase tracking-tight">
+                    CK
+                  </span>
+                )}
+                {targetConfig.heSo !== 100 && (
+                  <span className="px-1.5 py-0.5 text-[9.5px] bg-amber-950/40 text-amber-100 font-mono font-black rounded-md">
+                    x{targetConfig.heSo}%
+                  </span>
+                )}
+              </button>
+            )}
+
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shrink-0">
               <button
                 onClick={() => setTimeMode('realtime')}
@@ -1611,10 +1853,8 @@ ${botLines || 'Đang cập nhật'}
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#fcd34d] text-black font-black border-r border-b border-slate-300 font-mono">
-                      {timeMode === 'realtime'
-                        ? `${(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)).toFixed(1)}%`
-                        : `${Math.round(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0))}%`}
+                    <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                      {timeMode === 'realtime' ? `${totalSummary.totalQdEff.toFixed(1)}%` : `${Math.round(totalSummary.totalQdEff)}%`}
                     </td>
                     <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalTcRatio.toFixed(1)}%` : `${Math.round(totalSummary.totalTcRatio)}%`}
@@ -1721,7 +1961,7 @@ ${botLines || 'Đang cập nhật'}
                   {/* Province Summary Row at Bottom */}
                   <tr className="font-black text-black">
                     <td className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300">
-                      {summaryChannelLabel}
+                      TOÀN VÙNG TNB
                     </td>
                     <td className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
@@ -1731,10 +1971,8 @@ ${botLines || 'Đang cập nhật'}
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td className="p-2 sm:p-2.5 text-center bg-[#fcd34d] text-black font-black border-r border-b border-slate-300 font-mono">
-                      {timeMode === 'realtime'
-                        ? `${(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0)).toFixed(1)}%`
-                        : `${Math.round(totalSummary.totalQdEff || (totalSummary.totalRateDt > 0 ? Math.min(99.9, Math.max(30.0, 50.0 + (totalSummary.totalRateDt - 20) * 0.7)) : 50.0))}%`}
+                    <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                      {timeMode === 'realtime' ? `${totalSummary.totalQdEff.toFixed(1)}%` : `${Math.round(totalSummary.totalQdEff)}%`}
                     </td>
                     <td className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalTcRatio.toFixed(1)}%` : `${Math.round(totalSummary.totalTcRatio)}%`}
@@ -1902,7 +2140,7 @@ ${botLines || 'Đang cập nhật'}
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center font-black font-mono text-[#16a34a] border-b border-slate-300 text-xs">
-                            {Math.round(s.rateDt)}%
+                            {Math.round((s as any).displayRate ?? s.rateDt)}%
                           </td>
                         </tr>
                       ))}
@@ -1923,7 +2161,7 @@ ${botLines || 'Đang cập nhật'}
                             {s.sieuthi}
                           </td>
                           <td className="p-1 sm:p-1.5 text-center bg-[#fecdd3] font-black font-mono text-[#dc2626] border-b border-slate-300 text-xs">
-                            {Math.round(s.rateDt)}%
+                            {Math.round((s as any).displayRate ?? s.rateDt)}%
                           </td>
                         </tr>
                       ))}
@@ -1936,7 +2174,7 @@ ${botLines || 'Đang cập nhật'}
                             : 'TỔNG CỘNG KÊNH'}
                         </td>
                         <td className="p-2 text-center font-black font-mono border-t border-slate-300 text-xs sm:text-sm">
-                          {Math.round(totalSummary.totalRateDt)}%
+                          {Math.round(timeMode === 'luyke' && thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt)}%
                         </td>
                       </tr>
                     </tfoot>
@@ -2001,9 +2239,9 @@ ${botLines || 'Đang cập nhật'}
                       colSpan={3}
                       className="bg-[#fbb040] text-slate-950 font-black p-1.5 text-center border-r border-slate-300 text-[11px] leading-snug"
                     >
-                      <div>MỤC TIÊU HÔM NAY =</div>
+                      <div>{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
                       <div className="text-[10px] font-bold">
-                        {timeMode === 'realtime' ? `DTQĐ ${currentDayMonthYearStr} x180%` : `DTQĐ THÁNG ${currentMonthYearStr}`}
+                        {targetSubHeaderStr}
                       </div>
                     </th>
                     <th
@@ -2194,7 +2432,7 @@ ${botLines || 'Đang cập nhật'}
             </div>
           </div>
         ) : entityScope === 'sieuthi' ? (
-          /* PROVINCE LEVEL TABLE */
+          /* PROVINCE LEVEL TABLE (TAB VÙNG) */
           <div className="overflow-x-auto select-none border border-slate-200 rounded-2xl shadow-xs">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
@@ -2203,17 +2441,25 @@ ${botLines || 'Đang cập nhật'}
                   <th colSpan={3} className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
                     TỈNH
                   </th>
-                  {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                    <th colSpan={isExporting && exportMode === 'quick' ? 1 : 3} className="bg-[#f59e0b] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
-                      NHÓM DOANH THU THUẦN
-                    </th>
-                  )}
-                  {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                    <th colSpan={isExporting && exportMode === 'quick' ? 1 : 2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 border-r border-emerald-500/40 uppercase tracking-wide">
-                      NHÓM TRẢ CHẬM
-                    </th>
-                  )}
-                  <th className="bg-[#6366f1] text-white font-black text-xs text-center p-2.5 uppercase tracking-wide">
+                  <th colSpan={3} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
+                    <div>{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
+                    <div className="text-[10px] font-bold">{targetSubHeaderStr}</div>
+                  </th>
+                  <th colSpan={2} className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
+                    <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
+                    <div className="text-[9.5px] font-bold">THEO TỈ TRỌNG TỪNG GIỜ</div>
+                  </th>
+                  <th rowSpan={2} className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r border-amber-500/40 text-xs leading-tight w-24 align-middle">
+                    <div>HIỆU QUẢ</div>
+                    <div>QUY ĐỔI</div>
+                    <div className="text-[9px] font-bold mt-0.5">MIN = 50%</div>
+                  </th>
+                  <th rowSpan={2} className="bg-[#fdbb84] text-slate-950 font-black p-2 text-center border-r border-orange-300 text-xs leading-tight w-24 align-middle">
+                    <div>TỈ TRỌNG</div>
+                    <div>TRẢ CHẬM</div>
+                    <div className="text-[9px] font-bold mt-0.5">MIN = 50%</div>
+                  </th>
+                  <th rowSpan={2} className="bg-[#6366f1] text-white font-black text-xs text-center p-2.5 uppercase tracking-wide align-middle w-28">
                     TIẾN ĐỘ
                   </th>
                 </tr>
@@ -2223,74 +2469,60 @@ ${botLines || 'Đang cập nhật'}
                   <th className="p-2 border-r border-slate-300 w-12 text-slate-800 font-black bg-sky-50">STT</th>
                   <th className="p-2 border-r border-slate-300 text-left text-slate-800 font-black bg-sky-50">TỈNH</th>
                   <th className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">SỐ ST</th>
-                  {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                    <>
-                      {!(isExporting && exportMode === 'quick') && (
-                        <>
-                          <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">TARGET DT</th>
-                          <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC ĐẠT DT</th>
-                        </>
-                      )}
-                      <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">% HT DT</th>
-                    </>
-                  )}
-                  {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                    <>
-                      {!(isExporting && exportMode === 'quick') && (
-                        <th className="p-2 border-r border-emerald-200 text-right bg-emerald-100 text-emerald-950 font-black">TRẢ CHẬM</th>
-                      )}
-                      <th className="p-2 border-r border-emerald-200 text-center bg-emerald-100 text-emerald-950 font-black">% TRẢ CHẬM / DT</th>
-                    </>
-                  )}
-                  <th className="p-2 text-center text-indigo-950 font-black bg-indigo-50">ST ĐẠT TARGET</th>
+                  <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">MỤC TIÊU</th>
+                  <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC HIỆN</th>
+                  <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">HOÀN THÀNH</th>
+                  <th className="p-2 border-r border-yellow-200 text-right bg-yellow-100 text-yellow-950 font-black">THỰC HIỆN</th>
+                  <th className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black">HOÀN THÀNH</th>
                 </tr>
               </thead>
 
               <tbody>
                 {provinceSummaryRows.length > 0 ? (
-                  provinceSummaryRows.map((row, idx) => (
-                    <tr
-                      key={row.tinh}
-                      className={`border-b border-slate-200 transition-colors ${
-                        idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
-                      } hover:bg-amber-50/40`}
-                    >
-                      <td className="p-2.5 text-center font-bold text-slate-500 border-r border-slate-200">#{idx + 1}</td>
-                      <td className="p-2.5 font-black text-slate-900 border-r border-slate-200">{row.tinh}</td>
-                      <td className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-200">{row.storesCount} ST</td>
-                      {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                        <>
-                          {!(isExporting && exportMode === 'quick') && (
-                            <>
-                              <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{formatBillionsOnly(row.targetDt)}</td>
-                              <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{formatBillionsOnly(row.achievedDt)}</td>
-                            </>
-                          )}
-                          <td className="p-2.5 text-center border-r border-slate-200">
-                            <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${row.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : row.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
-                              {Math.round(row.rateDt)}%
-                            </span>
-                          </td>
-                        </>
-                      )}
-                      {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                        <>
-                          {!(isExporting && exportMode === 'quick') && (
-                            <td className="p-2.5 text-right font-mono font-black text-amber-700 border-r border-slate-200">{formatBillionsOnly(row.achievedTc)}</td>
-                          )}
-                          <td className="p-2.5 text-center border-r border-slate-200 font-bold text-amber-900">
-                            {Math.round(row.tcRatio)}%
-                          </td>
-                        </>
-                      )}
-                      <td className="p-2.5 text-center font-bold text-slate-800">
-                        {row.reachedStoresCount} / {row.storesCount}
-                      </td>
-                    </tr>
-                  ))
+                  provinceSummaryRows.map((row, idx) => {
+                    const projAchieved = thoiGianSdPercent > 0 ? Math.round(row.achievedDt / (thoiGianSdPercent / 100)) : row.achievedDt;
+                    const projRate = thoiGianSdPercent > 0 ? (row.rateDt / (thoiGianSdPercent / 100)) : row.rateDt;
+                    const isQdRed = row.qdEff < 50.0;
+                    const isTcRed = row.tcRatio < 50.0;
+
+                    return (
+                      <tr
+                        key={row.tinh}
+                        className={`border-b border-slate-200 transition-colors ${
+                          idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
+                        } hover:bg-amber-50/40`}
+                      >
+                        <td className="p-2.5 text-center font-bold text-slate-500 border-r border-slate-200">#{idx + 1}</td>
+                        <td className="p-2.5 font-black text-slate-900 border-r border-slate-200">{row.tinh}</td>
+                        <td className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-200">{row.storesCount} ST</td>
+                        <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{row.targetDt.toLocaleString('vi-VN')}</td>
+                        <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{row.achievedDt.toLocaleString('vi-VN')}</td>
+                        <td className="p-2.5 text-center border-r border-slate-200">
+                          <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${row.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : row.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+                            {Math.round(row.rateDt)}%
+                          </span>
+                        </td>
+                        <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{projAchieved.toLocaleString('vi-VN')}</td>
+                        <td className="p-2.5 text-center border-r border-slate-200">
+                          <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${projRate >= 100 ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-900'}`}>
+                            {Math.round(projRate)}%
+                          </span>
+                        </td>
+                        <td className={`p-2.5 text-center border-r border-slate-200 font-mono font-bold ${isQdRed ? 'text-[#dc2626]' : 'text-slate-900'}`}>
+                          {Math.round(row.qdEff)}%
+                        </td>
+                        <td className={`p-2.5 text-center border-r border-slate-200 font-mono font-bold ${isTcRed ? 'text-[#dc2626]' : 'text-slate-900'}`}>
+                          {Math.round(row.tcRatio)}%
+                        </td>
+                        <td className="p-2.5 text-center font-bold text-slate-800">
+                          {row.reachedStoresCount} / {row.storesCount}
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400 font-bold text-xs">
+                    <td colSpan={11} className="p-8 text-center text-slate-400 font-bold text-xs">
                       Không tìm thấy dữ liệu nào phù hợp với bộ lọc hiện tại.
                     </td>
                   </tr>
@@ -2303,33 +2535,27 @@ ${botLines || 'Đang cập nhật'}
                   <tr className="bg-slate-800 text-white font-black text-xs shadow-xs">
                     <td colSpan={2} className="p-3 text-center uppercase tracking-wider text-amber-400 border-r border-slate-700 font-black">TỔNG</td>
                     <td className="p-3 text-center border-r border-slate-700 text-slate-200 font-bold">{totalSummary.totalStores} ST</td>
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                      <>
-                        {!(isExporting && exportMode === 'quick') && (
-                          <>
-                            <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{formatBillionsOnly(totalSummary.totalTargetDt)}</td>
-                            <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{formatBillionsOnly(totalSummary.totalAchievedDt)}</td>
-                          </>
-                        )}
-                        <td className="p-3 text-center border-r border-slate-700">
-                          <span className={`px-2.5 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
-                            {Math.round(totalSummary.totalRateDt)}%
-                          </span>
-                        </td>
-                      </>
-                    )}
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                      <>
-                        {!(isExporting && exportMode === 'quick') && (
-                          <td className="p-3 text-right font-mono text-amber-300 border-r border-slate-700">{formatBillionsOnly(totalSummary.totalAchievedTc)}</td>
-                        )}
-                        <td className="p-3 text-center border-r border-slate-700">
-                          <span className="px-2 py-0.5 rounded-md bg-teal-500 text-slate-950 font-black">
-                            {Math.round(totalSummary.totalTcRatio)}%
-                          </span>
-                        </td>
-                      </>
-                    )}
+                    <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{totalSummary.totalTargetDt.toLocaleString('vi-VN')}</td>
+                    <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{totalSummary.totalAchievedDt.toLocaleString('vi-VN')}</td>
+                    <td className="p-3 text-center border-r border-slate-700">
+                      <span className={`px-2.5 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
+                        {Math.round(totalSummary.totalRateDt)}%
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">
+                      {(thoiGianSdPercent > 0 ? Math.round(totalSummary.totalAchievedDt / (thoiGianSdPercent / 100)) : totalSummary.totalAchievedDt).toLocaleString('vi-VN')}
+                    </td>
+                    <td className="p-3 text-center border-r border-slate-700">
+                      <span className="px-2.5 py-0.5 rounded-md font-black bg-blue-500 text-white">
+                        {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt)}%
+                      </span>
+                    </td>
+                    <td className={`p-3 text-center border-r border-slate-700 font-mono font-bold ${totalSummary.totalQdEff < 50 ? 'text-[#f87171]' : 'text-amber-300'}`}>
+                      {Math.round(totalSummary.totalQdEff)}%
+                    </td>
+                    <td className={`p-3 text-center border-r border-slate-700 font-mono font-bold ${totalSummary.totalTcRatio < 50 ? 'text-[#f87171]' : 'text-amber-300'}`}>
+                      {Math.round(totalSummary.totalTcRatio)}%
+                    </td>
                     <td className="p-3 text-center text-amber-300 font-bold">{totalSummary.reachedStoresCount} / {totalSummary.totalStores}</td>
                   </tr>
                 </tfoot>
@@ -2337,7 +2563,7 @@ ${botLines || 'Đang cập nhật'}
             </table>
           </div>
         ) : (
-          /* STORE LEVEL TABLE */
+          /* STORE LEVEL TABLE (TAB SIÊU THỊ) */
           <div className="space-y-3">
             <div className="overflow-x-auto select-none border border-slate-200 rounded-2xl shadow-xs">
               <table className="w-full text-left border-collapse text-xs">
@@ -2347,16 +2573,27 @@ ${botLines || 'Đang cập nhật'}
                     <th colSpan={6} className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
                       SIÊU THỊ
                     </th>
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                      <th colSpan={3} className="bg-[#f59e0b] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
-                        NHÓM DOANH THU THUẦN
-                      </th>
-                    )}
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                      <th colSpan={2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 uppercase tracking-wide">
-                        NHÓM TRẢ CHẬM
-                      </th>
-                    )}
+                    <th colSpan={3} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
+                      <div>{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
+                      <div className="text-[10px] font-bold">{targetSubHeaderStr}</div>
+                    </th>
+                    <th colSpan={2} className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
+                      <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
+                      <div className="text-[9.5px] font-bold">THEO TỈ TRỌNG TỪNG GIỜ</div>
+                    </th>
+                    <th rowSpan={2} className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r border-amber-500/40 text-xs leading-tight w-24 align-middle">
+                      <div>HIỆU QUẢ</div>
+                      <div>QUY ĐỔI</div>
+                      <div className="text-[9px] font-bold mt-0.5">MIN = 50%</div>
+                    </th>
+                    <th rowSpan={2} className="bg-[#fdbb84] text-slate-950 font-black p-2 text-center border-r border-orange-300 text-xs leading-tight w-24 align-middle">
+                      <div>TỈ TRỌNG</div>
+                      <div>TRẢ CHẬM</div>
+                      <div className="text-[9px] font-bold mt-0.5">MIN = 50%</div>
+                    </th>
+                    <th rowSpan={2} className="bg-[#10b981] text-slate-950 font-black text-xs text-center p-2.5 uppercase tracking-wide align-middle w-28">
+                      DT TRẢ GÓP
+                    </th>
                   </tr>
 
                   {/* Sub Headers */}
@@ -2367,75 +2604,77 @@ ${botLines || 'Đang cập nhật'}
                     <th className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">BOSS</th>
                     <th className="p-2 border-r border-slate-300 w-16 text-slate-800 font-black bg-sky-50">KÊNH</th>
                     <th className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">PHÂN LOẠI</th>
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                      <>
-                        <th onClick={() => handleSort('targetDt')} className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
-                          TARGET DT
-                        </th>
-                        <th onClick={() => handleSort('achievedDt')} className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
-                          THỰC ĐẠT DT
-                        </th>
-                        <th onClick={() => handleSort('rateDt')} className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
-                          % HT DT
-                        </th>
-                      </>
-                    )}
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                      <>
-                        <th onClick={() => handleSort('achievedTc')} className="p-2 border-r border-emerald-200 text-right bg-emerald-100 text-emerald-950 font-black cursor-pointer hover:bg-emerald-200">
-                          TRẢ CHẬM
-                        </th>
-                        <th onClick={() => handleSort('tcRatio')} className="p-2 text-center bg-emerald-100 text-emerald-950 font-black cursor-pointer hover:bg-emerald-200">
-                          % TRẢ CHẬM / DT
-                        </th>
-                      </>
-                    )}
+                    <th onClick={() => handleSort('targetDt')} className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
+                      MỤC TIÊU
+                    </th>
+                    <th onClick={() => handleSort('achievedDt')} className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
+                      THỰC HIỆN
+                    </th>
+                    <th onClick={() => handleSort('rateDt')} className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black cursor-pointer hover:bg-amber-200">
+                      HOÀN THÀNH
+                    </th>
+                    <th onClick={() => handleSort('projAchieved')} className="p-2 border-r border-yellow-200 text-right bg-yellow-100 text-yellow-950 font-black cursor-pointer hover:bg-yellow-200">
+                      THỰC HIỆN
+                    </th>
+                    <th onClick={() => handleSort('projRate')} className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black cursor-pointer hover:bg-yellow-200">
+                      HOÀN THÀNH
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {paginatedItems.length > 0 ? (
-                    paginatedItems.map((s, idx) => (
-                      <tr
-                        key={s.id || s.sieuthi}
-                        className={`border-b border-slate-200 transition-colors ${
-                          idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
-                        } hover:bg-amber-50/40`}
-                      >
-                        <td className="p-2 text-center font-bold text-slate-500 border-r border-slate-200">
-                          {pageSize === -1 ? idx + 1 : (currentPage - 1) * pageSize + idx + 1}
-                        </td>
-                        <td className="p-2 font-bold text-slate-800 border-r border-slate-200">{s.tinh}</td>
-                        <td className="p-2 font-black text-slate-900 border-r border-slate-200">
-                          {formatStoreDisplayName(s.sieuthi)}
-                        </td>
-                        <td className="p-2 font-bold text-slate-700 border-r border-slate-200 text-center">{s.boss}</td>
-                        <td className="p-2 font-bold text-slate-700 border-r border-slate-200 text-center">{s.kenh}</td>
-                        <td className="p-2 text-center text-[11px] font-bold text-slate-600 border-r border-slate-200">{s.phanLoaiShop}</td>
-                        {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                          <>
-                            <td className="p-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{formatVND(s.targetDt)}</td>
-                            <td className="p-2 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{formatVND(s.achievedDt)}</td>
-                            <td className="p-2 text-center border-r border-slate-200">
-                              <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${s.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : s.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
-                                {s.rateDt}%
-                              </span>
-                            </td>
-                          </>
-                        )}
-                        {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                          <>
-                            <td className="p-2 text-right font-mono font-black text-amber-700 border-r border-slate-200">{formatVND(s.achievedTc)}</td>
-                            <td className="p-2 text-center font-bold text-amber-900">
-                              {s.tcRatio}%
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))
+                    paginatedItems.map((s, idx) => {
+                      const projAchieved = thoiGianSdPercent > 0 ? Math.round(s.achievedDt / (thoiGianSdPercent / 100)) : s.achievedDt;
+                      const projRate = thoiGianSdPercent > 0 ? (s.rateDt / (thoiGianSdPercent / 100)) : s.rateDt;
+                      const isQdRed = s.qdEff < 50.0;
+                      const isTcRed = s.tcRatio < 50.0;
+
+                      return (
+                        <tr
+                          key={s.id || s.sieuthi}
+                          className={`border-b border-slate-200 transition-colors ${
+                            idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'
+                          } hover:bg-amber-50/40`}
+                        >
+                          <td className="p-2 text-center font-bold text-slate-500 border-r border-slate-200">
+                            {pageSize === -1 ? idx + 1 : (currentPage - 1) * pageSize + idx + 1}
+                          </td>
+                          <td className="p-2 font-bold text-slate-800 border-r border-slate-200">{s.tinh}</td>
+                          <td className="p-2 font-black text-slate-900 border-r border-slate-200">
+                            {formatStoreDisplayName(s.sieuthi)}
+                          </td>
+                          <td className="p-2 font-bold text-slate-700 border-r border-slate-200 text-center">{s.boss}</td>
+                          <td className="p-2 font-bold text-slate-700 border-r border-slate-200 text-center">{s.kenh}</td>
+                          <td className="p-2 text-center text-[11px] font-bold text-slate-600 border-r border-slate-200">{s.phanLoaiShop}</td>
+                          <td className="p-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{s.targetDt.toLocaleString('vi-VN')}</td>
+                          <td className="p-2 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{s.achievedDt.toLocaleString('vi-VN')}</td>
+                          <td className="p-2 text-center border-r border-slate-200">
+                            <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${s.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : s.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
+                              {Math.round(s.rateDt)}%
+                            </span>
+                          </td>
+                          <td className="p-2 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{projAchieved.toLocaleString('vi-VN')}</td>
+                          <td className="p-2 text-center border-r border-slate-200">
+                            <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${projRate >= 100 ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-900'}`}>
+                              {Math.round(projRate)}%
+                            </span>
+                          </td>
+                          <td className={`p-2 text-center border-r border-slate-200 font-mono font-bold ${isQdRed ? 'text-[#dc2626]' : 'text-slate-900'}`}>
+                            {Math.round(s.qdEff)}%
+                          </td>
+                          <td className={`p-2 text-center border-r border-slate-200 font-mono font-bold ${isTcRed ? 'text-[#dc2626]' : 'text-slate-900'}`}>
+                            {Math.round(s.tcRatio)}%
+                          </td>
+                          <td className="p-2 text-right font-mono font-black text-amber-700">
+                            {s.achievedTc.toLocaleString('vi-VN')}
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={11} className="p-8 text-center text-slate-400 font-bold text-xs">
+                      <td colSpan={14} className="p-8 text-center text-slate-400 font-bold text-xs">
                         Không tìm thấy siêu thị nào phù hợp với bộ lọc hiện tại.
                       </td>
                     </tr>
@@ -2448,27 +2687,30 @@ ${botLines || 'Đang cập nhật'}
                     <td colSpan={6} className="p-2.5 text-center text-amber-400 uppercase tracking-wider border-r border-slate-700 font-black">
                       TỔNG
                     </td>
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'DT') && (
-                      <>
-                        <td className="p-2.5 text-right font-mono text-slate-200 border-r border-slate-700">{formatVND(totalSummary.totalTargetDt)}</td>
-                        <td className="p-2.5 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{formatVND(totalSummary.totalAchievedDt)}</td>
-                        <td className="p-2.5 text-center border-r border-slate-700">
-                          <span className={`px-2 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
-                            {totalSummary.totalRateDt}%
-                          </span>
-                        </td>
-                      </>
-                    )}
-                    {(selectedMetricGroup === 'ALL' || selectedMetricGroup === 'TC') && (
-                      <>
-                        <td className="p-2.5 text-right font-mono text-amber-300 border-r border-slate-700">{formatVND(totalSummary.totalAchievedTc)}</td>
-                        <td className="p-2.5 text-center">
-                          <span className="px-2 py-0.5 rounded-md bg-teal-500 text-slate-950 font-black">
-                            {totalSummary.totalTcRatio}%
-                          </span>
-                        </td>
-                      </>
-                    )}
+                    <td className="p-2.5 text-right font-mono text-slate-200 border-r border-slate-700">{totalSummary.totalTargetDt.toLocaleString('vi-VN')}</td>
+                    <td className="p-2.5 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{totalSummary.totalAchievedDt.toLocaleString('vi-VN')}</td>
+                    <td className="p-2.5 text-center border-r border-slate-700">
+                      <span className={`px-2 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
+                        {Math.round(totalSummary.totalRateDt)}%
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-right font-mono text-slate-200 border-r border-slate-700">
+                      {(thoiGianSdPercent > 0 ? Math.round(totalSummary.totalAchievedDt / (thoiGianSdPercent / 100)) : totalSummary.totalAchievedDt).toLocaleString('vi-VN')}
+                    </td>
+                    <td className="p-2.5 text-center border-r border-slate-700">
+                      <span className="px-2 py-0.5 rounded-md font-black bg-blue-500 text-white">
+                        {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt)}%
+                      </span>
+                    </td>
+                    <td className={`p-2.5 text-center border-r border-slate-700 font-mono font-bold ${totalSummary.totalQdEff < 50 ? 'text-[#f87171]' : 'text-amber-300'}`}>
+                      {Math.round(totalSummary.totalQdEff)}%
+                    </td>
+                    <td className={`p-2.5 text-center border-r border-slate-700 font-mono font-bold ${totalSummary.totalTcRatio < 50 ? 'text-[#f87171]' : 'text-amber-300'}`}>
+                      {Math.round(totalSummary.totalTcRatio)}%
+                    </td>
+                    <td className="p-2.5 text-right font-mono text-amber-300 font-black">
+                      {totalSummary.totalAchievedTc.toLocaleString('vi-VN')}
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -2679,6 +2921,201 @@ ${botLines || 'Đang cập nhật'}
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CẤU HÌNH TARGET DOANH THU */}
+      {isTargetConfigModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden transform transition-all animate-scale-in">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center font-black shadow-inner">
+                  <Sliders className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base tracking-tight uppercase">Cấu hình Target Doanh Thu</h3>
+                  <p className="text-xs text-amber-100 font-medium">Tùy chỉnh nguồn tính Target & hệ số tăng trưởng cho toàn bộ báo cáo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTargetConfigModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-5 text-slate-800 text-xs">
+              {/* Option 1: Chọn Nguồn Target */}
+              <div className="space-y-2">
+                <label className="font-extrabold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                  1. Chọn nguồn dữ liệu Target:
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Card Mặc Định */}
+                  <div
+                    onClick={() => setTempTargetConfig((prev) => ({ ...prev, mode: 'default' }))}
+                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      tempTargetConfig.mode === 'default'
+                        ? 'border-orange-500 bg-orange-50/60 text-orange-950 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-black text-xs uppercase">Mặc định (BI)</span>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        tempTargetConfig.mode === 'default' ? 'border-orange-600 bg-orange-600' : 'border-slate-300'
+                      }`}>
+                        {tempTargetConfig.mode === 'default' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Lấy Target chuẩn từ báo cáo BI (Realtime = Target/30, Luỹ kế = Target tháng).
+                    </p>
+                  </div>
+
+                  {/* Card CK Năm */}
+                  <div
+                    onClick={() => setTempTargetConfig((prev) => ({ ...prev, mode: 'cung_ky' }))}
+                    className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      tempTargetConfig.mode === 'cung_ky'
+                        ? 'border-orange-500 bg-orange-50/60 text-orange-950 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-black text-xs uppercase">CK Năm</span>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        tempTargetConfig.mode === 'cung_ky' ? 'border-orange-600 bg-orange-600' : 'border-slate-300'
+                      }`}>
+                        {tempTargetConfig.mode === 'cung_ky' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      Lấy theo file Doanh thu cùng kỳ năm (Realtime = Ngày cùng kỳ, Luỹ kế = Cả tháng cùng kỳ).
+                    </p>
+                    {effectiveRevenueCungKy.length > 0 ? (
+                      <span className="mt-2 text-[10px] text-emerald-700 font-bold bg-emerald-100/70 px-2 py-0.5 rounded-md self-start">
+                        ✓ Có sẵn {effectiveRevenueCungKy.length} dòng
+                      </span>
+                    ) : (
+                      <span className="mt-2 text-[10px] text-rose-700 font-bold bg-rose-100/70 px-2 py-0.5 rounded-md self-start">
+                        ⚠️ Chưa nạp file cùng kỳ
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Option 2: Hệ số điều chỉnh % */}
+              <div className="space-y-2">
+                <label className="font-extrabold text-slate-700 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                  2. Hệ số điều chỉnh Target (%):
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      min={10}
+                      max={500}
+                      step={1}
+                      value={tempTargetConfig.heSo}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setTempTargetConfig((prev) => ({ ...prev, heSo: isNaN(val) ? 100 : val }));
+                      }}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border-2 border-slate-300 rounded-xl font-mono text-sm font-black text-slate-900 focus:outline-hidden focus:border-orange-500 focus:bg-white transition-all shadow-inner"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-black text-sm pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick select chips */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="text-[11px] text-slate-400 font-semibold mr-1">Gợi ý nhanh:</span>
+                  {[100, 110, 120, 130, 150, 180].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      onClick={() => setTempTargetConfig((prev) => ({ ...prev, heSo: rate }))}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-black transition-all cursor-pointer border ${
+                        tempTargetConfig.heSo === rate
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {rate === 100 ? '100% (Gốc)' : `${rate}%`}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-500 italic">
+                  * Ví dụ: Nhập 120% thì target Realtime & Luỹ kế đều được x120% (nhân 1.2).
+                </p>
+              </div>
+
+              {/* Preview Banner */}
+              <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 space-y-1.5 text-[11px]">
+                <div className="font-extrabold text-amber-900 flex items-center gap-1.5 uppercase">
+                  <span>📌 Xem trước công thức hiển thị:</span>
+                </div>
+                <div className="font-mono text-slate-800 font-bold bg-white/80 p-2 rounded-xl border border-amber-200/80 space-y-1">
+                  <div>
+                    <span className="text-slate-500">Realtime: </span>
+                    <span className="text-amber-800 font-black">
+                      MỤC TIÊU HÔM NAY = DTQĐ {tempTargetConfig.mode === 'cung_ky' ? dateInfo.cungKyDayMonthYear : dateInfo.curDayMonthYear} x{tempTargetConfig.heSo}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Luỹ kế: </span>
+                    <span className="text-amber-800 font-black">
+                      MỤC TIÊU THÁNG = DTQĐ THÁNG {tempTargetConfig.mode === 'cung_ky' ? dateInfo.cungKyMonthYear : dateInfo.curMonthYear} x{tempTargetConfig.heSo}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setTempTargetConfig({ mode: 'default', heSo: 100 })}
+                className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Khôi phục mặc định</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTargetConfigModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetConfig(tempTargetConfig);
+                    setIsTargetConfigModalOpen(false);
+                  }}
+                  className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Lưu & Áp dụng</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

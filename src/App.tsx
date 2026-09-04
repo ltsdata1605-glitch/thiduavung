@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount } from './types';
+import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount, RevenueCungKyRecord } from './types';
 import { initialUserProfile, initialSettings } from './data/sampleData';
 import { getBossForStore, findBossAssignmentRecord, BossAssignmentRecord } from './utils/parser';
 import { Sidebar } from './components/Sidebar';
@@ -36,6 +36,7 @@ import {
   saveLuyKeDtToFirebase,
   saveLuyKeTcToFirebase,
   saveBossAssignmentsToFirebase,
+  saveRevenueCungKyToFirebase,
   saveSettingsToFirebase,
   saveUserPreferencesToFirebase,
   saveUserFiltersToFirebase,
@@ -184,6 +185,22 @@ function AppInner() {
   // BOSS assignment list, hydrated from local cache first
   const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
     cachedData.bossAssignments?.length ? cachedData.bossAssignments : []
+  );
+
+  // Revenue Cùng Kỳ Năm list, hydrated from local cache first
+  const [revenueCungKy, setRevenueCungKy] = usePersistedState<RevenueCungKyRecord[]>(
+    'tnb_revenue_cung_ky',
+    (() => {
+      if (cachedData.revenueCungKy?.length) return cachedData.revenueCungKy;
+      try {
+        const rawAlt = localStorage.getItem('tnb_revenue_cung_ky_records');
+        if (rawAlt) {
+          const parsed = JSON.parse(rawAlt);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+      return [];
+    })()
   );
 
   // Settings (global, shared by every account) & User Profile (per-account
@@ -413,6 +430,7 @@ function AppInner() {
     luyke_revenue_dt: 'Doanh thu Luỹ kế',
     luyke_revenue_tc: 'Trả chậm Luỹ kế',
     boss_assignments: 'Danh sách BOSS',
+    revenue_cung_ky: 'Doanh thu cùng kỳ năm',
   };
 
   // Coalesces same-batch remote updates (a single save on another device
@@ -484,6 +502,9 @@ function AppInner() {
       }
       if (payload.bossAssignments && payload.bossAssignments.length > 0) {
         setBossAssignments(payload.bossAssignments);
+      }
+      if (payload.revenueCungKy && payload.revenueCungKy.length > 0) {
+        setRevenueCungKy(payload.revenueCungKy);
       }
       if (payload.settings) {
         setSettings((prev) => ({ ...prev, ...payload.settings }));
@@ -989,6 +1010,16 @@ function AppInner() {
       return;
     }
     showToast(`Đã đồng bộ ${newStores.length} dòng Trả chậm Luỹ kế lên Firebase!`);
+  };
+
+  const handleUpdateRevenueCungKy = async (records: RevenueCungKyRecord[]) => {
+    setRevenueCungKy(records);
+    const res = await saveRevenueCungKyToFirebase(records, currentUser?.name || 'Super Admin');
+    if (!res.success) {
+      showErrorToast(res.error || 'Đồng bộ Doanh thu cùng kỳ lên Firebase thất bại!');
+      return;
+    }
+    showToast(`Đã đồng bộ ${records.length} dòng Doanh thu cùng kỳ năm lên Firebase thành công!`);
   };
 
   const handleSaveRevenueProvince = (province: string) => {
@@ -1512,6 +1543,7 @@ function AppInner() {
                   luykeDtStores={luykeDtStores}
                   luykeTcStores={luykeTcStores}
                   bossAssignments={bossAssignments}
+                  revenueCungKy={revenueCungKy}
                   lastUpdateRealtimeDt={lastUpdateRealtimeDt}
                   lastUpdateRealtimeTc={lastUpdateRealtimeTc}
                   lastUpdateLuyKeDt={lastUpdateLuyKeDt}
@@ -1545,9 +1577,11 @@ function AppInner() {
                 onUpdateRealtimeTc={handleUpdateRealtimeTc}
                 onUpdateLuyKeDt={handleUpdateLuyKeDt}
                 onUpdateLuyKeTc={handleUpdateLuyKeTc}
+                onUpdateRevenueCungKy={handleUpdateRevenueCungKy}
                 currentRealtimeStoresVung={realtimeStoresVung}
                 currentLuyKeStoresVung={luykeStoresVung}
                 currentBossAssignments={bossAssignments}
+                currentRevenueCungKy={revenueCungKy}
                 lastUpdateRealtime={settings.lastUpdateRealtime}
                 lastUpdateLuyKe={settings.lastUpdateLuyKe}
                 canViewDtQdTb={canViewDtQdTb}
