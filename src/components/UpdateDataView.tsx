@@ -504,6 +504,38 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     if (currentLuyKeStoresVung.length > 0) setParsedLuyKeStoresVung(currentLuyKeStoresVung);
   }, [currentLuyKeStoresVung]);
 
+  useEffect(() => {
+    if (currentRealtimeDtStores && currentRealtimeDtStores.length > 0) setParsedRealtimeDt(currentRealtimeDtStores);
+  }, [currentRealtimeDtStores]);
+
+  useEffect(() => {
+    if (currentRealtimeTcStores && currentRealtimeTcStores.length > 0) setParsedRealtimeTc(currentRealtimeTcStores);
+  }, [currentRealtimeTcStores]);
+
+  useEffect(() => {
+    if (currentLuyKeDtStores && currentLuyKeDtStores.length > 0) setParsedLuyKeDt(currentLuyKeDtStores);
+  }, [currentLuyKeDtStores]);
+
+  useEffect(() => {
+    if (currentLuyKeTcStores && currentLuyKeTcStores.length > 0) setParsedLuyKeTc(currentLuyKeTcStores);
+  }, [currentLuyKeTcStores]);
+
+  useEffect(() => {
+    if (currentLastUpdateRealtimeDt) setLastUpdateRealtimeDt(currentLastUpdateRealtimeDt);
+  }, [currentLastUpdateRealtimeDt]);
+
+  useEffect(() => {
+    if (currentLastUpdateRealtimeTc) setLastUpdateRealtimeTc(currentLastUpdateRealtimeTc);
+  }, [currentLastUpdateRealtimeTc]);
+
+  useEffect(() => {
+    if (currentLastUpdateLuyKeDt) setLastUpdateLuyKeDt(currentLastUpdateLuyKeDt);
+  }, [currentLastUpdateLuyKeDt]);
+
+  useEffect(() => {
+    if (currentLastUpdateLuyKeTc) setLastUpdateLuyKeTc(currentLastUpdateLuyKeTc);
+  }, [currentLastUpdateLuyKeTc]);
+
   // Onboarding tooltip pointing at the CopyAll bookmarklet button — shown
   // every time this screen mounts (not just once-ever), auto-hides after a
   // while so it doesn't linger if ignored, dismissible early via its X.
