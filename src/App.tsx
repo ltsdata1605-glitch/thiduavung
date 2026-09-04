@@ -425,15 +425,47 @@ function AppInner() {
     [activeStores]
   );
 
-  // Revenue & Installment (Doanh thu & Trả chậm) Data
-  const [realtimeDtStores, setRealtimeDtStores] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
-  const [realtimeTcStores, setRealtimeTcStores] = usePersistedState<StoreRecord[]>('tnb_realtime_tracham', []);
-  const [luykeDtStores, setLuyKeDtStores] = usePersistedState<StoreRecord[]>('tnb_luyke_doanhthu', []);
-  const [luykeTcStores, setLuyKeTcStores] = usePersistedState<StoreRecord[]>('tnb_luyke_tracham', []);
-  const [lastUpdateRealtimeDt, setLastUpdateRealtimeDt] = usePersistedState<string>('tnb_last_update_realtime_dt', '');
-  const [lastUpdateRealtimeTc, setLastUpdateRealtimeTc] = usePersistedState<string>('tnb_last_update_realtime_tc', '');
-  const [lastUpdateLuyKeDt, setLastUpdateLuyKeDt] = usePersistedState<string>('tnb_last_update_luyke_dt', '');
-  const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = usePersistedState<string>('tnb_last_update_luyke_tc', '');
+  // Revenue & Installment (Doanh thu & Trả chậm) Data — plain useState, not
+  // usePersistedState: that hook mirrors every change straight to its OWN
+  // localStorage key (JSON.stringify + setItem, synchronous, on the main
+  // thread) on top of what saveXxxToFirebase already does via
+  // writeLocalCache (the combined tnb_firebase_cache blob + IndexedDB). For
+  // a ~700-row paste that was two full stringify+write passes of the same
+  // data on every single save — a real, measurable part of why "Cập nhật"
+  // felt like it hung. The one-time fallback below still recovers a value
+  // from the old per-field key so nobody's already-cached data disappears
+  // on this migration; every SUBSEQUENT save no longer touches that key.
+  const readLegacyPersisted = <T,>(key: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) return JSON.parse(raw) as T;
+    } catch (e) {}
+    return fallback;
+  };
+  const [realtimeDtStores, setRealtimeDtStores] = useState<StoreRecord[]>(
+    () => (cachedData.realtimeDtStores?.length ? cachedData.realtimeDtStores : readLegacyPersisted('tnb_realtime_doanhthu', []))
+  );
+  const [realtimeTcStores, setRealtimeTcStores] = useState<StoreRecord[]>(
+    () => (cachedData.realtimeTcStores?.length ? cachedData.realtimeTcStores : readLegacyPersisted('tnb_realtime_tracham', []))
+  );
+  const [luykeDtStores, setLuyKeDtStores] = useState<StoreRecord[]>(
+    () => (cachedData.luykeDtStores?.length ? cachedData.luykeDtStores : readLegacyPersisted('tnb_luyke_doanhthu', []))
+  );
+  const [luykeTcStores, setLuyKeTcStores] = useState<StoreRecord[]>(
+    () => (cachedData.luykeTcStores?.length ? cachedData.luykeTcStores : readLegacyPersisted('tnb_luyke_tracham', []))
+  );
+  const [lastUpdateRealtimeDt, setLastUpdateRealtimeDt] = useState<string>(
+    () => cachedData.lastUpdateRealtimeDt || readLegacyPersisted('tnb_last_update_realtime_dt', '')
+  );
+  const [lastUpdateRealtimeTc, setLastUpdateRealtimeTc] = useState<string>(
+    () => cachedData.lastUpdateRealtimeTc || readLegacyPersisted('tnb_last_update_realtime_tc', '')
+  );
+  const [lastUpdateLuyKeDt, setLastUpdateLuyKeDt] = useState<string>(
+    () => cachedData.lastUpdateLuyKeDt || readLegacyPersisted('tnb_last_update_luyke_dt', '')
+  );
+  const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = useState<string>(
+    () => cachedData.lastUpdateLuyKeTc || readLegacyPersisted('tnb_last_update_luyke_tc', '')
+  );
 
   // BOSS assignment list, hydrated from local cache first
   const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
@@ -1870,6 +1902,14 @@ function AppInner() {
                 currentLuyKeStoresVung={luykeStoresVung}
                 currentBossAssignments={bossAssignments}
                 currentRevenueCungKy={revenueCungKy}
+                currentRealtimeDtStores={realtimeDtStores}
+                currentRealtimeTcStores={realtimeTcStores}
+                currentLuyKeDtStores={luykeDtStores}
+                currentLuyKeTcStores={luykeTcStores}
+                currentLastUpdateRealtimeDt={lastUpdateRealtimeDt}
+                currentLastUpdateRealtimeTc={lastUpdateRealtimeTc}
+                currentLastUpdateLuyKeDt={lastUpdateLuyKeDt}
+                currentLastUpdateLuyKeTc={lastUpdateLuyKeTc}
                 lastUpdateRealtime={settings.lastUpdateRealtime}
                 lastUpdateLuyKe={settings.lastUpdateLuyKe}
                 canViewDtQdTb={canViewDtQdTb}
