@@ -2075,7 +2075,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
         {/* 2. MAIN REPORT CARD CONTAINER & EXPORT ROOT */}
         <div
           id="revenue-report-export-root"
-          className={`bg-white ${entityScope === 'tong' ? 'rounded-none' : 'rounded-3xl'} p-5 border border-slate-200 shadow-xs space-y-4`}
+          className="bg-white rounded-none p-5 border border-slate-200 shadow-xs space-y-4"
         >
         {/* Title Header Bar (Styled matching ReportView title header 1:1) */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 ${(entityScope === 'sieuthimoi' || entityScope === 'topbot' || entityScope === 'tong') ? 'export-hide' : ''}`}>
@@ -2462,7 +2462,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           /* TAB TOP/BOT: EXACT MATCH DESIGN WITH 2 SEPARATE COLUMNS (GAP IN BETWEEN) */
           <div id="topbot-report-container" className="w-full max-w-full xl:max-w-7xl 2xl:max-w-[1440px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-3.5 my-2 select-none">
             {/* LEFT COLUMN: CHANNEL HEADER & TOP/BOT D.THU TABLE */}
-            <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
+            <div className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-xs flex flex-col">
               {/* Channel Big Banner */}
               <div className="bg-[#1e40af] text-white flex items-center justify-center p-4 border-b border-slate-300 h-[132px] box-border">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
@@ -2554,7 +2554,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
             </div>
 
             {/* RIGHT COLUMN: TIME INFO & TOP/BOT % HT TABLE */}
-            <div className="bg-white border border-slate-300 rounded-none sm:rounded-lg overflow-hidden shadow-xs flex flex-col">
+            <div className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-xs flex flex-col">
               {/* Right Time Info Block */}
               <div className="flex flex-col bg-white h-[132px] border-b border-slate-300 box-border">
                 <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300 h-[44px]">
@@ -2661,7 +2661,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           </div>
         ) : entityScope === 'sieuthimoi' ? (
           /* TAB SIÊU THỊ MỚI (CHÍNH XÁC 100% THEO HÌNH ẢNH MẪU - VIỀN XÁM NHẠT - TỰ ĐỘNG XUỐNG DÒNG & FIX ĐỘ RỘNG CỘT) */
-          <div className="w-full max-w-5xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs">
+          <div className="w-full max-w-5xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none">
             {/* Header: DOANH THU QĐ NGÀY & TÊN TỈNH */}
             <div className="grid grid-cols-2 border-b border-slate-300 bg-white">
               <div className="py-2.5 px-4 border-r border-slate-300 flex items-center justify-start">
@@ -2909,7 +2909,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           </div>
         ) : entityScope === 'sieuthi' ? (
           /* PROVINCE LEVEL TABLE (TAB VÙNG) */
-          <div className="overflow-x-auto select-none border border-slate-200 rounded-2xl shadow-xs">
+          <div className="overflow-x-auto select-none border border-slate-200 rounded-none shadow-xs">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 {/* Group Band Headers */}
@@ -3047,7 +3047,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
         ) : (
           /* STORE LEVEL TABLE (TAB SIÊU THỊ) */
           <div className="space-y-3">
-            <div className="overflow-x-auto select-none border border-slate-200 rounded-2xl shadow-xs">
+            <div className="overflow-x-auto select-none border border-slate-200 rounded-none shadow-xs">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   {/* Group Band Headers */}

@@ -910,7 +910,13 @@ export async function exportElementAsImage(
       });
     }
 
-    if (isTongCard || clone.id === 'revenue-report-export-root' || clone.id === 'revenue-tong-card') {
+    const isRevenueExport =
+      isTongCard ||
+      clone.id === 'revenue-report-export-root' ||
+      clone.id === 'revenue-tong-card' ||
+      !!clone.querySelector('#revenue-tong-card, #topbot-report-container');
+
+    if (isRevenueExport) {
       clone.style.setProperty('border-radius', '0', 'important');
       clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
         el.style.setProperty('border-radius', '0', 'important');
@@ -976,7 +982,7 @@ export async function exportElementAsImage(
     captureContainer.style.setProperty('min-height', `${height}px`, 'important');
     captureContainer.style.setProperty('max-height', `${height}px`, 'important');
 
-    const effectiveBorderWidth = isTongCard ? 0 : borderWidth;
+    const effectiveBorderWidth = isRevenueExport ? 0 : borderWidth;
     const blob = await rasterizeToBlob(clone, finalWidth, height, scale, effectiveBorderWidth);
     if (!blob) throw new Error('Không thể kết xuất ảnh do kích thước quá lớn.');
     downloadBlob(blob, filename, false, options.remarkTextToCopy, options.remarkContext);
