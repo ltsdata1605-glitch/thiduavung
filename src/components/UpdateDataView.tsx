@@ -350,6 +350,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   ) => {
     if (!text || !text.trim()) return;
 
+    // [PERF] Timing breakdown for this save — logged to the console so a
+    // slow paste can be diagnosed (parse vs. Firebase write vs. something
+    // else) without guessing. Look for "[PERF]" in DevTools console.
+    const perfTag = `[PERF] ${title}`;
+    const tStart = performance.now();
+    console.log(`${perfTag} — bắt đầu, độ dài text dán: ${text.length.toLocaleString('vi-VN')} ký tự`);
+
     setText(text);
     setLocked(true);
 
@@ -361,7 +368,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
     await new Promise((r) => setTimeout(r, 20));
 
+    const tParseStart = performance.now();
     const parsed = parseRevenuePastedData(text, isRealtime, dataType);
+    const tParseMs = performance.now() - tParseStart;
+    console.log(`${perfTag} — parse xong ${parsed.length} dòng trong ${tParseMs.toFixed(0)}ms`);
 
     if (parsed.length === 0) {
       setProcessingState(null);
@@ -392,6 +402,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       progress: 85,
     });
 
+    const tSaveStart = performance.now();
     // Đồng bộ song song lên Firebase bằng Promise.all để tốc độ nhanh gấp đôi
     if (isRealtime && dataType === 'doanhthu') {
       await Promise.all([
@@ -408,10 +419,15 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     } else if (!isRealtime && dataType === 'tracham') {
       await onUpdateLuyKeTc?.(parsed, nowStr);
     }
+    const tSaveMs = performance.now() - tSaveStart;
+    const tTotalMs = performance.now() - tStart;
+    console.log(
+      `${perfTag} — Firebase save mất ${tSaveMs.toFixed(0)}ms | TỔNG ${tTotalMs.toFixed(0)}ms (parse ${tParseMs.toFixed(0)}ms + save ${tSaveMs.toFixed(0)}ms + UI overhead ${Math.max(0, tTotalMs - tParseMs - tSaveMs).toFixed(0)}ms)`
+    );
 
     setProcessingState({
       title: `HOÀN TẤT ĐỒNG BỘ`,
-      stepText: `✨ 3. Đã lưu & đồng bộ thành công ${parsed.length} dòng ${title} lên Firebase!`,
+      stepText: `✨ 3. Đã lưu & đồng bộ thành công ${parsed.length} dòng ${title} lên Firebase! (${(tTotalMs / 1000).toFixed(1)}s)`,
       progress: 100,
     });
 
@@ -437,6 +453,28 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     stepText: string;
     progress: number;
   } | null>(null);
+
+  // Live elapsed-time readout for the processing overlay — so a slow save
+  // shows a running clock instead of sitting silently at some %, and so the
+  // exact duration is visible without opening DevTools.
+  const [processingElapsedMs, setProcessingElapsedMs] = useState(0);
+  const processingStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!processingState) {
+      processingStartRef.current = null;
+      return;
+    }
+    if (processingStartRef.current === null) {
+      processingStartRef.current = performance.now();
+      setProcessingElapsedMs(0);
+    }
+    const intervalId = window.setInterval(() => {
+      if (processingStartRef.current !== null) {
+        setProcessingElapsedMs(performance.now() - processingStartRef.current);
+      }
+    }, 100);
+    return () => window.clearInterval(intervalId);
+  }, [processingState]);
 
   // Seeded from the persisted/synced dataset owned by App.
   const [parsedBossItems, setParsedBossItems] = useState<BossAssignmentRecord[]>(currentBossAssignments);
@@ -955,6 +993,13 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       return;
     }
 
+    // [PERF] Timing breakdown for this save — logged to the console so a
+    // slow paste can be diagnosed (parse vs. Firebase write vs. something
+    // else) without guessing. Look for "[PERF]" in DevTools console.
+    const perfTag = `[PERF] ${title} (${scopeName})`;
+    const tStart = performance.now();
+    console.log(`${perfTag} — bắt đầu, độ dài text dán: ${text.length.toLocaleString('vi-VN')} ký tự`);
+
     setText(text);
     setIsRealtimeLockedVung(true);
     setIsLuyKeLockedVung(true);
@@ -969,7 +1014,10 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     // before the parse runs; parsing itself is the actual work, not this wait.
     await new Promise((r) => setTimeout(r, 15));
 
+    const tParseStart = performance.now();
     const parsed = parsePastedData(text, isRealtime, parsedBossItems);
+    const tParseMs = performance.now() - tParseStart;
+    console.log(`${perfTag} — parse xong ${parsed.length} siêu thị trong ${tParseMs.toFixed(0)}ms`);
     setParsed(parsed);
 
     if (parsed.length === 0) {
@@ -999,11 +1047,17 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
       progress: 88,
     });
 
+    const tSaveStart = performance.now();
     await onUpdate(parsed, text);
+    const tSaveMs = performance.now() - tSaveStart;
+    const tTotalMs = performance.now() - tStart;
+    console.log(
+      `${perfTag} — Firebase save mất ${tSaveMs.toFixed(0)}ms | TỔNG ${tTotalMs.toFixed(0)}ms (parse ${tParseMs.toFixed(0)}ms + save ${tSaveMs.toFixed(0)}ms + UI overhead ${Math.max(0, tTotalMs - tParseMs - tSaveMs).toFixed(0)}ms)`
+    );
 
     setProcessingState({
       title: `HOÀN TẤT ĐỒNG BỘ DỮ LIỆU`,
-      stepText: `✨ 4. Đã phân tích & đồng bộ ${parsed.length} siêu thị (${scopeName}) lên Firebase thành công!`,
+      stepText: `✨ 4. Đã phân tích & đồng bộ ${parsed.length} siêu thị (${scopeName}) lên Firebase thành công! (${(tTotalMs / 1000).toFixed(1)}s)`,
       progress: 100,
     });
 
@@ -2606,6 +2660,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
               </h3>
               <p className="text-xs font-semibold text-slate-600 bg-slate-50 py-2.5 px-3.5 rounded-xl border border-slate-200/80 leading-relaxed">
                 {processingState.stepText}
+              </p>
+              {/* Live elapsed-time readout — turns amber past 5s, red past 15s,
+                  so a genuinely slow save is visible at a glance, not just a
+                  number. */}
+              <p
+                className={`text-[11px] font-black tabular-nums ${
+                  processingElapsedMs > 15000 ? 'text-red-600' : processingElapsedMs > 5000 ? 'text-amber-600' : 'text-slate-400'
+                }`}
+              >
+                ⏱️ Thời gian xử lý: {(processingElapsedMs / 1000).toFixed(1)}s
               </p>
             </div>
 

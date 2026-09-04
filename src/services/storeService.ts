@@ -253,6 +253,14 @@ async function saveChunkedStoreDataset<T>(
     localPayload[tsField] = customLastUpdated;
   }
 
+  // [PERF] Per-phase timing for this write, logged to the console — the
+  // "☁️ Firebase save" step in the UI is a black box otherwise; this shows
+  // exactly which phase (sanitize/build, each batch commit, cleanup, meta
+  // doc) actually eats the time for a given docKey.
+  const perfTag = `[PERF][storeService] ${docKey}`;
+  const tFnStart = performance.now();
+  console.log(`${perfTag} — bắt đầu, ${stores.length} bản ghi`);
+
   if (!db) {
     writeLocalCache(localPayload as Partial<FirebaseDataPayload>);
     return { success: false, error: 'Chưa kết nối được Firebase — dữ liệu chỉ lưu tạm trên trình duyệt này.' };
@@ -261,11 +269,13 @@ async function saveChunkedStoreDataset<T>(
   const isCungKy = docKey === 'revenue_cung_ky';
   const chunkSize = isCungKy ? 1000 : STORE_CHUNK_SIZE;
 
+  const tChunkStart = performance.now();
   const newChunks: T[][] = [];
   for (let i = 0; i < stores.length; i += chunkSize) {
     newChunks.push(stores.slice(i, i + chunkSize));
   }
   if (newChunks.length === 0) newChunks.push([]); // write one empty chunk so reads see "cleared", not stale old data
+  console.log(`${perfTag} — chia ${newChunks.length} chunk trong ${(performance.now() - tChunkStart).toFixed(0)}ms`);
 
   try {
     const chunksRef = collection(db, COLLECTION, docKey, 'chunks');
@@ -274,7 +284,12 @@ async function saveChunkedStoreDataset<T>(
     // in a single batch easily exceeds Firestore's 10MB batch/request limits.
     // Chunking into smaller batches of 4 documents ensures fast, reliable commits.
     const BATCH_SIZE_LIMIT = isCungKy ? 4 : 50;
+    let tBuildTotalMs = 0;
+    let tCommitTotalMs = 0;
+    let batchCount = 0;
     for (let bStart = 0; bStart < newChunks.length; bStart += BATCH_SIZE_LIMIT) {
+      batchCount++;
+      const tBuildStart = performance.now();
       const batch = writeBatch(db);
       const bEnd = Math.min(bStart + BATCH_SIZE_LIMIT, newChunks.length);
       for (let index = bStart; index < bEnd; index++) {
@@ -295,29 +310,47 @@ async function saveChunkedStoreDataset<T>(
           : sanitizeForFirestore({ data: chunk, index }).data;
         batch.set(doc(chunksRef, String(index)), { data: chunkData, index });
       }
+      tBuildTotalMs += performance.now() - tBuildStart;
+      const tCommitStart = performance.now();
       await batch.commit();
+      tCommitTotalMs += performance.now() - tCommitStart;
     }
+    console.log(
+      `${perfTag} — ${batchCount} batch (${newChunks.length} chunk): dựng batch ${tBuildTotalMs.toFixed(0)}ms, commit (network) ${tCommitTotalMs.toFixed(0)}ms`
+    );
 
     // Clean up any stale chunks leftover ONLY if the dataset shrank from a previous larger save
+    const tCacheReadStart = performance.now();
     const previousStores = (getLocalCache()[field] as T[] | undefined) || [];
+    console.log(`${perfTag} — đọc local cache (để so sánh chunk cũ) trong ${(performance.now() - tCacheReadStart).toFixed(0)}ms`);
     const previousChunkCount = previousStores.length > 0 ? Math.ceil(previousStores.length / chunkSize) : 0;
     if (previousChunkCount > newChunks.length) {
+      const tDelStart = performance.now();
       const delBatch = writeBatch(db);
       for (let i = newChunks.length; i < previousChunkCount + 2; i++) {
         delBatch.delete(doc(chunksRef, String(i)));
       }
       await delBatch.commit();
+      console.log(`${perfTag} — dọn chunk thừa (dataset giảm dòng) trong ${(performance.now() - tDelStart).toFixed(0)}ms`);
     }
 
     // Write main doc metadata
+    const tMetaStart = performance.now();
     await setDoc(doc(db, COLLECTION, docKey), {
       chunkCount: newChunks.length,
       lastUpdated: serverTimestamp(),
       customLastUpdated: customLastUpdated || null,
       updatedBy,
     });
+    console.log(`${perfTag} — ghi meta doc trong ${(performance.now() - tMetaStart).toFixed(0)}ms`);
 
+    const tCacheWriteStart = performance.now();
     writeLocalCache(localPayload as Partial<FirebaseDataPayload>);
+    console.log(
+      `${perfTag} — writeLocalCache (memCache sync, disk debounce 150ms) trong ${(performance.now() - tCacheWriteStart).toFixed(0)}ms`
+    );
+
+    console.log(`${perfTag} — XONG, tổng ${(performance.now() - tFnStart).toFixed(0)}ms`);
     return { success: true };
   } catch (error) {
     console.error(`Firestore chunked write error [${docKey}]:`, error);
