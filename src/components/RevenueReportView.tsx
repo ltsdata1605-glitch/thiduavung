@@ -1464,6 +1464,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const remarkText = generateRevenueRemarks('template_1', 'no_tag_top');
         const blob = await exportElementAsImage(el, filename, {
           remarkTextToCopy: remarkText,
+          quickHideColumns: mode === 'quick',
         });
         if (blob) {
           confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
@@ -2853,14 +2854,17 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
               <thead>
                 {/* Group Band Headers */}
                 <tr>
-                  <th colSpan={3} className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
+                  <th colSpan={2} className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
                     TỈNH
                   </th>
-                  <th colSpan={3} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
+                  <th data-quick-hide="1" className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
+                    TỈNH
+                  </th>
+                  <th data-quick-hide="1" colSpan={3} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
                     <div>{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
                     <div className="text-[10px] font-bold">{targetSubHeaderStr}</div>
                   </th>
-                  <th colSpan={2} className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
+                  <th data-quick-hide="1" colSpan={2} className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
                     <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
                     <div className="text-[9.5px] font-bold">THEO TỈ TRỌNG TỪNG GIỜ</div>
                   </th>
@@ -2883,12 +2887,12 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                 <tr className="text-center text-[11px] uppercase tracking-wider border-b border-slate-300">
                   <th className="p-2 border-r border-slate-300 w-12 text-slate-800 font-black bg-sky-50">STT</th>
                   <th className="p-2 border-r border-slate-300 text-left text-slate-800 font-black bg-sky-50">TỈNH</th>
-                  <th className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">SỐ ST</th>
-                  <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">MỤC TIÊU</th>
-                  <th className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC HIỆN</th>
-                  <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">HOÀN THÀNH</th>
-                  <th className="p-2 border-r border-yellow-200 text-right bg-yellow-100 text-yellow-950 font-black">THỰC HIỆN</th>
-                  <th className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black">HOÀN THÀNH</th>
+                  <th data-quick-hide="1" className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">SỐ ST</th>
+                  <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">MỤC TIÊU</th>
+                  <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC HIỆN</th>
+                  <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">HOÀN THÀNH</th>
+                  <th data-quick-hide="1" className="p-2 border-r border-yellow-200 text-right bg-yellow-100 text-yellow-950 font-black">THỰC HIỆN</th>
+                  <th data-quick-hide="1" className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black">HOÀN THÀNH</th>
                 </tr>
               </thead>
 
@@ -2909,16 +2913,16 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                       >
                         <td className="p-2.5 text-center font-bold text-slate-500 border-r border-slate-200">#{idx + 1}</td>
                         <td className="p-2.5 font-black text-slate-900 border-r border-slate-200">{row.tinh}</td>
-                        <td className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-200">{row.storesCount} ST</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{row.targetDt.toLocaleString('vi-VN')}</td>
-                        <td className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{row.achievedDt.toLocaleString('vi-VN')}</td>
-                        <td className="p-2.5 text-center border-r border-slate-200">
+                        <td data-quick-hide="1" className="p-2.5 text-center font-bold text-slate-700 border-r border-slate-200">{row.storesCount} ST</td>
+                        <td data-quick-hide="1" className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{row.targetDt.toLocaleString('vi-VN')}</td>
+                        <td data-quick-hide="1" className="p-2.5 text-right font-mono font-black text-emerald-700 border-r border-slate-200">{row.achievedDt.toLocaleString('vi-VN')}</td>
+                        <td data-quick-hide="1" className="p-2.5 text-center border-r border-slate-200">
                           <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${row.rateDt >= 100 ? 'bg-emerald-100 text-emerald-900' : row.rateDt >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-rose-100 text-rose-900'}`}>
                             {Math.round(row.rateDt)}%
                           </span>
                         </td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{projAchieved.toLocaleString('vi-VN')}</td>
-                        <td className="p-2.5 text-center border-r border-slate-200">
+                        <td data-quick-hide="1" className="p-2.5 text-right font-mono font-bold text-slate-700 border-r border-slate-200">{projAchieved.toLocaleString('vi-VN')}</td>
+                        <td data-quick-hide="1" className="p-2.5 text-center border-r border-slate-200">
                           <span className={`px-2 py-0.5 rounded-md font-black text-xs inline-block ${projRate >= 100 ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-900'}`}>
                             {Math.round(projRate)}%
                           </span>
@@ -2949,18 +2953,18 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                 <tfoot className="border-t-2 border-slate-300">
                   <tr className="bg-slate-800 text-white font-black text-xs shadow-xs">
                     <td colSpan={2} className="p-3 text-center uppercase tracking-wider text-amber-400 border-r border-slate-700 font-black">TỔNG</td>
-                    <td className="p-3 text-center border-r border-slate-700 text-slate-200 font-bold">{totalSummary.totalStores} ST</td>
-                    <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{totalSummary.totalTargetDt.toLocaleString('vi-VN')}</td>
-                    <td className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{totalSummary.totalAchievedDt.toLocaleString('vi-VN')}</td>
-                    <td className="p-3 text-center border-r border-slate-700">
+                    <td data-quick-hide="1" className="p-3 text-center border-r border-slate-700 text-slate-200 font-bold">{totalSummary.totalStores} ST</td>
+                    <td data-quick-hide="1" className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">{totalSummary.totalTargetDt.toLocaleString('vi-VN')}</td>
+                    <td data-quick-hide="1" className="p-3 text-right font-mono text-emerald-400 font-black border-r border-slate-700">{totalSummary.totalAchievedDt.toLocaleString('vi-VN')}</td>
+                    <td data-quick-hide="1" className="p-3 text-center border-r border-slate-700">
                       <span className={`px-2.5 py-0.5 rounded-md font-black ${totalSummary.totalRateDt >= 100 ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
                         {Math.round(totalSummary.totalRateDt)}%
                       </span>
                     </td>
-                    <td className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">
+                    <td data-quick-hide="1" className="p-3 text-right font-mono text-slate-200 border-r border-slate-700">
                       {(thoiGianSdPercent > 0 ? Math.round(totalSummary.totalAchievedDt / (thoiGianSdPercent / 100)) : totalSummary.totalAchievedDt).toLocaleString('vi-VN')}
                     </td>
-                    <td className="p-3 text-center border-r border-slate-700">
+                    <td data-quick-hide="1" className="p-3 text-center border-r border-slate-700">
                       <span className="px-2.5 py-0.5 rounded-md font-black bg-blue-500 text-white">
                         {Math.round(thoiGianSdPercent > 0 ? (totalSummary.totalRateDt / (thoiGianSdPercent / 100)) : totalSummary.totalRateDt)}%
                       </span>

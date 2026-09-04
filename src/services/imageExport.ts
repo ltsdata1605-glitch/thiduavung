@@ -221,6 +221,8 @@ export interface ExportElementOptions {
   remarkTextToCopy?: string;
   /** Context parameters for generating dynamic remark templates */
   remarkContext?: Record<string, any>;
+  /** When true, strip all elements with data-quick-hide attribute (Xuất nhanh). */
+  quickHideColumns?: boolean;
 }
 
 /** Suppress all scrollbars in a DOM subtree so no scrollbar thumbs appear in PNG. */
@@ -466,7 +468,7 @@ export async function exportElementAsImage(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12 } = options;
+  const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12, quickHideColumns = false } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -477,6 +479,33 @@ export async function exportElementAsImage(
   elementsToHide.forEach((selector) => {
     clone.querySelectorAll<HTMLElement>(selector).forEach((el) => el.remove());
   });
+
+  // Xuất nhanh: strip all columns marked with data-quick-hide
+  if (quickHideColumns) {
+    clone.querySelectorAll<HTMLElement>('[data-quick-hide]').forEach((el) => el.remove());
+    // Fix colSpan on remaining header cells after removing quick-hide columns
+    clone.querySelectorAll<HTMLElement>('thead tr').forEach((tr) => {
+      if (tr.children.length === 0) tr.remove();
+    });
+    clone.querySelectorAll<HTMLElement>('th[rowspan]').forEach((th) => {
+      th.removeAttribute('rowspan');
+    });
+    // Remove colgroups and reset table layout for clean auto-sizing
+    clone.querySelectorAll('colgroup').forEach((cg) => cg.remove());
+    clone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+      table.classList.remove('table-fixed');
+      table.style.setProperty('width', 'max-content', 'important');
+      table.style.setProperty('min-width', 'max-content', 'important');
+      table.style.setProperty('max-width', 'none', 'important');
+      table.style.setProperty('table-layout', 'auto', 'important');
+    });
+    clone.querySelectorAll<HTMLElement>('th, td').forEach((cell) => {
+      cell.style.setProperty('width', 'auto', 'important');
+      cell.style.setProperty('min-width', 'auto', 'important');
+      cell.style.setProperty('max-width', 'none', 'important');
+      cell.style.setProperty('white-space', 'nowrap', 'important');
+    });
+  }
 
   // Unhide elements meant specifically for export
   clone.querySelectorAll<HTMLElement>('.export-show').forEach((el) => {
