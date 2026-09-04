@@ -1489,6 +1489,93 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       return m ? `@${m[1]}` : (bossStr.startsWith('@') ? bossStr : `@${bossStr}`);
     };
 
+    // ----------------------------------------------------------------------
+    // KHI Ở TAB TỔNG: NHẬN XÉT XẾP HẠNG THEO TÊN TỈNH, TUYỆT ĐỐI KHÔNG TAG USER
+    // ----------------------------------------------------------------------
+    if (entityScope === 'tong') {
+      const scopeTitleTong = 'TOÀN VÙNG TNB';
+      const totalProvincesCount = provinceSummaryRows.length;
+
+      if (template === 'template_2') {
+        const warningProvinces = provinceSummaryRows.filter((p) => p.rateDt < 80 && p.targetDt > 0);
+        const lines = warningProvinces
+          .map((p, idx) => {
+            const prefix = `⚠️ #${idx + 1}`;
+            return `${prefix}. Tỉnh ${p.tinh}: ${formatVND(p.achievedDt)} / ${formatVND(p.targetDt)} (${p.rateDt}%) | TC: ${formatVND(p.achievedTc)} (${p.tcRatio}%)`;
+          })
+          .join('\n');
+
+        return `📈 CẬP NHẬT DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitleTong} - ${lastUpdatedTime}
+━━━━━━━━━━━━━━
+🎯 Target Toàn ${scopeTitleTong}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+💳 Doanh Thu Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}% tổng DT)
+📊 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
+
+🚨 CÁC TỈNH CẦN TĂNG TỐC DOANH THU (< 80%):
+${lines || 'Tất cả các tỉnh đều đang đạt tiến độ rất tốt!'}
+
+━━━━━━━━━━━━━━
+👉 Đề nghị Ban Giám đốc các Tỉnh tập trung cao độ, đẩy mạnh số bán và bán trả góp để về đích! 💪🏼🔥`;
+      }
+
+      if (template === 'template_3') {
+        const allProvinceLines = provinceSummaryRows
+          .map((p, idx) => {
+            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx >= totalProvincesCount - 3 ? '🔻' : '🔹';
+            return `${medal} #${idx + 1}. Tỉnh ${p.tinh}: ${formatVND(p.achievedDt)} / ${formatVND(p.targetDt)} (${p.rateDt}%) | TC: ${formatVND(p.achievedTc)} (${p.tcRatio}%) | ${p.reachedStoresCount}/${p.storesCount} ST đạt`;
+          })
+          .join('\n');
+
+        return `📊 BẢNG XẾP HẠNG DOANH THU CÁC TỈNH - ${scopeTitleTong} - ${lastUpdatedTime}
+━━━━━━━━━━━━━━
+🎯 Target Toàn ${scopeTitleTong}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+💳 Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (${totalSummary.totalTcRatio}% DT) | 🏆 ${totalSummary.reachedStoresCount}/${totalSummary.totalStores} ST đạt ≥ 100%
+
+🏆 XẾP HẠNG DOANH THU ${totalProvincesCount} TỈNH:
+${allProvinceLines || 'Đang cập nhật'}
+
+━━━━━━━━━━━━━━
+👉 Đề nghị Ban Giám đốc các Tỉnh tập trung tối đa nguồn lực hoàn thành xuất sắc chỉ tiêu! 💪🏼🔥`;
+      }
+
+      // Mẫu 1: TOP / BOT
+      const topCount = Math.min(5, Math.ceil(totalProvincesCount / 2));
+      const botCount = Math.min(5, totalProvincesCount - topCount);
+
+      const topProvinces = provinceSummaryRows.slice(0, topCount);
+      const botProvinces = provinceSummaryRows.slice(-botCount).reverse();
+
+      const topLines = topProvinces
+        .map((p, idx) => {
+          const prefix = `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹'} #${idx + 1}`;
+          return `${prefix}. Tỉnh ${p.tinh}: ${formatVND(p.achievedDt)} / ${formatVND(p.targetDt)} (${p.rateDt}%) | TC: ${formatVND(p.achievedTc)} (${p.tcRatio}%)`;
+        })
+        .join('\n');
+
+      const botLines = botProvinces
+        .map((p, idx) => {
+          const rank = totalProvincesCount - idx;
+          const prefix = `🔻 #${rank}`;
+          return `${prefix}. Tỉnh ${p.tinh}: ${formatVND(p.achievedDt)} / ${formatVND(p.targetDt)} (${p.rateDt}%) | TC: ${formatVND(p.achievedTc)} (${p.tcRatio}%)`;
+        })
+        .join('\n');
+
+      return `📈 BẢNG XẾP HẠNG DOANH THU & TRẢ CHẬM ${timeTitle} - ${scopeTitleTong} - ${lastUpdatedTime}
+━━━━━━━━━━━━━━
+🎯 Target Toàn ${scopeTitleTong}: ${formatVND(totalSummary.totalTargetDt)} | 💰 Thực đạt: ${formatVND(totalSummary.totalAchievedDt)} (${totalSummary.totalRateDt}%)
+💳 Tổng Trả Chậm: ${formatVND(totalSummary.totalAchievedTc)} (Tỷ trọng ${totalSummary.totalTcRatio}%)
+🏆 Tiến độ: ${totalSummary.reachedStoresCount} / ${totalSummary.totalStores} Siêu thị đạt Target (≥ 100%)
+
+🏆 TOP TỈNH DẪN ĐẦU:
+${topLines || 'Đang cập nhật'}
+
+⚠️ BOT TỈNH CẦN TĂNG TỐC:
+${botLines || 'Đang cập nhật'}
+
+━━━━━━━━━━━━━━
+👉 Đề nghị Ban Giám đốc các Tỉnh bám sát, tăng tốc tư vấn trả chậm để bứt phá mục tiêu! 💪🏼🔥`;
+    }
+
     if (template === 'template_2') {
       const warningStores = sortedItems.filter((i) => i.rateDt < 80 && i.targetDt > 0).slice(0, 15);
       const lines = warningStores
@@ -3086,7 +3173,7 @@ ${botLines || 'Đang cập nhật'}
               <div className="flex items-center gap-2.5 font-black text-base">
                 <MessageSquare className="w-5 h-5 text-amber-200" />
                 <span>
-                  NHẬN XÉT DỮ LIỆU ĐANG LỌC ({currentProvinceTitle ? (currentProvinceTitle.startsWith('TỈNH') ? currentProvinceTitle : `TỈNH ${currentProvinceTitle}`) : 'TOÀN VÙNG TNB'})
+                  NHẬN XÉT DỮ LIỆU ĐANG LỌC ({entityScope === 'tong' ? 'TỔNG TOÀN VÙNG TNB' : currentProvinceTitle ? (currentProvinceTitle.startsWith('TỈNH') ? currentProvinceTitle : `TỈNH ${currentProvinceTitle}`) : 'TOÀN VÙNG TNB'})
                 </span>
               </div>
               <button
@@ -3106,40 +3193,47 @@ ${botLines || 'Đang cập nhật'}
                     Chọn mẫu nội dung nhận xét:
                   </label>
 
-                  {/* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User */}
-                  <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
-                    {(
-                      [
-                        { id: 'user', label: 'User' },
-                        { id: 'sieuthi', label: 'Siêu thị' },
-                        { id: 'sieuthi_user', label: 'Siêu thị + User' },
-                        { id: 'no_tag_top', label: 'Bỏ Tag TOP' },
-                      ] as const
-                    ).map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          setRemarkDisplayMode(opt.id);
-                          setCustomRemarkText('');
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                          remarkDisplayMode === opt.id
-                            ? 'bg-amber-500 text-white shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
-                        }`}
-                      >
-                        <span
-                          className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
-                            remarkDisplayMode === opt.id ? 'border-white bg-white text-amber-600' : 'border-slate-400 bg-white'
+                  {/* Khi ở Tab TỔNG: Nhận xét theo Tỉnh, không tag user */}
+                  {entityScope === 'tong' ? (
+                    <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1 rounded-xl border border-amber-200 text-xs font-bold text-amber-800">
+                      <span>📍 Nhận xét theo Tên Tỉnh (Không Tag User)</span>
+                    </div>
+                  ) : (
+                    /* Tùy chọn hiển thị nhận xét: User | Siêu thị | Siêu thị + User */
+                    <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+                      {(
+                        [
+                          { id: 'user', label: 'User' },
+                          { id: 'sieuthi', label: 'Siêu thị' },
+                          { id: 'sieuthi_user', label: 'Siêu thị + User' },
+                          { id: 'no_tag_top', label: 'Bỏ Tag TOP' },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setRemarkDisplayMode(opt.id);
+                            setCustomRemarkText('');
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            remarkDisplayMode === opt.id
+                              ? 'bg-amber-500 text-white shadow-xs font-black'
+                              : 'text-slate-600 hover:text-slate-950 hover:bg-white/80'
                           }`}
                         >
-                          {remarkDisplayMode === opt.id && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                        </span>
-                        <span>{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                          <span
+                            className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
+                              remarkDisplayMode === opt.id ? 'border-white bg-white text-amber-600' : 'border-slate-400 bg-white'
+                            }`}
+                          >
+                            {remarkDisplayMode === opt.id && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                          </span>
+                          <span>{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Template Buttons */}
