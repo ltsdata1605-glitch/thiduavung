@@ -925,11 +925,41 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       // 3. Tìm kiếm: chỉ áp dụng khi ở tab SIÊU THỊ hoặc SIÊU THỊ MỚI, KHÔNG áp dụng cho TOP/BOT, TỔNG hay VÙNG
       if (searchTerm && (entityScope === 'vung' || entityScope === 'sieuthimoi')) {
         const q = searchTerm.toLowerCase().trim();
-        const match =
-          item.sieuthi.toLowerCase().includes(q) ||
-          item.tinh.toLowerCase().includes(q) ||
-          item.boss.toLowerCase().includes(q);
-        if (!match) return false;
+        const isPureNum = /^\d+$/.test(q);
+        const qNum = parseInt(q, 10);
+
+        if (isPureNum) {
+          const rawStoreCode = String(item.storeCode || item.mst || '').toLowerCase().trim();
+          const numStoreCode = parseInt(rawStoreCode, 10);
+          const mstSieuthi = extractMst(item.sieuthi || '');
+          const numMstSieuthi = mstSieuthi ? parseInt(mstSieuthi, 10) : NaN;
+
+          const matchMaKho =
+            rawStoreCode === q ||
+            (!isNaN(numStoreCode) && !isNaN(qNum) && numStoreCode === qNum) ||
+            mstSieuthi === q ||
+            (!isNaN(numMstSieuthi) && !isNaN(qNum) && numMstSieuthi === qNum) ||
+            rawStoreCode.includes(q);
+
+          if (matchMaKho) {
+            // Khớp mã kho
+          } else if (item.sieuthi.toLowerCase().includes(q)) {
+            // Khớp trực tiếp trong tên chuỗi siêu thị
+          } else {
+            // Chỉ khớp mã nhân viên của Boss nếu số nhập vào khớp chính xác hoặc là tiền tố (tránh 49106 khớp 910)
+            const bossNumbers = (item.boss || '').match(/\d+/g) || [];
+            const matchBossCode = bossNumbers.some((bNum) => bNum === q || bNum.startsWith(q));
+            if (!matchBossCode) return false;
+          }
+        } else {
+          const match =
+            item.sieuthi.toLowerCase().includes(q) ||
+            item.tinh.toLowerCase().includes(q) ||
+            item.boss.toLowerCase().includes(q) ||
+            (item.storeCode && item.storeCode.toLowerCase().includes(q)) ||
+            (item.mst && item.mst.toLowerCase().includes(q));
+          if (!match) return false;
+        }
       }
       return true;
     });

@@ -588,7 +588,29 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // even if 'value' somehow ended up in their persisted preference (e.g. the
   // same browser was previously used by a privileged account).
   const valueDisplayMode = canViewDtQdTb ? rawValueDisplayMode : 'percent';
-  const [searchTerm, setSearchTerm] = useState('');
+  // Bộ lọc tìm kiếm độc lập cho từng tab (TỔNG, VÙNG, SIÊU THỊ, NHÓM)
+  const [searchTermsByScope, setSearchTermsByScope] = useState<Record<string, string>>(() => ({
+    tong: localStorage.getItem('report_tong_search') || '',
+    sieuthi: localStorage.getItem('report_sieuthi_search') || '',
+    vung: localStorage.getItem('report_vung_search') || '',
+    nhom: localStorage.getItem('report_nhom_search') || '',
+  }));
+  const searchTerm = searchTermsByScope[entityScope] || '';
+  const setSearchTerm = (term: string) => {
+    setSearchTermsByScope((prev) => ({ ...prev, [entityScope]: term }));
+    try {
+      localStorage.setItem(`report_${entityScope}_search`, term);
+    } catch (e) {}
+  };
+
+  const prevScopeRef = useRef<EntityScope>(entityScope);
+  useEffect(() => {
+    if (prevScopeRef.current !== entityScope) {
+      prevScopeRef.current = entityScope;
+      setCurrentPage(1);
+    }
+  }, [entityScope]);
+
   // Mặc định sắp xếp theo TỶ LỆ % giảm dần (Tab Vùng & Siêu thị) — người dùng
   // không cần bấm vào cột TỶ LỆ % mỗi lần mở lại tab.
   const [sortField, setSortField] = useState<string>('default');
@@ -652,14 +674,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   // MST -> BossAssignmentRecord lookup, built once per bossAssignments change.
   // The Siêu Thị view renders/filters/sorts up to ~700+ store rows against a
-  // BOSS file of similar size; doing that with a linear .find() per row (as
-  // getBossForStore/getChannelForStore/getDtQdTbForStore do) means O(rows ×
-  // bossAssignments) scans repeated on every render — the actual cause of the
-  // freeze when switching into this view. A Map turns each row's lookup into O(1).
-  // Fast Multi-Index lookup for BOSS assignments:
-  // 1. By MST (numeric store code)
-  // 2. By Store Warehouse Code (e.g. "DML_LAN_BLU", "TGD_CTH_NKI")
-  // 3. By Normalized Store Name
   const bossMap = useMemo(() => {
     const byMst = new Map<string, BossAssignmentRecord>();
     const byCode = new Map<string, BossAssignmentRecord>();
@@ -668,9 +682,23 @@ export const ReportView: React.FC<ReportViewProps> = ({
     const ambiguousCodes = new Set<string>();
 
     bossAssignments.forEach((b) => {
-      if (b.mst) byMst.set(b.mst.trim(), b);
+      if (b.mst) {
+        const trimmed = b.mst.trim();
+        byMst.set(trimmed, b);
+        const numStr = String(parseInt(trimmed, 10));
+        if (numStr !== 'NaN' && numStr !== trimmed) {
+          byMst.set(numStr, b);
+        }
+      }
       const mstFromSieuthi = extractMst(b.sieuthi);
-      if (mstFromSieuthi) byMst.set(mstFromSieuthi, b);
+      if (mstFromSieuthi) {
+        const trimmed = mstFromSieuthi.trim();
+        byMst.set(trimmed, b);
+        const numStr = String(parseInt(trimmed, 10));
+        if (numStr !== 'NaN' && numStr !== trimmed) {
+          byMst.set(numStr, b);
+        }
+      }
 
       const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '') || extractStoreCode(b.sieuthiNgan || '');
       if (code) {
@@ -698,7 +726,11 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const findBossRecord = useCallback((sieuthi: string): BossAssignmentRecord | undefined => {
     if (!sieuthi) return undefined;
     const mst = extractMst(sieuthi);
-    if (mst && bossMap.byMst.has(mst)) return bossMap.byMst.get(mst);
+    if (mst) {
+      if (bossMap.byMst.has(mst)) return bossMap.byMst.get(mst);
+      const numMst = String(parseInt(mst, 10));
+      if (bossMap.byMst.has(numMst)) return bossMap.byMst.get(numMst);
+    }
 
     const code = extractStoreCode(sieuthi);
     if (code && bossMap.byCode.has(code)) return bossMap.byCode.get(code);
@@ -734,12 +766,15 @@ export const ReportView: React.FC<ReportViewProps> = ({
     return '-';
   }, [findBossRecord]);
 
+  // "VÙNG" scope shows one compact row per Tỉnh (rolling up every store in
+  // that province) instead of one row per store — matches the BI region-level
+  // report format. The VÙNG button sets entityScope to 'sieuthi' (see HeaderBanner).
+  const isProvinceView = entityScope === 'sieuthi';
+
   // Filter stores according to active user filters
   const hasSearch = Boolean(searchTerm.trim());
 
-  // This pipeline (filter → per-tỉnh rollup → per-category mapping → sort)
-  // touches every one of up to 700+ Siêu Thị rows against up to 38 ngành
-  // hàng columns each. Left as plain `const`s, it re-ran in full on *every*
+  // memoized filteredStores: runs once when dependencies change instead of on EVERY
   // render of this component — including ones with nothing to do with the
   // data at all (a checkbox click, a dropdown open, every keystroke while
   // typing in the search box). useMemo below makes it only redo the work
@@ -756,17 +791,78 @@ export const ReportView: React.FC<ReportViewProps> = ({
     // (allows user to search and select store #3, #4... even while currently in comparison mode)
     if (hasSearch) {
       const term = searchTerm.toLowerCase().trim();
-      const matchSieuThi = s.sieuthi.toLowerCase().includes(term);
-      const matchTinh = s.tinh.toLowerCase().includes(term);
-      const matchBoss = s.boss.toLowerCase().includes(term);
-      const matchEffectiveBoss = resolveBoss(s.sieuthi, s.boss).toLowerCase().includes(term);
-      if (!matchSieuThi && !matchTinh && !matchBoss && !matchEffectiveBoss) return false;
-      return true;
+      const isPureNum = /^\d+$/.test(term);
+      const termNum = parseInt(term, 10);
+
+      const bossRecord = findBossRecord(s.sieuthi);
+      const effectiveBoss = resolveBoss(s.sieuthi, s.boss);
+
+      if (isPureNum) {
+        // 1. Kiểm tra Mã Kho / MST của siêu thị:
+        const mstCandidates: string[] = [];
+        if (bossRecord?.mst) mstCandidates.push(String(bossRecord.mst).trim());
+        if (bossRecord?.maBaseMoi && /^\d+$/.test(bossRecord.maBaseMoi.trim())) {
+          mstCandidates.push(bossRecord.maBaseMoi.trim());
+        }
+        const mstFromStore = extractMst(s.sieuthi);
+        if (mstFromStore) mstCandidates.push(mstFromStore.trim());
+        const mstFromBossSieuthi = extractMst(bossRecord?.sieuthi || '');
+        if (mstFromBossSieuthi) mstCandidates.push(mstFromBossSieuthi.trim());
+        if (s.id && /^\d+$/.test(s.id.trim())) mstCandidates.push(s.id.trim());
+
+        const matchMst = mstCandidates.some((candidate) => {
+          if (!candidate) return false;
+          if (candidate === term) return true;
+          const candNum = parseInt(candidate, 10);
+          if (!isNaN(candNum) && !isNaN(termNum) && candNum === termNum) return true;
+          return candidate.includes(term);
+        });
+        if (matchMst) return true;
+
+        // 2. Kiểm tra chuỗi tên siêu thị có chứa trực tiếp số kho (vd: "910 - TGD_..." hoặc "Kho 910")
+        if (s.sieuthi.toLowerCase().includes(term)) return true;
+        if (bossRecord?.sieuthi && bossRecord.sieuthi.toLowerCase().includes(term)) return true;
+
+        // 3. Nếu người dùng tìm theo Mã nhân viên của Boss (vd: "49106"):
+        // Chỉ khớp nếu số nhập vào khớp chính xác hoặc là tiền tố của mã nhân viên (không bắt substring giữa như 49106 khớp 910)
+        const bossText = `${s.boss || ''} ${effectiveBoss || ''}`;
+        const bossNumbers = bossText.match(/\d+/g) || [];
+        const matchBossCode = bossNumbers.some((bNum) => bNum === term || bNum.startsWith(term));
+        if (matchBossCode) return true;
+
+        return false;
+      } else {
+        // Người dùng tìm chữ hoặc chuỗi hỗn hợp
+        const matchSieuThi = s.sieuthi.toLowerCase().includes(term);
+        const matchTinh = s.tinh.toLowerCase().includes(term);
+        const matchBoss = (s.boss || '').toLowerCase().includes(term);
+        const matchEffectiveBoss = effectiveBoss.toLowerCase().includes(term);
+        const matchBossSieuthi = Boolean(bossRecord?.sieuthi && bossRecord.sieuthi.toLowerCase().includes(term));
+        const matchBossBase = Boolean(bossRecord?.sieuthiBase && bossRecord.sieuthiBase.toLowerCase().includes(term));
+        const matchBossNgan = Boolean(bossRecord?.sieuthiNgan && bossRecord.sieuthiNgan.toLowerCase().includes(term));
+        const matchMst = Boolean(bossRecord?.mst && bossRecord.mst.toLowerCase().includes(term));
+        const matchMaBase = Boolean(bossRecord?.maBaseMoi && bossRecord.maBaseMoi.toLowerCase().includes(term));
+
+        if (
+          !matchSieuThi &&
+          !matchTinh &&
+          !matchBoss &&
+          !matchEffectiveBoss &&
+          !matchBossSieuthi &&
+          !matchBossBase &&
+          !matchBossNgan &&
+          !matchMst &&
+          !matchMaBase
+        ) {
+          return false;
+        }
+        return true;
+      }
     }
 
     // When NOT searching:
     // If user activated comparison mode, only show the selected stores
-    if (isFilterToSelected && selectedStoreKeys.length > 0) {
+    if (!isProvinceView && isFilterToSelected && selectedStoreKeys.length > 0) {
       return selectedStoreKeys.some((k) => k === storeKey || k === s.sieuthi || k === s.id);
     }
 
@@ -815,16 +911,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
     bossAssignments,
     resolveKenh,
     resolveBoss,
+    findBossRecord,
+    isProvinceView,
   ]);
-
-  // "VÙNG" scope shows one compact row per Tỉnh (rolling up every store in
-  // that province) instead of one row per store — matches the BI region-level
-  // report format. Rates are rounded to whole numbers at this rollup level
-  // (no decimals), same as that report. The VÙNG button sets entityScope to
-  // 'sieuthi' (see HeaderBanner) — the two buttons were swapped there per a
-  // later request, so this check follows that swap rather than the literal
-  // 'vung' string.
-  const isProvinceView = entityScope === 'sieuthi';
 
   const baseRows: StoreRecord[] = useMemo(() => (isProvinceView
     ? (() => {
