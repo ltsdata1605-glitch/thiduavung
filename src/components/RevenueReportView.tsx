@@ -2039,7 +2039,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
         {/* 2. MAIN REPORT CARD CONTAINER & EXPORT ROOT */}
         <div
           id="revenue-report-export-root"
-          className="bg-white rounded-3xl p-5 border border-slate-200 shadow-xs space-y-4"
+          className={`bg-white ${entityScope === 'tong' ? 'rounded-none' : 'rounded-3xl'} p-5 border border-slate-200 shadow-xs space-y-4`}
         >
         {/* Title Header Bar (Styled matching ReportView title header 1:1) */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 ${(entityScope === 'sieuthimoi' || entityScope === 'topbot') ? 'export-hide' : ''}`}>
@@ -2147,8 +2147,11 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
         {/* 3. TABLE RENDERING: TỔNG vs VÙNG (TỈNH) vs SIÊU THỊ */}
         {entityScope === 'tong' ? (
-          /* TAB TỔNG: EXACT MATCH DESIGN WITH THIN LIGHT GRAY BORDERS */
-          <div className="max-w-xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none sm:rounded-lg">
+          /* TAB TỔNG: EXACT MATCH DESIGN WITH THIN LIGHT GRAY BORDERS & SQUARE CORNERS */
+          <div
+            id="revenue-tong-card"
+            className="w-full max-w-xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none"
+          >
             {/* Header: Main Title */}
             <div className="py-4 px-4 text-center bg-white border-b border-slate-300">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase text-black font-sans">
@@ -2174,19 +2177,26 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
             {/* TABLE 1: THEO KÊNH */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
+              <table className="w-full table-fixed text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
+                <colgroup>
+                  <col className="w-[26%]" />
+                  <col className="w-[18.5%]" />
+                  <col className="w-[18.5%]" />
+                  <col className="w-[18.5%]" />
+                  <col className="w-[18.5%]" />
+                </colgroup>
                 <thead>
                   {/* Top Banner Row */}
                   <tr>
                     <th
                       colSpan={3}
-                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight"
+                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight w-[63%]"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
+                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">HIỆU QUẢ</div>
                       <div className="font-black text-black">QUY ĐỔI</div>
@@ -2195,7 +2205,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
+                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">TỈ TRỌNG</div>
                       <div className="font-black text-black">TRẢ CHẬM</div>
@@ -2206,14 +2216,14 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Sub Header Row */}
                   <tr>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-24 sm:w-28 pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
                       KÊNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>
@@ -2292,19 +2302,26 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
             {/* TABLE 2: THEO TỈNH */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
+              <table className="w-full table-fixed text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
+                <colgroup>
+                  <col className="w-[26%]" />
+                  <col className="w-[18.5%]" />
+                  <col className="w-[18.5%]" />
+                  <col className="w-[18.5%]" />
+                  <col className="w-[18.5%]" />
+                </colgroup>
                 <thead>
                   {/* Top Banner Row */}
                   <tr>
                     <th
                       colSpan={3}
-                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight"
+                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight w-[63%]"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
+                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">HIỆU QUẢ</div>
                       <div className="font-black text-black">QUY ĐỔI</div>
@@ -2313,7 +2330,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                     </th>
                     <th
                       rowSpan={2}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-24 sm:w-28 align-middle"
+                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
                     >
                       <div className="font-black text-black">TỈ TRỌNG</div>
                       <div className="font-black text-black">TRẢ CHẬM</div>
@@ -2324,14 +2341,14 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Sub Header Row */}
                   <tr>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-24 sm:w-28 pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
                       TỈNH
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>HIỆN TẠI</div>
                     </th>
-                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight">
+                    <th className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
                       <div>HOÀN THÀNH</div>
                       <div>DỰ KIẾN</div>
                     </th>

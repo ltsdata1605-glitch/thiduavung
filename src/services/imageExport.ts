@@ -605,6 +605,63 @@ export async function exportElementAsImage(
     });
   }
 
+  // Ensure Tab TỔNG (Revenue) tables have synchronized, aligned columns and no rounded corners
+  const tongCard = clone.querySelector<HTMLElement>('#revenue-tong-card');
+  if (tongCard) {
+    tongCard.style.setProperty('border-radius', '0', 'important');
+    tongCard.style.setProperty('width', '580px', 'important');
+    tongCard.style.setProperty('min-width', '580px', 'important');
+    tongCard.style.setProperty('max-width', '580px', 'important');
+
+    tongCard.querySelectorAll<HTMLElement>('.overflow-x-auto').forEach((c) => {
+      c.style.setProperty('width', '100%', 'important');
+      c.style.setProperty('min-width', '100%', 'important');
+      c.style.setProperty('max-width', '100%', 'important');
+      c.style.setProperty('overflow', 'visible', 'important');
+    });
+
+    const colWidths = ['26%', '18.5%', '18.5%', '18.5%', '18.5%'];
+    tongCard.querySelectorAll<HTMLElement>('table').forEach((table) => {
+      table.classList.add('table-fixed');
+      table.style.setProperty('width', '100%', 'important');
+      table.style.setProperty('min-width', '100%', 'important');
+      table.style.setProperty('max-width', '100%', 'important');
+      table.style.setProperty('table-layout', 'fixed', 'important');
+
+      const tr1 = table.querySelector('thead tr:first-child');
+      if (tr1 && tr1.children.length === 3) {
+        (tr1.children[0] as HTMLElement).style.setProperty('width', '63%', 'important');
+        (tr1.children[1] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+        (tr1.children[2] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+      }
+
+      const tr2 = table.querySelector('thead tr:nth-child(2)');
+      if (tr2 && tr2.children.length === 3) {
+        (tr2.children[0] as HTMLElement).style.setProperty('width', '26%', 'important');
+        (tr2.children[1] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+        (tr2.children[2] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+      }
+
+      table.querySelectorAll<HTMLElement>('tbody tr, tfoot tr').forEach((tr) => {
+        if (tr.children.length === 5) {
+          Array.from(tr.children).forEach((td, idx) => {
+            (td as HTMLElement).style.setProperty('width', colWidths[idx], 'important');
+            (td as HTMLElement).style.setProperty('min-width', colWidths[idx], 'important');
+            (td as HTMLElement).style.setProperty('max-width', colWidths[idx], 'important');
+          });
+        }
+      });
+    });
+  }
+
+  // Remove rounded corners on the outer export frame when exporting tab TỔNG / revenue export
+  if (clone.id === 'revenue-report-export-root' || clone.querySelector('#revenue-tong-card')) {
+    clone.style.setProperty('border-radius', '0', 'important');
+    clone.querySelectorAll<HTMLElement>('.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md').forEach((el) => {
+      el.style.setProperty('border-radius', '0', 'important');
+    });
+  }
+
   // Set clone dimensions to fit content
   clone.style.setProperty('width', 'max-content', 'important');
   clone.style.setProperty('min-width', 'auto', 'important');
@@ -717,6 +774,11 @@ export async function exportElementAsImage(
       maxTableContentWidth = Math.max(maxTableContentWidth, combinedWidth, 1220);
     }
 
+    const tongCardInClone = clone.querySelector<HTMLElement>('#revenue-tong-card');
+    if (tongCardInClone) {
+      maxTableContentWidth = Math.max(maxTableContentWidth, 580);
+    }
+
     if (maxTableContentWidth === 0) {
       maxTableContentWidth = Math.ceil(Math.max(clone.scrollWidth, clone.offsetWidth, clone.getBoundingClientRect().width));
     }
@@ -771,11 +833,98 @@ export async function exportElementAsImage(
       });
     }
 
-    // Calculate exact content height reliably
-    const cloneScrollHeight = Math.ceil(clone.scrollHeight);
-    const cloneOffsetHeight = Math.ceil(clone.offsetHeight);
-    const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
-    const height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
+    if (tongCardInClone) {
+      tongCardInClone.style.setProperty('border-radius', '0', 'important');
+      tongCardInClone.style.setProperty('width', '100%', 'important');
+      tongCardInClone.style.setProperty('max-width', '100%', 'important');
+
+      const colWidths = ['26%', '18.5%', '18.5%', '18.5%', '18.5%'];
+      tongCardInClone.querySelectorAll<HTMLElement>('table').forEach((table) => {
+        table.classList.add('table-fixed');
+        table.style.setProperty('width', '100%', 'important');
+        table.style.setProperty('min-width', '100%', 'important');
+        table.style.setProperty('max-width', '100%', 'important');
+        table.style.setProperty('table-layout', 'fixed', 'important');
+
+        const tr1 = table.querySelector('thead tr:first-child');
+        if (tr1 && tr1.children.length === 3) {
+          (tr1.children[0] as HTMLElement).style.setProperty('width', '63%', 'important');
+          (tr1.children[1] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+          (tr1.children[2] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+        }
+
+        const tr2 = table.querySelector('thead tr:nth-child(2)');
+        if (tr2 && tr2.children.length === 3) {
+          (tr2.children[0] as HTMLElement).style.setProperty('width', '26%', 'important');
+          (tr2.children[1] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+          (tr2.children[2] as HTMLElement).style.setProperty('width', '18.5%', 'important');
+        }
+
+        table.querySelectorAll<HTMLElement>('tbody tr, tfoot tr').forEach((tr) => {
+          if (tr.children.length === 5) {
+            Array.from(tr.children).forEach((td, idx) => {
+              (td as HTMLElement).style.setProperty('width', colWidths[idx], 'important');
+              (td as HTMLElement).style.setProperty('min-width', colWidths[idx], 'important');
+              (td as HTMLElement).style.setProperty('max-width', colWidths[idx], 'important');
+            });
+          }
+        });
+      });
+    }
+
+    if (clone.id === 'revenue-report-export-root' || clone.querySelector('#revenue-tong-card')) {
+      clone.style.setProperty('border-radius', '0', 'important');
+      clone.querySelectorAll<HTMLElement>('.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md').forEach((el) => {
+        el.style.setProperty('border-radius', '0', 'important');
+      });
+    }
+
+    // Calculate exact content height reliably without trailing white space
+    let contentBottom = 0;
+    const cloneRect = clone.getBoundingClientRect();
+
+    Array.from(clone.children).forEach((child) => {
+      const el = child as HTMLElement;
+      if (el.offsetHeight > 0 || el.scrollHeight > 0) {
+        const r = el.getBoundingClientRect();
+        const bottomRel = r.bottom - cloneRect.top;
+        if (bottomRel > contentBottom) {
+          contentBottom = bottomRel;
+        }
+      }
+    });
+
+    clone.querySelectorAll<HTMLElement>('table, tr:last-child, #revenue-tong-card').forEach((el) => {
+      if (el.offsetHeight > 0) {
+        const r = el.getBoundingClientRect();
+        const bottomRel = r.bottom - cloneRect.top;
+        if (bottomRel > contentBottom) {
+          contentBottom = bottomRel;
+        }
+      }
+    });
+
+    const cloneComputed = window.getComputedStyle(clone);
+    const padBottom = parseFloat(cloneComputed.paddingBottom) || 0;
+    const borderBottom = parseFloat(cloneComputed.borderBottomWidth) || 0;
+
+    let height = 0;
+    if (contentBottom > 0) {
+      height = Math.ceil(contentBottom + padBottom + borderBottom);
+    } else {
+      const cloneScrollHeight = Math.ceil(clone.scrollHeight);
+      const cloneOffsetHeight = Math.ceil(clone.offsetHeight);
+      const cloneBoundingHeight = Math.ceil(clone.getBoundingClientRect().height);
+      height = Math.max(cloneScrollHeight, cloneOffsetHeight, cloneBoundingHeight, 350) + 4;
+    }
+
+    // Lock clone and captureContainer to exact height so no excess bottom space is rendered
+    clone.style.setProperty('height', `${height}px`, 'important');
+    clone.style.setProperty('min-height', `${height}px`, 'important');
+    clone.style.setProperty('max-height', `${height}px`, 'important');
+    captureContainer.style.setProperty('height', `${height}px`, 'important');
+    captureContainer.style.setProperty('min-height', `${height}px`, 'important');
+    captureContainer.style.setProperty('max-height', `${height}px`, 'important');
 
     const blob = await rasterizeToBlob(clone, finalWidth, height, scale, borderWidth);
     if (!blob) throw new Error('Không thể kết xuất ảnh do kích thước quá lớn.');
