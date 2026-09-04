@@ -2095,7 +2095,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
                 >
                   <MapPin className="w-3.5 h-3.5" />
-                  <span>Xuất theo tỉnh</span>
+                  <span>Xuất tỉnh cũ</span>
                 </button>
 
                 <button
@@ -2104,7 +2104,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-extrabold text-xs rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all whitespace-nowrap disabled:opacity-50"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Xuất theo tỉnh mới</span>
+                  <span>Xuất tỉnh mới</span>
                 </button>
               </>
             )}
