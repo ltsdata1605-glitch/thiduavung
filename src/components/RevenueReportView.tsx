@@ -1541,8 +1541,13 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         });
         if (blob) {
           confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+        } else {
+          alert('Không thể xuất ảnh lúc này. Vui lòng thử lại!');
         }
       }
+    } catch (err) {
+      console.error('Lỗi khi xuất ảnh doanh thu:', err);
+      alert('Có lỗi xảy ra trong quá trình xuất ảnh. Vui lòng thử lại!');
     } finally {
       setIsExporting(false);
       setExportMode('all');

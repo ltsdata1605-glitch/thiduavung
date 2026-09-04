@@ -206,8 +206,12 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
     link.href = url;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      try {
+        if (link.parentNode) link.parentNode.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch {}
+    }, 60000);
   };
 
   return (
