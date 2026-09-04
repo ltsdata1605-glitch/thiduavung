@@ -1133,7 +1133,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
 
   // TOP & BOTTOM Data for Tab TOP/BOT
   const topBotData = useMemo(() => {
-    const items = filteredItems;
+    // Loại bỏ siêu thị chưa phân công boss khỏi TOP/BOT
+    const items = filteredItems.filter((item) => item.boss && item.boss !== 'Chưa phân công');
 
     // Sort by DTQĐ for Left Table (descending)
     const byDtQd = [...items].sort((a, b) => (b.dtQd || b.achievedDt || 0) - (a.dtQd || a.achievedDt || 0));
