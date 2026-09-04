@@ -1362,7 +1362,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   };
 
   const handleExport = async (mode: 'quick' | 'group' | 'all' | 'province' | 'tinhmoi' | 'size') => {
-    const el = document.getElementById('revenue-report-export-root');
+    const el =
+      (entityScope === 'tong' ? document.getElementById('revenue-tong-card') : null) ||
+      document.getElementById('revenue-report-export-root');
     if (!el) {
       alert('Không tìm thấy bảng báo cáo để xuất ảnh!');
       return;
@@ -2042,7 +2044,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           className={`bg-white ${entityScope === 'tong' ? 'rounded-none' : 'rounded-3xl'} p-5 border border-slate-200 shadow-xs space-y-4`}
         >
         {/* Title Header Bar (Styled matching ReportView title header 1:1) */}
-        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 ${(entityScope === 'sieuthimoi' || entityScope === 'topbot') ? 'export-hide' : ''}`}>
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100 ${(entityScope === 'sieuthimoi' || entityScope === 'topbot' || entityScope === 'tong') ? 'export-hide' : ''}`}>
           <div>
             <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-tight">
               {timeMode === 'realtime' ? 'REALTIME DOANH THU QUY ĐỔI' : 'LUỸ KẾ DOANH THU QUY ĐỔI'} - T{currentMonthYearStr}
@@ -2150,7 +2152,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           /* TAB TỔNG: EXACT MATCH DESIGN WITH THIN LIGHT GRAY BORDERS & SQUARE CORNERS */
           <div
             id="revenue-tong-card"
-            className="w-full max-w-xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none"
+            className="w-full max-w-xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-0 shadow-xs rounded-none"
           >
             {/* Header: Main Title */}
             <div className="py-4 px-4 text-center bg-white border-b border-slate-300">

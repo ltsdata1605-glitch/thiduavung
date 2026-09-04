@@ -606,12 +606,13 @@ export async function exportElementAsImage(
   }
 
   // Ensure Tab TỔNG (Revenue) tables have synchronized, aligned columns and no rounded corners
-  const tongCard = clone.querySelector<HTMLElement>('#revenue-tong-card');
+  const tongCard = clone.id === 'revenue-tong-card' ? clone : clone.querySelector<HTMLElement>('#revenue-tong-card');
   if (tongCard) {
     tongCard.style.setProperty('border-radius', '0', 'important');
     tongCard.style.setProperty('width', '580px', 'important');
     tongCard.style.setProperty('min-width', '580px', 'important');
     tongCard.style.setProperty('max-width', '580px', 'important');
+    tongCard.style.setProperty('margin', '0', 'important');
 
     tongCard.querySelectorAll<HTMLElement>('.overflow-x-auto').forEach((c) => {
       c.style.setProperty('width', '100%', 'important');
@@ -655,7 +656,7 @@ export async function exportElementAsImage(
   }
 
   // Remove rounded corners on the outer export frame when exporting tab TỔNG / revenue export
-  if (clone.id === 'revenue-report-export-root' || clone.querySelector('#revenue-tong-card')) {
+  if (clone.id === 'revenue-report-export-root' || clone.id === 'revenue-tong-card' || clone.querySelector('#revenue-tong-card')) {
     clone.style.setProperty('border-radius', '0', 'important');
     clone.querySelectorAll<HTMLElement>('.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md').forEach((el) => {
       el.style.setProperty('border-radius', '0', 'important');
@@ -774,7 +775,7 @@ export async function exportElementAsImage(
       maxTableContentWidth = Math.max(maxTableContentWidth, combinedWidth, 1220);
     }
 
-    const tongCardInClone = clone.querySelector<HTMLElement>('#revenue-tong-card');
+    const tongCardInClone = clone.id === 'revenue-tong-card' ? clone : clone.querySelector<HTMLElement>('#revenue-tong-card');
     if (tongCardInClone) {
       maxTableContentWidth = Math.max(maxTableContentWidth, 580);
     }
@@ -872,7 +873,7 @@ export async function exportElementAsImage(
       });
     }
 
-    if (clone.id === 'revenue-report-export-root' || clone.querySelector('#revenue-tong-card')) {
+    if (clone.id === 'revenue-report-export-root' || clone.id === 'revenue-tong-card' || clone.querySelector('#revenue-tong-card')) {
       clone.style.setProperty('border-radius', '0', 'important');
       clone.querySelectorAll<HTMLElement>('.rounded-3xl, .rounded-2xl, .rounded-xl, .rounded-lg, .rounded-md').forEach((el) => {
         el.style.setProperty('border-radius', '0', 'important');
