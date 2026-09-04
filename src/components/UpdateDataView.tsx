@@ -350,6 +350,16 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   ) => {
     if (!text || !text.trim()) return;
 
+    // Chặn dán chồng: mỗi lượt lưu chỉ tạo vài write nhỏ, nhưng nếu Firestore
+    // đang bị nghẽn (đợi ~25s hoặc "resource-exhausted"), người dùng có xu
+    // hướng mở khoá ô khác và dán tiếp trong lúc lượt cũ vẫn treo — mỗi lượt
+    // chồng thêm sẽ dồn thêm batch.commit() lên write-stream đã nghẽn, khiến
+    // nó nghẽn nặng hơn theo cấp số nhân thay vì tự hồi phục.
+    if (processingState) {
+      alert(`⚠️ Đang có một lượt đồng bộ khác chạy dở (${processingState.title}). Vui lòng đợi lượt đó lưu xong (xem đồng hồ trên popup) rồi mới dán tiếp — dán chồng lúc đang lưu là nguyên nhân chính gây treo rất lâu.`);
+      return;
+    }
+
     // [PERF] Timing breakdown for this save — logged to the console so a
     // slow paste can be diagnosed (parse vs. Firebase write vs. something
     // else) without guessing. Look for "[PERF]" in DevTools console.
@@ -990,6 +1000,12 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     });
     if (!validation.isValid) {
       setStoreValidationError({ ...validation, scopeName: `${title} (${scopeName})` });
+      return;
+    }
+
+    // Chặn dán chồng — xem giải thích chi tiết ở processRevenueData bên trên.
+    if (processingState) {
+      alert(`⚠️ Đang có một lượt đồng bộ khác chạy dở (${processingState.title}). Vui lòng đợi lượt đó lưu xong (xem đồng hồ trên popup) rồi mới dán tiếp — dán chồng lúc đang lưu là nguyên nhân chính gây treo rất lâu.`);
       return;
     }
 

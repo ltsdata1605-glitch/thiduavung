@@ -93,6 +93,30 @@ const CHUNKED_STORE_DOC_KEYS = new Set<DocKey>([
 ]);
 const STORE_CHUNK_SIZE = 100; // ~350KB/chunk at the ~3.5KB/record measured above — comfortable margin under 1MiB
 
+// If the Firestore SDK's write stream gets stuck (e.g. "resource-exhausted:
+// Write stream exhausted maximum allowed queued writes" after it backs off
+// to its maximum retry delay), an unwrapped batch.commit()/setDoc() can hang
+// silently for many minutes. Left alone, a frustrated retry just queues a
+// second commit on top of the still-pending first one, making the backlog
+// worse. Racing every write against a timeout turns that silent multi-minute
+// hang into a fast, actionable error instead.
+const FIRESTORE_WRITE_TIMEOUT_MS = 25000;
+
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(
+            `Mất kết nối tới Firebase quá lâu khi ${label} (>25s). Vui lòng TẢI LẠI TRANG (F5) rồi thử lại — không bấm/dán lại ngay khi chưa tải lại trang, vì sẽ chồng thêm yêu cầu lên kết nối đang bị nghẽn.`
+          )
+        );
+      }, FIRESTORE_WRITE_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 /**
  * Recursively remove undefined fields to prevent Firestore setDoc errors
  */
@@ -312,7 +336,7 @@ async function saveChunkedStoreDataset<T>(
       }
       tBuildTotalMs += performance.now() - tBuildStart;
       const tCommitStart = performance.now();
-      await batch.commit();
+      await withTimeout(batch.commit(), `ghi chunk ${docKey}`);
       tCommitTotalMs += performance.now() - tCommitStart;
     }
     console.log(
@@ -330,18 +354,21 @@ async function saveChunkedStoreDataset<T>(
       for (let i = newChunks.length; i < previousChunkCount + 2; i++) {
         delBatch.delete(doc(chunksRef, String(i)));
       }
-      await delBatch.commit();
+      await withTimeout(delBatch.commit(), `dọn chunk thừa ${docKey}`);
       console.log(`${perfTag} — dọn chunk thừa (dataset giảm dòng) trong ${(performance.now() - tDelStart).toFixed(0)}ms`);
     }
 
     // Write main doc metadata
     const tMetaStart = performance.now();
-    await setDoc(doc(db, COLLECTION, docKey), {
-      chunkCount: newChunks.length,
-      lastUpdated: serverTimestamp(),
-      customLastUpdated: customLastUpdated || null,
-      updatedBy,
-    });
+    await withTimeout(
+      setDoc(doc(db, COLLECTION, docKey), {
+        chunkCount: newChunks.length,
+        lastUpdated: serverTimestamp(),
+        customLastUpdated: customLastUpdated || null,
+        updatedBy,
+      }),
+      `ghi meta doc ${docKey}`
+    );
     console.log(`${perfTag} — ghi meta doc trong ${(performance.now() - tMetaStart).toFixed(0)}ms`);
 
     const tCacheWriteStart = performance.now();
