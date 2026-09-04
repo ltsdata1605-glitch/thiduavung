@@ -1468,7 +1468,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
           } else if (selectedTinhMoi !== 'ALL') {
             filename = `${timePrefix}_${removeVietnameseTones(selectedTinhMoi)}.png`;
           } else {
-            filename = entityScope === 'sieuthimoi' ? `${timePrefix}_Sieu_Thi_Moi.png` : `${timePrefix}_Sieu_Thi.png`;
+            filename = entityScope === 'sieuthimoi' ? `${timePrefix}_Tinh.png` : `${timePrefix}_Sieu_Thi.png`;
           }
         }
 
@@ -1812,7 +1812,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                 }`}
               >
                 <Sparkles className={`w-3.5 h-3.5 ${entityScope === 'sieuthimoi' ? 'text-purple-600' : 'text-slate-500'}`} />
-                SIÊU THỊ MỚI
+                TỈNH
               </button>
 
               <button
