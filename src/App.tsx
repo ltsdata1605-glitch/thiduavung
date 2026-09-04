@@ -57,6 +57,107 @@ import { usePersistedState } from './hooks/usePersistedState';
 import { exportElementAsImage, exportGroupSpecificElement, exportCategoryGroupImages } from './services/imageExport';
 import confetti from 'canvas-confetti';
 
+// Helper lấy bộ lọc độc lập cho từng tab của chức năng "Thi đua" (TỔNG, VÙNG, SIÊU THỊ, NHÓM)
+const ALL_REPORT_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
+
+const getSavedReportChannels = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): Channel[] => {
+  const key = `report_${scope}_channels`;
+  const saved =
+    savedUserFilters?.[key] ??
+    (() => {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    })();
+  if (saved && Array.isArray(saved) && saved.length > 0) return saved;
+  if (scope === 'nhom') return ['TGD'];
+  return ALL_REPORT_CHANNELS;
+};
+
+const getSavedReportProvince = (
+  scope: EntityScope,
+  availableProvinces: string[],
+  savedUserFilters?: Record<string, any>
+): string => {
+  const key = `report_${scope}_province`;
+  const saved =
+    savedUserFilters?.[key] ??
+    localStorage.getItem(key);
+  if (saved !== null && saved !== undefined) {
+    if (saved === 'ALL' || availableProvinces.length === 0 || availableProvinces.includes(saved)) {
+      return saved;
+    }
+  }
+  const firstProv = availableProvinces.length > 0 ? availableProvinces[0] : 'ALL';
+  if (scope === 'vung' || scope === 'nhom') {
+    return firstProv;
+  }
+  return 'ALL';
+};
+
+const getSavedReportPhanLoaiShop = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): string => {
+  const key = `report_${scope}_phanLoaiShop`;
+  const saved = savedUserFilters?.[key] ?? localStorage.getItem(key);
+  return saved || 'ALL';
+};
+
+const getSavedReportTinhMoi = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): string => {
+  const key = `report_${scope}_tinhMoi`;
+  const saved = savedUserFilters?.[key] ?? localStorage.getItem(key);
+  return saved || 'ALL';
+};
+
+const getSavedReportCategoryGroup = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): string => {
+  const key = `report_${scope}_categoryGroup`;
+  const saved = savedUserFilters?.[key] ?? localStorage.getItem(key);
+  if (saved) return saved;
+  if (scope === 'nhom') return 'ICT,DỊCH VỤ';
+  return 'ALL';
+};
+
+const getSavedReportCategory = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): string => {
+  const key = `report_${scope}_category`;
+  const saved = savedUserFilters?.[key] ?? localStorage.getItem(key);
+  return saved || 'ALL';
+};
+
+const getSavedReportBoss = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): string => {
+  const key = `report_${scope}_boss`;
+  const saved = savedUserFilters?.[key] ?? localStorage.getItem(key);
+  return saved || 'ALL';
+};
+
+const getSavedReportValueDisplayMode = (
+  scope: EntityScope,
+  savedUserFilters?: Record<string, any>
+): 'percent' | 'value' => {
+  const key = `report_${scope}_valueDisplayMode`;
+  const saved = savedUserFilters?.[key] ?? localStorage.getItem(key);
+  if (saved === 'value' || saved === 'percent') return saved;
+  return 'percent';
+};
+
 function AppInner() {
   // Authentication State — requires an actual login; no silent Super Admin bypass
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentSession());
@@ -135,18 +236,34 @@ function AppInner() {
   );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
-  // Filters — persisted to localStorage + IndexedDB (usePersistedState) for
-  // instant same-device reload, AND synced to Firestore per-account (see the
-  // userFiltersMap effects below) so the last-used filter set follows the
-  // account across devices too.
-  const [selectedChannels, setSelectedChannels] = usePersistedState<Channel[]>('tnb_selectedChannels', ['TGD']);
-  const [selectedProvince, setSelectedProvince] = usePersistedState<string>('tnb_selectedProvince', 'ALL');
-  const [selectedBoss, setSelectedBoss] = usePersistedState<string>('tnb_selectedBoss', 'ALL');
-  const [selectedCategory, setSelectedCategory] = usePersistedState<string>('tnb_selectedCategory', 'ALL');
-  const [selectedCategoryGroup, setSelectedCategoryGroup] = usePersistedState<string>('tnb_selectedCategoryGroup', 'ICT,DỊCH VỤ');
-  const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = usePersistedState<string>('tnb_selectedPhanLoaiShop', 'ALL');
-  const [selectedTinhMoi, setSelectedTinhMoi] = usePersistedState<string>('tnb_selectedTinhMoi', 'ALL');
-  const [valueDisplayMode, setValueDisplayMode] = usePersistedState<'percent' | 'value'>('tnb_valueDisplayMode', 'percent');
+  // Bộ lọc chức năng "Thi đua" — độc lập cho từng tab (TỔNG, VÙNG, SIÊU THỊ, NHÓM)
+  const initialScope = initialRoute?.scope || 'sieuthi';
+  const initialSavedUserFilters = cachedData.userFilters?.[currentUser?.accountId || ''];
+
+  const [selectedChannels, setSelectedChannels] = useState<Channel[]>(() =>
+    getSavedReportChannels(initialScope, initialSavedUserFilters)
+  );
+  const [selectedProvince, setSelectedProvince] = useState<string>(() =>
+    getSavedReportProvince(initialScope, [], initialSavedUserFilters)
+  );
+  const [selectedBoss, setSelectedBoss] = useState<string>(() =>
+    getSavedReportBoss(initialScope, initialSavedUserFilters)
+  );
+  const [selectedCategory, setSelectedCategory] = useState<string>(() =>
+    getSavedReportCategory(initialScope, initialSavedUserFilters)
+  );
+  const [selectedCategoryGroup, setSelectedCategoryGroup] = useState<string>(() =>
+    getSavedReportCategoryGroup(initialScope, initialSavedUserFilters)
+  );
+  const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = useState<string>(() =>
+    getSavedReportPhanLoaiShop(initialScope, initialSavedUserFilters)
+  );
+  const [selectedTinhMoi, setSelectedTinhMoi] = useState<string>(() =>
+    getSavedReportTinhMoi(initialScope, initialSavedUserFilters)
+  );
+  const [valueDisplayMode, setValueDisplayMode] = useState<'percent' | 'value'>(() =>
+    getSavedReportValueDisplayMode(initialScope, initialSavedUserFilters)
+  );
 
   // Ngành hàng → Nhóm mapping (global, shared by every account — same idea
   // as `settings`), managed via the Category Group modal from the Report
@@ -170,10 +287,143 @@ function AppInner() {
   // echoes back their own write.
   const [userFiltersMap, setUserFiltersMap] = useState<Record<string, any>>(cachedData.userFilters || {});
   const appliedFiltersForAccountRef = useRef<string | null>(null);
+  const lastReportScopeRef = useRef<EntityScope>(entityScope);
+
+  const handleSaveUserFilters = (filterUpdates: Record<string, any>) => {
+    if (!currentUser) return;
+    setUserFiltersMap((prev) => {
+      const userPrev = prev[currentUser.accountId] || {};
+      const next = {
+        ...prev,
+        [currentUser.accountId]: {
+          ...userPrev,
+          ...filterUpdates,
+        },
+      };
+      void saveUserFiltersToFirebase(next, currentUser.name);
+      void idbSet('tnb_user_filters', next);
+      return next;
+    });
+  };
+
+  const handleReportChannelsChange = (newChannels: Channel[]) => {
+    setSelectedChannels(newChannels);
+    const key = `report_${entityScope}_channels`;
+    handleSaveUserFilters({ [key]: newChannels });
+    try {
+      localStorage.setItem(key, JSON.stringify(newChannels));
+      void idbSet(key, newChannels);
+    } catch (e) {}
+  };
+
+  const handleReportProvinceChange = (newProvince: string) => {
+    setSelectedProvince(newProvince);
+    const key = `report_${entityScope}_province`;
+    handleSaveUserFilters({ [key]: newProvince });
+    try {
+      localStorage.setItem(key, newProvince);
+      void idbSet(key, newProvince);
+    } catch (e) {}
+  };
+
+  const handleReportPhanLoaiShopChange = (newVal: string) => {
+    setSelectedPhanLoaiShop(newVal);
+    const key = `report_${entityScope}_phanLoaiShop`;
+    handleSaveUserFilters({ [key]: newVal });
+    try {
+      localStorage.setItem(key, newVal);
+      void idbSet(key, newVal);
+    } catch (e) {}
+  };
+
+  const handleReportTinhMoiChange = (newVal: string) => {
+    setSelectedTinhMoi(newVal);
+    const key = `report_${entityScope}_tinhMoi`;
+    handleSaveUserFilters({ [key]: newVal });
+    try {
+      localStorage.setItem(key, newVal);
+      void idbSet(key, newVal);
+    } catch (e) {}
+  };
+
+  const handleReportCategoryGroupChange = (newVal: string) => {
+    setSelectedCategoryGroup(newVal);
+    const key = `report_${entityScope}_categoryGroup`;
+    handleSaveUserFilters({ [key]: newVal });
+    try {
+      localStorage.setItem(key, newVal);
+      void idbSet(key, newVal);
+    } catch (e) {}
+  };
+
+  const handleReportCategoryChange = (newVal: string) => {
+    setSelectedCategory(newVal);
+    const key = `report_${entityScope}_category`;
+    handleSaveUserFilters({ [key]: newVal });
+    try {
+      localStorage.setItem(key, newVal);
+      void idbSet(key, newVal);
+    } catch (e) {}
+  };
+
+  const handleReportBossChange = (newVal: string) => {
+    setSelectedBoss(newVal);
+    const key = `report_${entityScope}_boss`;
+    handleSaveUserFilters({ [key]: newVal });
+    try {
+      localStorage.setItem(key, newVal);
+      void idbSet(key, newVal);
+    } catch (e) {}
+  };
+
+  const handleReportValueDisplayModeChange = (newVal: 'percent' | 'value') => {
+    setValueDisplayMode(newVal);
+    const key = `report_${entityScope}_valueDisplayMode`;
+    handleSaveUserFilters({ [key]: newVal });
+    try {
+      localStorage.setItem(key, newVal);
+      void idbSet(key, newVal);
+    } catch (e) {}
+  };
+
+  const handleReportScopeSwitch = (newScope: EntityScope) => {
+    setEntityScope(newScope);
+    lastReportScopeRef.current = newScope;
+    const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
+    setSelectedChannels(getSavedReportChannels(newScope, currentSavedFilters));
+    setSelectedProvince(getSavedReportProvince(newScope, provinceList, currentSavedFilters));
+    setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(newScope, currentSavedFilters));
+    setSelectedTinhMoi(getSavedReportTinhMoi(newScope, currentSavedFilters));
+    setSelectedCategoryGroup(getSavedReportCategoryGroup(newScope, currentSavedFilters));
+    setSelectedCategory(getSavedReportCategory(newScope, currentSavedFilters));
+    setSelectedBoss(getSavedReportBoss(newScope, currentSavedFilters));
+    setValueDisplayMode(getSavedReportValueDisplayMode(newScope, currentSavedFilters));
+  };
 
   // Stores Data
   const [realtimeStoresVung, setRealtimeStoresVung] = useState<StoreRecord[]>(cachedData.realtimeStoresVung?.length ? cachedData.realtimeStoresVung : []);
   const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : []);
+
+  // Get active stores depending on TimeMode. Both Tab VÙNG and Tab SIÊU THỊ
+  // use the same store-level dataset so data calculates dynamically per KÊNH.
+  // Realtime's TARGET (top-level and per ngành hàng) is used exactly as
+  // pasted — the BI "Doanh thu theo kênh bán" source already reports it as
+  // the daily target, so it's no longer recomputed from Luỹ Kế's monthly
+  // target ÷ số ngày trong tháng like the previous (Thi Đua Tỉnh/Vùng) source
+  // required.
+  const activeStores = useMemo(() => {
+    return timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
+  }, [timeMode, realtimeStoresVung, luykeStoresVung]);
+
+  // Extract unique provinces for filter dropdowns — declared this early
+  // (right next to its own source data) because several filter-restore
+  // effects below reference it in their dependency arrays, which are
+  // evaluated during render; declaring it later than its first use would be
+  // a temporal-dead-zone crash, not just a staleness bug.
+  const provinceList = useMemo(
+    () => Array.from(new Set(activeStores.map((s) => s.tinh))).sort(),
+    [activeStores]
+  );
 
   // Revenue & Installment (Doanh thu & Trả chậm) Data
   const [realtimeDtStores, setRealtimeDtStores] = usePersistedState<StoreRecord[]>('tnb_realtime_doanhthu', []);
@@ -207,12 +457,10 @@ function AppInner() {
     return (acc && cachedData.userPreferences?.[acc]) || initialUserProfile;
   });
 
-  // Only account 3717 may see and access the "Doanh thu" feature
-  const isUser3717 =
-    currentUser?.accountId === '3717' ||
-    currentUser?.username === '3717' ||
-    currentUser?.username?.toLowerCase().includes('3717') ||
-    currentUser?.accountId?.toLowerCase().includes('3717');
+  // Only Super Admin accounts may see and access the "Doanh thu" feature —
+  // was hardcoded to account 3717 specifically; now any account with role
+  // 'super_admin' qualifies.
+  const isUser3717 = currentUser?.role === 'super_admin';
 
   // Tự động giới hạn các kênh được phép xem theo tài khoản
   useEffect(() => {
@@ -603,21 +851,25 @@ function AppInner() {
     if (saved.activeTab) setActiveTab(saved.activeTab);
     if (saved.timeMode) setTimeMode(saved.timeMode);
     if (saved.entityScope) setEntityScope(saved.entityScope);
-    if (saved.selectedChannels) setSelectedChannels(saved.selectedChannels);
-    if (saved.selectedProvince) setSelectedProvince(saved.selectedProvince);
-    if (saved.selectedBoss) setSelectedBoss(saved.selectedBoss);
-    if (saved.selectedCategory) setSelectedCategory(saved.selectedCategory);
-    if (saved.selectedCategoryGroup) setSelectedCategoryGroup(saved.selectedCategoryGroup);
-  }, [currentUser, userFiltersMap]);
 
-  // Debounced sync of the current filter selection (incl. which tab is open)
-  // up to Firestore, scoped under this account's own key in the shared
-  // user_filters doc. Debounced (not one write per click/tab-switch) since
-  // these change far more often than the other synced datasets.
+    const scopeToRestore = saved.entityScope || entityScope;
+    lastReportScopeRef.current = scopeToRestore;
+    setSelectedChannels(getSavedReportChannels(scopeToRestore, saved));
+    setSelectedProvince(getSavedReportProvince(scopeToRestore, provinceList, saved));
+    setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(scopeToRestore, saved));
+    setSelectedTinhMoi(getSavedReportTinhMoi(scopeToRestore, saved));
+    setSelectedCategoryGroup(getSavedReportCategoryGroup(scopeToRestore, saved));
+    setSelectedCategory(getSavedReportCategory(scopeToRestore, saved));
+    setSelectedBoss(getSavedReportBoss(scopeToRestore, saved));
+    setValueDisplayMode(getSavedReportValueDisplayMode(scopeToRestore, saved));
+  }, [currentUser, userFiltersMap, provinceList]);
+
+  // Debounced sync of the current navigation state (activeTab, timeMode, entityScope)
+  // up to Firestore, scoped under this account's own key in the shared user_filters doc.
   useEffect(() => {
     if (!currentUser) return;
     const timer = setTimeout(() => {
-      const snapshot = { activeTab, timeMode, entityScope, selectedChannels, selectedProvince, selectedBoss, selectedCategory, selectedCategoryGroup };
+      const snapshot = { activeTab, timeMode, entityScope };
       setUserFiltersMap((prev) => {
         const userPrev = prev[currentUser.accountId] || {};
         const next = {
@@ -633,7 +885,7 @@ function AppInner() {
       });
     }, 800);
     return () => clearTimeout(timer);
-  }, [currentUser, activeTab, timeMode, entityScope, selectedChannels, selectedProvince, selectedBoss, selectedCategory, selectedCategoryGroup]);
+  }, [currentUser, activeTab, timeMode, entityScope]);
 
   // Synchronize activeTab & entityScope with URL hash & document.title
   useEffect(() => {
@@ -709,42 +961,57 @@ function AppInner() {
     })();
   }, []);
 
-  // Siêu Thị and Nhóm are both per-store views (hundreds of rows) — opening
-  // either with no province chosen yet ("Tất cả") renders every store in the
-  // whole vùng at once, which is what caused the lag. Default to the first
-  // province instead. The ref starts at null (not the current entityScope),
-  // so this also covers loading straight into one of these scopes on a fresh
-  // account (persisted entityScope='vung'/'nhom' but selectedProvince never
-  // set) — not just switching tabs mid-session. A province the user already
-  // picked (persisted, or an explicit "Tất cả" chosen while already in one of
-  // these scopes) is left alone — that's the "mở lần sau lấy dữ liệu đã lưu"
-  // part of the requirement.
-  // useLayoutEffect (not useEffect) so this correction lands before the
-  // browser paints — with useEffect, React committed and painted the
-  // still-unfiltered ("Tất cả") render first, then this ran and triggered a
-  // second render/paint moments later. That's the visible "loads everything,
-  // then reloads by tỉnh" flash/lag the switch felt like.
-  const prevEntityScopeRef = useRef<EntityScope | null>(null);
-  useLayoutEffect(() => {
-    if (prevEntityScopeRef.current !== entityScope) {
-      if ((entityScope === 'vung' || entityScope === 'nhom') && selectedProvince === 'ALL') {
-        const stores = timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
-        const firstProvince = Array.from(new Set(stores.map((s: StoreRecord) => s.tinh))).sort()[0];
-        if (firstProvince) setSelectedProvince(firstProvince);
-      } else if (entityScope === 'sieuthi' || entityScope === 'tong') {
-        // SIÊU THỊ / TỔNG (the overview scopes) are meant to show everything
-        // by default, so clear filters back to "Tất cả" — except Kênh, whose
-        // default across every tab is TGD-only, not every channel checked.
-        setSelectedProvince('ALL');
-        setSelectedChannels(['TGD']);
-        setSelectedCategoryGroup('ALL');
-        setSelectedCategory('ALL');
-        setSelectedPhanLoaiShop('ALL');
-        setSelectedTinhMoi('ALL');
-      }
-      prevEntityScopeRef.current = entityScope;
+  // Khi chuyển tab trong "Thi đua" (TỔNG, VÙNG, SIÊU THỊ, NHÓM), khôi phục 100% độc lập bộ lọc của tab đó
+  useEffect(() => {
+    if (activeTab === 'report' && lastReportScopeRef.current !== entityScope) {
+      lastReportScopeRef.current = entityScope;
+      const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
+      setSelectedChannels(getSavedReportChannels(entityScope, currentSavedFilters));
+      setSelectedProvince(getSavedReportProvince(entityScope, provinceList, currentSavedFilters));
+      setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(entityScope, currentSavedFilters));
+      setSelectedTinhMoi(getSavedReportTinhMoi(entityScope, currentSavedFilters));
+      setSelectedCategoryGroup(getSavedReportCategoryGroup(entityScope, currentSavedFilters));
+      setSelectedCategory(getSavedReportCategory(entityScope, currentSavedFilters));
+      setSelectedBoss(getSavedReportBoss(entityScope, currentSavedFilters));
+      setValueDisplayMode(getSavedReportValueDisplayMode(entityScope, currentSavedFilters));
     }
-  }, [entityScope, selectedProvince, timeMode, realtimeStoresVung, luykeStoresVung]);
+  }, [entityScope, activeTab, provinceList, currentUser, userFiltersMap]);
+
+  // Khi quay lại tab "Thi đua" từ chức năng khác (Doanh thu, Cập nhật, Cài đặt)
+  const prevActiveTabRef = useRef<string>(activeTab);
+  useEffect(() => {
+    if (activeTab === 'report' && prevActiveTabRef.current !== 'report') {
+      prevActiveTabRef.current = activeTab;
+      lastReportScopeRef.current = entityScope;
+      const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
+      setSelectedChannels(getSavedReportChannels(entityScope, currentSavedFilters));
+      setSelectedProvince(getSavedReportProvince(entityScope, provinceList, currentSavedFilters));
+      setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(entityScope, currentSavedFilters));
+      setSelectedTinhMoi(getSavedReportTinhMoi(entityScope, currentSavedFilters));
+      setSelectedCategoryGroup(getSavedReportCategoryGroup(entityScope, currentSavedFilters));
+      setSelectedCategory(getSavedReportCategory(entityScope, currentSavedFilters));
+      setSelectedBoss(getSavedReportBoss(entityScope, currentSavedFilters));
+      setValueDisplayMode(getSavedReportValueDisplayMode(entityScope, currentSavedFilters));
+    } else {
+      prevActiveTabRef.current = activeTab;
+    }
+  }, [activeTab, entityScope, provinceList, currentUser, userFiltersMap]);
+
+  // Khi danh sách tỉnh được nạp từ cache/Firebase, nạp tỉnh đầu tiên cho tab Siêu thị / Nhóm nếu chưa từng chọn
+  const provinceListHydratedRef = useRef(false);
+  useEffect(() => {
+    if (!provinceListHydratedRef.current && provinceList.length > 0) {
+      provinceListHydratedRef.current = true;
+      if (activeTab === 'report' && (entityScope === 'vung' || entityScope === 'nhom')) {
+        const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
+        const key = `report_${entityScope}_province`;
+        const saved = currentSavedFilters?.[key] ?? localStorage.getItem(key);
+        if (!saved) {
+          setSelectedProvince(provinceList[0]);
+        }
+      }
+    }
+  }, [provinceList, activeTab, entityScope, currentUser, userFiltersMap]);
 
   // Defense in depth: the Sidebar already hides the "Cập nhật" menu item for
   // Editor/Viewer, but a stale persisted tab (from before a role downgrade,
@@ -791,26 +1058,6 @@ function AppInner() {
     return Math.max(1, new Date().getDate() - 1); // fallback: today - 1
   }, [timeMode, settings.lastUpdateRealtime, settings.lastUpdateLuyKe]);
 
-  // Get active stores depending on TimeMode. Both Tab VÙNG and Tab SIÊU THỊ
-  // use the same store-level dataset so data calculates dynamically per KÊNH.
-  // Realtime's TARGET (top-level and per ngành hàng) is used exactly as
-  // pasted — the BI "Doanh thu theo kênh bán" source already reports it as
-  // the daily target, so it's no longer recomputed from Luỹ Kế's monthly
-  // target ÷ số ngày trong tháng like the previous (Thi Đua Tỉnh/Vùng) source
-  // required.
-  const activeStores = useMemo(() => {
-    return timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
-  }, [timeMode, realtimeStoresVung, luykeStoresVung]);
-
-  // Extract unique provinces & bosses for filter dropdowns. These used to be
-  // plain `const`s recomputed on every App render (any keystroke/state
-  // change anywhere), not just when their own source data changed — bossList
-  // in particular calls getBossForStore() once per store, so this alone was
-  // an O(stores) pass through the whole active dataset on every render.
-  const provinceList = useMemo(
-    () => Array.from(new Set(activeStores.map((s) => s.tinh))).sort(),
-    [activeStores]
-  );
   // Phân Loại Shop values come from the BOSS file (e.g. "<3 TỶ", "3-5 TỶ") —
   // sourced from bossAssignments directly rather than per-store lookups,
   // since a store may not have a resolvable BOSS match yet.
@@ -1071,22 +1318,6 @@ function AppInner() {
     });
   };
 
-  const handleSaveUserFilters = (filterUpdates: Record<string, any>) => {
-    if (!currentUser) return;
-    setUserFiltersMap((prev) => {
-      const userPrev = prev[currentUser.accountId] || {};
-      const next = {
-        ...prev,
-        [currentUser.accountId]: {
-          ...userPrev,
-          ...filterUpdates,
-        },
-      };
-      void saveUserFiltersToFirebase(next, currentUser.name);
-      void idbSet('tnb_user_filters', next);
-      return next;
-    });
-  };
 
   const showToast = (msg: string) => {
     setToastBanner({ type: 'success', text: msg });
@@ -1507,21 +1738,21 @@ function AppInner() {
               timeMode={timeMode}
               setTimeMode={setTimeMode}
               entityScope={entityScope}
-              setEntityScope={setEntityScope}
+              setEntityScope={handleReportScopeSwitch}
               selectedChannels={selectedChannels}
-              setSelectedChannels={setSelectedChannels}
+              setSelectedChannels={handleReportChannelsChange}
               selectedProvince={selectedProvince}
-              setSelectedProvince={setSelectedProvince}
+              setSelectedProvince={handleReportProvinceChange}
               selectedPhanLoaiShop={selectedPhanLoaiShop}
-              setSelectedPhanLoaiShop={setSelectedPhanLoaiShop}
+              setSelectedPhanLoaiShop={handleReportPhanLoaiShopChange}
               phanLoaiShopList={phanLoaiShopList}
               selectedTinhMoi={selectedTinhMoi}
-              setSelectedTinhMoi={setSelectedTinhMoi}
+              setSelectedTinhMoi={handleReportTinhMoiChange}
               tinhMoiList={tinhMoiList}
               selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
+              setSelectedCategory={handleReportCategoryChange}
               selectedCategoryGroup={selectedCategoryGroup}
-              setSelectedCategoryGroup={setSelectedCategoryGroup}
+              setSelectedCategoryGroup={handleReportCategoryGroupChange}
               provinceList={provinceList}
               categoryList={categoryList}
               categoryGroupList={categoryGroupList}
@@ -1537,7 +1768,7 @@ function AppInner() {
               onExportFull={handleExportFull}
               onExportGroup={handleExportGroup}
               valueDisplayMode={valueDisplayMode}
-              setValueDisplayMode={setValueDisplayMode}
+              setValueDisplayMode={handleReportValueDisplayModeChange}
               canViewDtQdTb={canViewDtQdTb}
               currentUser={currentUser}
               systemName={settings.systemName}

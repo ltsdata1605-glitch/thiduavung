@@ -598,26 +598,6 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
     }
   };
 
-  // Tự động chọn mặc định 2 nhóm ICT và DỊCH VỤ khi chỉ lọc Kênh TGD
-  React.useEffect(() => {
-    const isOnlyTgd = selectedChannels.length === 1 && selectedChannels[0] === 'TGD';
-    if (isOnlyTgd && (!selectedCategoryGroup || selectedCategoryGroup === 'ALL')) {
-      const nonCeGroups = categoryGroupList
-        .filter((g) => {
-          const upper = g.trim().toUpperCase();
-          return upper !== 'CE & GD' && upper !== 'CE & GIA DỤNG' && !upper.includes('CE');
-        })
-        .sort((a, b) => {
-          const orderA = a.toUpperCase().includes('ICT') ? 1 : a.toUpperCase().includes('DỊCH VỤ') || a.toUpperCase().includes('DICH VU') ? 2 : 3;
-          const orderB = b.toUpperCase().includes('ICT') ? 1 : b.toUpperCase().includes('DỊCH VỤ') || b.toUpperCase().includes('DICH VU') ? 2 : 3;
-          return orderA - orderB;
-        });
-      if (nonCeGroups.length > 0) {
-        setSelectedCategoryGroup(nonCeGroups.join(','));
-      }
-    }
-  }, [selectedChannels, categoryGroupList, selectedCategoryGroup, setSelectedCategoryGroup]);
-
   // Filter Ngành Hàng dropdown options depending on selected Nhóm N.Hàng (supports multi-group)
   const filteredCategoryOptions = React.useMemo(() => {
     const selectedGroups = !selectedCategoryGroup || selectedCategoryGroup === 'ALL'
@@ -634,37 +614,17 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
   }, [selectedCategoryGroup, categoryList, categoryGroupMap, categoryHiddenMap]);
 
   // Reset selectedCategory to ALL if current selection is not in the filtered options.
-  // selectedCategory can be a SINGLE id ('BH') or a MULTI-SELECT comma-joined
-  // string ('BH,CAMERA') — CategoryMultiSelectFilter's toggleCategory() below
-  // produces the latter as soon as a 2nd item is checked. This must check
-  // each id individually; comparing the whole comma-string against a single
-  // option's id never matches, so this effect used to fire on every 2nd+
-  // selection and immediately reset back to 'ALL' — the multi-select dropdown
-  // visually "kicking out" whatever the user had just picked.
   React.useEffect(() => {
     if (selectedCategory !== 'ALL') {
       const selectedIds = selectedCategory.split(',').map((s) => s.trim()).filter(Boolean);
       const stillValidIds = selectedIds.filter((id) => filteredCategoryOptions.some((c) => c.id === id));
       if (stillValidIds.length === 0) {
-        if (entityScope === 'nhom') {
-          const firstCat = filteredCategoryOptions[0]?.id || categoryList[0]?.id || 'TRẢ CHẬM HOMECREDIT';
-          setSelectedCategory(firstCat);
-        } else {
-          setSelectedCategory('ALL');
-        }
+        setSelectedCategory('ALL');
       } else if (stillValidIds.length !== selectedIds.length) {
-        // Some (not all) previously-selected categories dropped out of the
-        // filtered list (e.g. Nhóm N.Hàng filter changed) — keep just the
-        // ones still valid instead of wiping the whole selection.
         setSelectedCategory(stillValidIds.join(','));
       }
-    } else if (entityScope === 'nhom') {
-      const firstCat = filteredCategoryOptions[0]?.id || categoryList[0]?.id || 'TRẢ CHẬM HOMECREDIT';
-      if (firstCat && firstCat !== 'ALL') {
-        setSelectedCategory(firstCat);
-      }
     }
-  }, [selectedCategoryGroup, filteredCategoryOptions, selectedCategory, entityScope, categoryList, setSelectedCategory]);
+  }, [selectedCategoryGroup, filteredCategoryOptions, selectedCategory, setSelectedCategory]);
 
   return (
     <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative space-y-3 transition-all">
@@ -682,12 +642,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shrink-0">
             {/* Scope: TỔNG (Placed before VÙNG per request) */}
             <button
-              onClick={() => {
-                setEntityScope('tong');
-                setSelectedProvince('ALL');
-                setSelectedCategoryGroup('ALL');
-                setSelectedCategory('ALL');
-              }}
+              onClick={() => setEntityScope('tong')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 entityScope === 'tong'
                   ? 'bg-amber-50 text-amber-800 border-amber-300 ring-2 ring-amber-200/60 shadow-2xs'
@@ -699,12 +654,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </button>
 
             <button
-              onClick={() => {
-                setEntityScope('sieuthi');
-                setSelectedProvince('ALL');
-                setSelectedCategoryGroup('ALL');
-                setSelectedCategory('ALL');
-              }}
+              onClick={() => setEntityScope('sieuthi')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 entityScope === 'sieuthi'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-200/60 shadow-2xs'
@@ -716,11 +666,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </button>
 
             <button
-              onClick={() => {
-                setEntityScope('vung');
-                setSelectedCategoryGroup('ALL');
-                setSelectedCategory('ALL');
-              }}
+              onClick={() => setEntityScope('vung')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 entityScope === 'vung'
                   ? 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-200/60 shadow-2xs'
@@ -732,15 +678,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </button>
 
             <button
-              onClick={() => {
-                setEntityScope('nhom');
-                if (selectedCategory === 'ALL') {
-                  const firstCat = filteredCategoryOptions[0]?.id || categoryList[0]?.id || 'TRẢ CHẬM HOMECREDIT';
-                  if (firstCat && firstCat !== 'ALL') {
-                    setSelectedCategory(firstCat);
-                  }
-                }
-              }}
+              onClick={() => setEntityScope('nhom')}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                 entityScope === 'nhom'
                   ? 'bg-purple-50 text-purple-700 border-purple-300 ring-2 ring-purple-200/60 shadow-2xs'
@@ -833,19 +771,8 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
         </div>
       </div>
 
-      {/* ROW 2: Compact Filter Bar & Export Actions Integrated into Header (Disabled when in Tab NHÓM or TỔNG) */}
-      <div
-        className={`pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 pl-2 transition-all ${
-          entityScope === 'nhom' || entityScope === 'tong'
-            ? 'opacity-40 grayscale pointer-events-none select-none cursor-not-allowed'
-            : ''
-        }`}
-        title={
-          entityScope === 'nhom' || entityScope === 'tong'
-            ? 'Các bộ lọc này bị vô hiệu hoá trong tab này (vui lòng dùng bộ lọc riêng trên từng bảng bên dưới nếu có)'
-            : undefined
-        }
-      >
+      {/* ROW 2: Compact Filter Bar & Export Actions Integrated into Header (Mỗi tab độc lập) */}
+      <div className="pt-2 border-t border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-3 pl-2 transition-all">
         {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Channel Checkboxes */}
@@ -856,14 +783,11 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
               return (
                 <button
                   key={ch}
-                  disabled={entityScope === 'nhom' || entityScope === 'tong'}
                   onClick={() => toggleChannel(ch)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all border flex items-center gap-1 ${
-                    entityScope === 'nhom' || entityScope === 'tong'
-                      ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                      : isChecked
-                      ? 'bg-blue-200 text-blue-900 border-blue-300 shadow-2xs cursor-pointer'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer'
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold transition-all border flex items-center gap-1 cursor-pointer ${
+                    isChecked
+                      ? 'bg-blue-200 text-blue-900 border-blue-300 shadow-2xs'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-3 h-3 rounded-xs border flex items-center justify-center ${
@@ -879,16 +803,14 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
 
           <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
 
-          {/* Select Phân Loại Shop Dropdown (from BOSS file) — placed right
-              before Tỉnh per request */}
+          {/* Select Phân Loại Shop Dropdown (from BOSS file) — placed right before Tỉnh */}
           {setSelectedPhanLoaiShop && (
             <div className="flex items-center gap-1">
               <label className="text-[11px] font-bold text-slate-400 uppercase">Phân loại:</label>
               <select
-                disabled={entityScope === 'nhom' || entityScope === 'tong'}
                 value={selectedPhanLoaiShop}
                 onChange={(e) => setSelectedPhanLoaiShop(e.target.value)}
-                className="w-[90px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                className="w-[90px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate"
               >
                 <option value="ALL">Tất cả</option>
                 {phanLoaiShopList.map((p) => (
@@ -900,13 +822,11 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             </div>
           )}
 
-          {/* Select Tỉnh MỚI 2026 Dropdown (cột H file BOSS) — placed right
-              before Tỉnh per request */}
+          {/* Select Tỉnh MỚI 2026 Dropdown */}
           {setSelectedTinhMoi && (
             <div className="flex items-center gap-1">
               <label className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh mới:</label>
               <select
-                disabled={entityScope === 'nhom' || entityScope === 'tong'}
                 value={selectedTinhMoi}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -915,7 +835,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
                     setSelectedProvince('ALL');
                   }
                 }}
-                className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate"
               >
                 <option value="ALL">Tất cả</option>
                 {tinhMoiList.map((t) => (
@@ -931,7 +851,6 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           <div className="flex items-center gap-1">
             <label className="text-[11px] font-bold text-slate-400 uppercase">Tỉnh:</label>
             <select
-              disabled={entityScope === 'nhom' || entityScope === 'tong'}
               value={selectedProvince}
               onChange={(e) => {
                 const val = e.target.value;
@@ -940,7 +859,7 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
                   setSelectedTinhMoi('ALL');
                 }
               }}
-              className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              className="w-[100px] bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 cursor-pointer truncate"
             >
               <option value="ALL">Tất cả</option>
               {provinceList.map((p) => (
@@ -955,16 +874,14 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={entityScope === 'nhom' || entityScope === 'tong'}
               onClick={onOpenCategoryGroupModal}
               title="Quản lý & Cấu hình Nhóm Ngành Hàng"
-              className="text-[11px] font-bold text-slate-400 uppercase hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:hover:text-slate-400"
+              className="text-[11px] font-bold text-slate-400 uppercase hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer transition-colors"
             >
               <span>Nhóm N.Hàng:</span>
               <Settings2 className="w-3 h-3 text-indigo-500 hover:text-indigo-700" />
             </button>
             <CategoryGroupMultiSelectFilter
-              disabled={entityScope === 'nhom' || entityScope === 'tong'}
               selectedCategoryGroup={selectedCategoryGroup}
               setSelectedCategoryGroup={setSelectedCategoryGroup}
               categoryGroupList={categoryGroupList}
@@ -972,11 +889,10 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             />
           </div>
 
-          {/* Select Category Dropdown (Dynamically filtered by selected Nhóm N.Hàng with Multi-Select and Search) */}
+          {/* Select Category Dropdown */}
           <div className="flex items-center gap-1">
             <label className="text-[11px] font-bold text-slate-400 uppercase">Ngành hàng:</label>
             <CategoryMultiSelectFilter
-              disabled={entityScope === 'nhom'}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               filteredCategoryOptions={filteredCategoryOptions}
@@ -984,8 +900,8 @@ export const HeaderBanner: React.FC<HeaderBannerProps> = ({
             />
           </div>
 
-          {/* View Mode Segmented Toggle: %HT vs Doanh thu — Super Admin / Admin only */}
-          {setValueDisplayMode && entityScope !== 'nhom' && canViewDtQdTb && (
+          {/* View Mode Segmented Toggle: %HT vs Doanh thu */}
+          {setValueDisplayMode && canViewDtQdTb && (
             <div className="flex items-center p-0.5 bg-slate-200/80 border border-slate-300/80 rounded-xl shrink-0 shadow-inner">
               <button
                 type="button"

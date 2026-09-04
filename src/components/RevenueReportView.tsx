@@ -230,43 +230,62 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     }
 
     if (scope === 'sieuthimoi') {
-      // 1. Ưu tiên cấu hình riêng của tab SIÊU THỊ MỚI
       const savedMoi =
         savedUserFilters?.revenue_sieuthimoi_province ??
         localStorage.getItem('revenue_sieuthimoi_province');
       if (savedMoi && (savedMoi === 'ALL' || availableProvinces.includes(savedMoi))) return savedMoi;
-
-      // 2. Fallback sang tỉnh đã chọn chung
-      const savedCommon =
-        savedUserFilters?.revenueProvince ??
-        localStorage.getItem('revenue_selected_province');
-      if (savedCommon && (savedCommon === 'ALL' || availableProvinces.includes(savedCommon))) return savedCommon;
-
       return firstProv;
     }
 
     if (scope === 'vung') {
-      // Tab SIÊU THỊ: 1. Ưu tiên cấu hình riêng của tab SIÊU THỊ
+      // Tab SIÊU THỊ
       const savedSt =
         savedUserFilters?.revenue_sieuthi_province ??
         localStorage.getItem('revenue_sieuthi_province');
       if (savedSt && (savedSt === 'ALL' || availableProvinces.includes(savedSt))) return savedSt;
-
-      // 2. Fallback sang tỉnh đã chọn chung
-      const savedCommon =
-        savedUserFilters?.revenueProvince ??
-        localStorage.getItem('revenue_selected_province');
-      if (savedCommon && (savedCommon === 'ALL' || availableProvinces.includes(savedCommon))) return savedCommon;
-
       return firstProv;
     }
 
-    // Các tab còn lại (tong, sieuthi = VÙNG)
-    const saved =
-      savedUserFilters?.revenueProvince ??
-      localStorage.getItem('revenue_selected_province');
-    if (saved && (saved === 'ALL' || availableProvinces.includes(saved))) return saved;
-    return firstProv;
+    return 'ALL';
+  };
+
+  // Helper lấy size đã lưu cho từng tab
+  const getSavedSizeForScope = (scope: EntityScope): string => {
+    if (scope === 'vung') {
+      return savedUserFilters?.revenue_sieuthi_size ?? localStorage.getItem('revenue_sieuthi_size') ?? 'ALL';
+    }
+    if (scope === 'sieuthimoi') {
+      return savedUserFilters?.revenue_sieuthimoi_size ?? localStorage.getItem('revenue_sieuthimoi_size') ?? 'ALL';
+    }
+    if (scope === 'topbot') {
+      return savedUserFilters?.revenue_topbot_size ?? localStorage.getItem('revenue_topbot_size') ?? 'ALL';
+    }
+    return 'ALL';
+  };
+
+  // Helper lấy tỉnh mới đã lưu cho từng tab
+  const getSavedTinhMoiForScope = (scope: EntityScope): string => {
+    if (scope === 'vung') {
+      return savedUserFilters?.revenue_sieuthi_tinhmoi ?? localStorage.getItem('revenue_sieuthi_tinhmoi') ?? 'ALL';
+    }
+    if (scope === 'sieuthimoi') {
+      return savedUserFilters?.revenue_sieuthimoi_tinhmoi ?? localStorage.getItem('revenue_sieuthimoi_tinhmoi') ?? 'ALL';
+    }
+    if (scope === 'topbot') {
+      return savedUserFilters?.revenue_topbot_tinhmoi ?? localStorage.getItem('revenue_topbot_tinhmoi') ?? 'ALL';
+    }
+    return 'ALL';
+  };
+
+  // Helper lấy từ khoá tìm kiếm cho từng tab
+  const getSavedSearchForScope = (scope: EntityScope): string => {
+    if (scope === 'vung') {
+      return localStorage.getItem('revenue_sieuthi_search') ?? '';
+    }
+    if (scope === 'sieuthimoi') {
+      return localStorage.getItem('revenue_sieuthimoi_search') ?? '';
+    }
+    return '';
   };
 
   // Target Configuration (Mặc định vs CK Năm, và Hệ số %)
@@ -297,7 +316,7 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   // Metric mode: 'all' (DT + Trả chậm), 'dt_only' (Chỉ Doanh Thu), 'tc_only' (Chỉ Trả Chậm)
   const [selectedMetricGroup, setSelectedMetricGroup] = useState<string>('ALL');
 
-  // Filters
+  // Filters - Khởi tạo độc lập theo entityScope
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>(() => getSavedChannelsForScope(entityScope));
   const [selectedProvince, setSelectedProvince] = useState<string>(() => {
     if (entityScope === 'topbot') {
@@ -305,24 +324,19 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       return saved || 'ALL';
     }
     if (entityScope === 'sieuthimoi') {
-      const saved =
-        savedUserFilters?.revenue_sieuthimoi_province ??
-        localStorage.getItem('revenue_sieuthimoi_province') ??
-        savedUserFilters?.revenueProvince ??
-        localStorage.getItem('revenue_selected_province');
+      const saved = savedUserFilters?.revenue_sieuthimoi_province ?? localStorage.getItem('revenue_sieuthimoi_province');
       return saved || 'ALL';
     }
-    const saved =
-      savedUserFilters?.revenue_sieuthi_province ??
-      localStorage.getItem('revenue_sieuthi_province') ??
-      savedUserFilters?.revenueProvince ??
-      localStorage.getItem('revenue_selected_province');
-    return saved || 'ALL';
+    if (entityScope === 'vung') {
+      const saved = savedUserFilters?.revenue_sieuthi_province ?? localStorage.getItem('revenue_sieuthi_province');
+      return saved || 'ALL';
+    }
+    return 'ALL';
   });
   const [selectedBoss, setSelectedBoss] = useState<string>('ALL');
-  const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = useState<string>('ALL');
-  const [selectedTinhMoi, setSelectedTinhMoi] = useState<string>('ALL');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedPhanLoaiShop, setSelectedPhanLoaiShop] = useState<string>(() => getSavedSizeForScope(entityScope));
+  const [selectedTinhMoi, setSelectedTinhMoi] = useState<string>(() => getSavedTinhMoiForScope(entityScope));
+  const [searchTerm, setSearchTerm] = useState<string>(() => getSavedSearchForScope(entityScope));
 
   const isInitialProvinceLoadedRef = useRef(false);
 
@@ -719,28 +733,45 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       prevSavedFiltersJsonRef.current = currentJson;
       setSelectedChannels(getSavedChannelsForScope(entityScope));
       if (uniqueProvinces.length > 0) {
-        // Chỉ cập nhật nếu savedUserFilters có giá trị hợp lệ cho scope này
         let scopeSavedProv: string | undefined;
         if (entityScope === 'topbot') {
           scopeSavedProv = savedUserFilters.revenue_topbot_province;
         } else if (entityScope === 'sieuthimoi') {
-          scopeSavedProv = savedUserFilters.revenue_sieuthimoi_province ?? savedUserFilters.revenueProvince;
+          scopeSavedProv = savedUserFilters.revenue_sieuthimoi_province;
         } else if (entityScope === 'vung') {
-          scopeSavedProv = savedUserFilters.revenue_sieuthi_province ?? savedUserFilters.revenueProvince;
+          scopeSavedProv = savedUserFilters.revenue_sieuthi_province;
         }
 
         if (scopeSavedProv && (scopeSavedProv === 'ALL' || uniqueProvinces.includes(scopeSavedProv))) {
           setSelectedProvince(scopeSavedProv);
         } else if (!uniqueProvinces.includes(selectedProvince)) {
-          // Chỉ fallback về firstProv nếu tỉnh hiện tại không hợp lệ
           setSelectedProvince(getSavedProvinceForScope(entityScope, uniqueProvinces));
         }
       }
+      setSelectedPhanLoaiShop(getSavedSizeForScope(entityScope));
+      setSelectedTinhMoi(getSavedTinhMoiForScope(entityScope));
+
       if (savedUserFilters.revenue_target_config) {
         setTargetConfig(savedUserFilters.revenue_target_config);
       }
     }
   }, [savedUserFilters, entityScope, uniqueProvinces, selectedProvince]);
+
+  // Đồng bộ khi entityScope thay đổi (chuyển tab) để bộ lọc luôn độc lập giữa các tab
+  const prevScopeRef = useRef<EntityScope>(entityScope);
+  useEffect(() => {
+    if (prevScopeRef.current !== entityScope) {
+      prevScopeRef.current = entityScope;
+      setSelectedChannels(getSavedChannelsForScope(entityScope));
+      if (uniqueProvinces.length > 0) {
+        setSelectedProvince(getSavedProvinceForScope(entityScope, uniqueProvinces));
+      }
+      setSelectedPhanLoaiShop(getSavedSizeForScope(entityScope));
+      setSelectedTinhMoi(getSavedTinhMoiForScope(entityScope));
+      setSearchTerm(getSavedSearchForScope(entityScope));
+      setCurrentPage(1);
+    }
+  }, [entityScope, uniqueProvinces]);
 
   const handleChannelsChange = (newChannels: Channel[]) => {
     setSelectedChannels(newChannels);
@@ -767,39 +798,79 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     else if (entityScope === 'sieuthimoi') key = 'revenue_sieuthimoi_province';
     else if (entityScope === 'topbot') key = 'revenue_topbot_province';
 
-    const updates: Record<string, any> = {
-      revenueProvince: newProvince,
-    };
     if (key) {
-      updates[key] = newProvince;
+      onSaveUserFilters?.({ [key]: newProvince });
       try {
         localStorage.setItem(key, newProvince);
         void idbSet(key, newProvince);
       } catch (e) {}
     }
-    try {
-      localStorage.setItem('revenue_selected_province', newProvince);
-      void idbSet('revenue_selected_province', newProvince);
-    } catch (e) {}
+  };
 
-    onSaveUserFilters?.(updates);
-    onSaveRevenueProvince?.(newProvince);
+  const handleSizeChange = (newSize: string) => {
+    setSelectedPhanLoaiShop(newSize);
+    let key = '';
+    if (entityScope === 'vung') key = 'revenue_sieuthi_size';
+    else if (entityScope === 'sieuthimoi') key = 'revenue_sieuthimoi_size';
+    else if (entityScope === 'topbot') key = 'revenue_topbot_size';
+
+    if (key) {
+      onSaveUserFilters?.({ [key]: newSize });
+      try {
+        localStorage.setItem(key, newSize);
+        void idbSet(key, newSize);
+      } catch (e) {}
+    }
+  };
+
+  const handleTinhMoiChange = (newTinhMoi: string) => {
+    setSelectedTinhMoi(newTinhMoi);
+    let key = '';
+    if (entityScope === 'vung') key = 'revenue_sieuthi_tinhmoi';
+    else if (entityScope === 'sieuthimoi') key = 'revenue_sieuthimoi_tinhmoi';
+    else if (entityScope === 'topbot') key = 'revenue_topbot_tinhmoi';
+
+    if (key) {
+      onSaveUserFilters?.({ [key]: newTinhMoi });
+      try {
+        localStorage.setItem(key, newTinhMoi);
+        void idbSet(key, newTinhMoi);
+      } catch (e) {}
+    }
+  };
+
+  const handleSearchChange = (newSearch: string) => {
+    setSearchTerm(newSearch);
+    if (entityScope === 'vung') {
+      try {
+        localStorage.setItem('revenue_sieuthi_search', newSearch);
+      } catch (e) {}
+    } else if (entityScope === 'sieuthimoi') {
+      try {
+        localStorage.setItem('revenue_sieuthimoi_search', newSearch);
+      } catch (e) {}
+    }
   };
 
   const handleTabSwitch = (newScope: EntityScope) => {
     setEntityScope(newScope);
-    // 1. Khôi phục Kênh cho tab mới
+    // Khôi phục 100% độc lập bộ lọc của tab mới
     setSelectedChannels(getSavedChannelsForScope(newScope));
-    // 2. Khôi phục Tỉnh cho tab mới
     setSelectedProvince(getSavedProvinceForScope(newScope, uniqueProvinces));
-    setSelectedTinhMoi('ALL');
-    setSelectedPhanLoaiShop('ALL');
+    setSelectedPhanLoaiShop(getSavedSizeForScope(newScope));
+    setSelectedTinhMoi(getSavedTinhMoiForScope(newScope));
+    setSelectedBoss('ALL');
+    setSearchTerm(getSavedSearchForScope(newScope));
+    setCurrentPage(1);
   };
 
   // Filtered Store Items
   const filteredItems = useMemo(() => {
     return mergedItems.filter((item) => {
+      // 1. Kênh
       if (selectedChannels.length > 0 && !selectedChannels.includes(item.kenh as Channel)) return false;
+
+      // 2. Tỉnh, Boss, Size, Tỉnh mới (chỉ áp dụng nếu scope không phải TỔNG hay VÙNG)
       if (entityScope !== 'tong' && entityScope !== 'sieuthi') {
         if (selectedProvince !== 'ALL' && item.tinh !== selectedProvince) return false;
         if (selectedBoss !== 'ALL' && item.boss !== selectedBoss) return false;
@@ -807,7 +878,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         if (selectedTinhMoi !== 'ALL' && item.tinhMoi !== selectedTinhMoi) return false;
       }
 
-      if (searchTerm) {
+      // 3. Tìm kiếm: chỉ áp dụng khi ở tab SIÊU THỊ hoặc SIÊU THỊ MỚI, KHÔNG áp dụng cho TOP/BOT, TỔNG hay VÙNG
+      if (searchTerm && (entityScope === 'vung' || entityScope === 'sieuthimoi')) {
         const q = searchTerm.toLowerCase().trim();
         const match =
           item.sieuthi.toLowerCase().includes(q) ||
@@ -1808,7 +1880,7 @@ ${botLines || 'Đang cập nhật'}
                   <span className="text-[11px] font-bold text-slate-400 uppercase">SIZE:</span>
                   <select
                     value={selectedPhanLoaiShop}
-                    onChange={(e) => setSelectedPhanLoaiShop(e.target.value)}
+                    onChange={(e) => handleSizeChange(e.target.value)}
                     className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
                   >
                     <option value="ALL">Tất cả</option>
@@ -1823,7 +1895,7 @@ ${botLines || 'Đang cập nhật'}
                   <span className="text-[11px] font-bold text-slate-400 uppercase">TỈNH MỚI:</span>
                   <select
                     value={selectedTinhMoi}
-                    onChange={(e) => setSelectedTinhMoi(e.target.value)}
+                    onChange={(e) => handleTinhMoiChange(e.target.value)}
                     className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs hover:border-slate-300"
                   >
                     <option value="ALL">Tất cả</option>
@@ -1881,7 +1953,7 @@ ${botLines || 'Đang cập nhật'}
                 <input
                   type="text"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Tìm Siêu thị, Tỉnh, Boss..."
                   className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500 w-52 placeholder-slate-400"
                 />

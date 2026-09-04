@@ -243,11 +243,9 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
   canViewDtQdTb = true,
   currentUser,
 }) => {
-  const isUser3717 =
-    currentUser?.accountId === '3717' ||
-    currentUser?.username === '3717' ||
-    currentUser?.username?.toLowerCase().includes('3717') ||
-    currentUser?.accountId?.toLowerCase().includes('3717');
+  // Any Super Admin may see and access the "Doanh thu" feature — was
+  // hardcoded to account 3717 specifically.
+  const isUser3717 = currentUser?.role === 'super_admin';
 
   const bookmarkletRef = useRef<HTMLAnchorElement>(null);
 
@@ -325,45 +323,38 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     }
 
     setProcessingState({
-      title: `ĐANG LƯU TRỮ ${title.toUpperCase()}`,
-      stepText: `📊 2. Đã đọc thành công ${parsed.length} dòng dữ liệu ${title}...`,
-      progress: 75,
+      title: `ĐANG ĐỒNG BỘ LÊN FIREBASE`,
+      stepText: `☁️ 2. Đang lưu ${parsed.length} dòng ${title} lên Firebase Database...`,
+      progress: 85,
     });
 
-    setParsed(parsed);
-    let nowStr = getFormattedNow();
-    const timeMatch = text.match(/Cập nhật lúc:\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
-    if (timeMatch) {
-      nowStr = `${timeMatch[1]} NGÀY ${timeMatch[2]}`;
-    }
-    setLastUpdated(nowStr);
+    const nowStr = getFormattedNow();
 
     if (isRealtime && dataType === 'doanhthu') {
-      onUpdateRealtimeDt?.(parsed, nowStr);
+      await onUpdateRealtimeDt?.(parsed, nowStr);
       // Tự động đồng bộ Trả Chậm từ báo cáo Doanh Thu Hợp Nhất mới
-      onUpdateRealtimeTc?.(parsed, nowStr);
+      await onUpdateRealtimeTc?.(parsed, nowStr);
       setParsedRealtimeTc(parsed);
       setLastUpdateRealtimeTc(nowStr);
-    }
-    if (isRealtime && dataType === 'tracham') onUpdateRealtimeTc?.(parsed, nowStr);
-    if (!isRealtime && dataType === 'doanhthu') {
-      onUpdateLuyKeDt?.(parsed, nowStr);
+    } else if (isRealtime && dataType === 'tracham') {
+      await onUpdateRealtimeTc?.(parsed, nowStr);
+    } else if (!isRealtime && dataType === 'doanhthu') {
+      await onUpdateLuyKeDt?.(parsed, nowStr);
       // Tự động đồng bộ Trả Chậm từ báo cáo Doanh Thu Hợp Nhất mới
-      onUpdateLuyKeTc?.(parsed, nowStr);
+      await onUpdateLuyKeTc?.(parsed, nowStr);
       setParsedLuyKeTc(parsed);
       setLastUpdateLuyKeTc(nowStr);
+    } else if (!isRealtime && dataType === 'tracham') {
+      await onUpdateLuyKeTc?.(parsed, nowStr);
     }
-    if (!isRealtime && dataType === 'tracham') onUpdateLuyKeTc?.(parsed, nowStr);
-
-    await new Promise((r) => setTimeout(r, 30));
 
     setProcessingState({
       title: `HOÀN TẤT ĐỒNG BỘ`,
-      stepText: `✨ 3. Đã lưu thành công ${parsed.length} dòng ${title}!`,
+      stepText: `✨ 3. Đã lưu & đồng bộ thành công ${parsed.length} dòng ${title} lên Firebase!`,
       progress: 100,
     });
 
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 300));
     setProcessingState(null);
   };
 
@@ -1349,7 +1340,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                <span>CẬP NHẬT THI ĐUA TỈNH &amp; SIÊU THỊ TỪ BI</span>
+                <span>CẬP NHẬT THI ĐUA</span>
               </h2>
               <p className="text-xs text-slate-500 font-medium">
                 Mở khóa để dán dữ liệu Ctrl+V =&gt; Hệ thống tự động phân tích, đồng bộ &amp; tính điểm thi đua
@@ -1560,7 +1551,7 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
             </div>
             <div>
               <h2 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
-                <span>CẬP NHẬT DOANH THU &amp; TRẢ CHẬM TỪ BI</span>
+                <span>CẬP NHẬT DOANH THU</span>
               </h2>
               <p className="text-xs text-slate-500 font-medium">
                 Mở khóa để dán dữ liệu Ctrl+V =&gt; Hệ thống tự động phân tích và lưu trữ dữ liệu doanh thu

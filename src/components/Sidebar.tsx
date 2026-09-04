@@ -40,12 +40,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsCollapsed,
 }) => {
   const isSuperAdmin = currentUser?.role === 'super_admin' || currentUser?.accountId === '3717';
-  // Only account 3717 may see and access the "Doanh thu" feature
-  const isUser3717 =
-    currentUser?.accountId === '3717' ||
-    currentUser?.username === '3717' ||
-    currentUser?.username?.toLowerCase().includes('3717') ||
-    currentUser?.accountId?.toLowerCase().includes('3717');
+  // Any Super Admin may see and access the "Doanh thu" feature — was
+  // hardcoded to account 3717 specifically.
+  const isUser3717 = currentUser?.role === 'super_admin';
 
   // Only Super Admin / Admin may paste & sync new data — Editor/Viewer never
   // see the "Cập nhật" menu at all (data flows one way: they only view what
