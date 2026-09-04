@@ -2861,10 +2861,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
               <thead>
                 {/* Group Band Headers */}
                 <tr>
-                  <th colSpan={2} className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
-                    TỈNH
-                  </th>
-                  <th data-quick-hide="1" className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
+                  <th colSpan={3} data-quick-colspan="2" className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
                     TỈNH
                   </th>
                   <th data-quick-hide="1" colSpan={2} className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">

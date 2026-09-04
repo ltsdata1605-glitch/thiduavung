@@ -483,6 +483,12 @@ export async function exportElementAsImage(
   // Xuất nhanh: strip all columns marked with data-quick-hide
   if (quickHideColumns) {
     clone.querySelectorAll<HTMLElement>('[data-quick-hide]').forEach((el) => el.remove());
+    // Adjust colSpan for cells that have a data-quick-colspan override
+    clone.querySelectorAll<HTMLElement>('[data-quick-colspan]').forEach((el) => {
+      const newSpan = parseInt(el.getAttribute('data-quick-colspan') || '1', 10);
+      el.setAttribute('colspan', String(newSpan));
+      el.removeAttribute('data-quick-colspan');
+    });
     // Fix colSpan on remaining header cells after removing quick-hide columns
     clone.querySelectorAll<HTMLElement>('thead tr').forEach((tr) => {
       if (tr.children.length === 0) tr.remove();
