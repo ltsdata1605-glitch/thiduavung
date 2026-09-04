@@ -1210,9 +1210,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     const hasDmx = selectedChannels.some((c) => ['DML', 'DMM', 'DMS'].includes(c));
     const hasTgd = selectedChannels.some((c) => ['TGD', 'TopZone'].includes(c));
     let channelLabel = 'TNB';
-    if (hasDmx && !hasTgd) channelLabel = 'TNB_ĐMX';
+    if (hasDmx && !hasTgd) channelLabel = 'TNB';
     else if (!hasDmx && hasTgd) channelLabel = 'TNB_TGD';
-    else channelLabel = 'TNB_ĐMX';
+    else channelLabel = 'TNB';
 
     const modeLabel = timeMode === 'realtime' ? 'DTQĐ NGÀY' : 'DTQĐ THÁNG';
     return `${channelLabel} - ${modeLabel}`;
@@ -1221,9 +1221,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   const summaryChannelLabel = useMemo(() => {
     const hasDmx = selectedChannels.some((c) => ['DML', 'DMM', 'DMS'].includes(c));
     const hasTgd = selectedChannels.some((c) => ['TGD', 'TopZone'].includes(c));
-    if (hasDmx && !hasTgd) return 'KÊNH ĐMX';
+    if (hasDmx && !hasTgd) return 'TỔNG';
     if (!hasDmx && hasTgd) return 'KÊNH TGD';
-    return 'KÊNH ĐMX';
+    return 'TỔNG';
   }, [selectedChannels]);
 
   const currentProvinceTitle = useMemo(() => {
@@ -2415,7 +2415,7 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   {selectedChannels.length === 1
                     ? (selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0] === 'TGD' ? 'TGD' : 'TOPZONE')
                     : selectedChannels.length === 5
-                    ? 'KÊNH ĐMX'
+                    ? 'TỔNG'
                     : selectedChannels.map((c) => (c === 'DML' ? 'ĐML' : c === 'DMM' ? 'ĐMM' : c === 'DMS' ? 'ĐMS' : c === 'TGD' ? 'TGD' : 'TOPZONE')).join(', ')}
                 </h1>
               </div>
