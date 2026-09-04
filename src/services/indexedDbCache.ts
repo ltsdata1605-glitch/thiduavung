@@ -75,3 +75,17 @@ export async function idbSet(key: string, value: unknown): Promise<void> {
     console.warn(`IndexedDB set('${key}') failed:`, e);
   }
 }
+
+export async function idbDelete(key: string): Promise<void> {
+  try {
+    const idb = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = idb.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn(`IndexedDB delete('${key}') failed:`, e);
+  }
+}

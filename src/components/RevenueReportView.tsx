@@ -280,26 +280,54 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   // Helper lấy từ khoá tìm kiếm cho từng tab
   const getSavedSearchForScope = (scope: EntityScope): string => {
     if (scope === 'vung') {
-      return localStorage.getItem('revenue_sieuthi_search') ?? '';
+      return savedUserFilters?.revenue_sieuthi_search ?? localStorage.getItem('revenue_sieuthi_search') ?? '';
     }
     if (scope === 'sieuthimoi') {
-      return localStorage.getItem('revenue_sieuthimoi_search') ?? '';
+      return savedUserFilters?.revenue_sieuthimoi_search ?? localStorage.getItem('revenue_sieuthimoi_search') ?? '';
     }
     return '';
   };
 
   // Target Configuration (Mặc định vs CK Năm, và Hệ số %)
-  const [targetConfig, setTargetConfig] = usePersistedState<TargetConfig>('tnb_revenue_target_config', {
-    mode: 'default',
-    heSo: 100,
+  // Ưu tiên: 1. Firebase user filters (savedUserFilters.revenue_target_config)
+  //          2. IndexedDB / LocalStorage theo accountId
+  //          3. Mặc định { mode: 'default', heSo: 100 }
+  const [targetConfig, setTargetConfig] = useState<TargetConfig>(() => {
+    if (savedUserFilters?.revenue_target_config) {
+      return savedUserFilters.revenue_target_config;
+    }
+    try {
+      const userKey = currentUser?.accountId ? `tnb_${currentUser.accountId}_revenue_target_config` : null;
+      const raw = (userKey && localStorage.getItem(userKey)) || localStorage.getItem('tnb_revenue_target_config');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { mode: 'default', heSo: 100 };
   });
 
-  // Đồng bộ cấu hình target từ userFilters nếu có lưu
+  // Đồng bộ cấu hình target từ Firebase (savedUserFilters) hoặc IndexedDB khi đổi user / tải trang
   useEffect(() => {
     if (savedUserFilters?.revenue_target_config) {
       setTargetConfig(savedUserFilters.revenue_target_config);
+      return;
     }
-  }, [savedUserFilters?.revenue_target_config]);
+    let cancelled = false;
+    (async () => {
+      if (currentUser?.accountId) {
+        const idbVal = await idbGet<TargetConfig>(`tnb_${currentUser.accountId}_revenue_target_config`);
+        if (!cancelled && idbVal) {
+          setTargetConfig(idbVal);
+          return;
+        }
+      }
+      const globalIdb = await idbGet<TargetConfig>('tnb_revenue_target_config');
+      if (!cancelled && globalIdb) {
+        setTargetConfig(globalIdb);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.accountId, savedUserFilters?.revenue_target_config]);
 
   const [isTargetConfigModalOpen, setIsTargetConfigModalOpen] = useState(false);
   const [tempTargetConfig, setTempTargetConfig] = useState<TargetConfig>(targetConfig);
@@ -848,10 +876,14 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
   const handleSearchChange = (newSearch: string) => {
     setSearchTerm(newSearch);
     if (entityScope === 'vung') {
+      onSaveUserFilters?.({ revenue_sieuthi_search: newSearch });
+      void idbSet('revenue_sieuthi_search', newSearch);
       try {
         localStorage.setItem('revenue_sieuthi_search', newSearch);
       } catch (e) {}
     } else if (entityScope === 'sieuthimoi') {
+      onSaveUserFilters?.({ revenue_sieuthimoi_search: newSearch });
+      void idbSet('revenue_sieuthimoi_search', newSearch);
       try {
         localStorage.setItem('revenue_sieuthimoi_search', newSearch);
       } catch (e) {}
@@ -3566,7 +3598,20 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   onClick={() => {
                     setTargetConfig(tempTargetConfig);
                     setIsTargetConfigModalOpen(false);
+                    // 1. Lưu vào Firebase qua onSaveUserFilters (Firestore user_filters[accountId])
                     onSaveUserFilters?.({ revenue_target_config: tempTargetConfig });
+                    // 2. Lưu trực tiếp vào IndexedDB theo accountId & fallback key
+                    if (currentUser?.accountId) {
+                      void idbSet(`tnb_${currentUser.accountId}_revenue_target_config`, tempTargetConfig);
+                    }
+                    void idbSet('tnb_revenue_target_config', tempTargetConfig);
+                    // 3. Dự phòng localStorage
+                    try {
+                      if (currentUser?.accountId) {
+                        localStorage.setItem(`tnb_${currentUser.accountId}_revenue_target_config`, JSON.stringify(tempTargetConfig));
+                      }
+                      localStorage.setItem('tnb_revenue_target_config', JSON.stringify(tempTargetConfig));
+                    } catch (e) {}
                   }}
                   className="px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >

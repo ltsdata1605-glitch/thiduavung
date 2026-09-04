@@ -320,9 +320,18 @@ const CACHE_FIELDS: (keyof FirebaseDataPayload)[] = [
   'updatedBy',
 ];
 
-// revenueCungKy (hàng chục nghìn dòng) chỉ đi IndexedDB, không bao giờ vào
-// localStorage — giữ nguyên quyết định cũ, nay áp dụng qua danh sách này.
-const IDB_ONLY_FIELDS = new Set<keyof FirebaseDataPayload>(['revenueCungKy']);
+// Dữ liệu lớn (hàng nghìn / chục nghìn dòng) chỉ đi IndexedDB + Firebase,
+// không bao giờ vào localStorage để tránh tràn quota 5MB của trình duyệt.
+const IDB_ONLY_FIELDS = new Set<keyof FirebaseDataPayload>([
+  'revenueCungKy',
+  'realtimeStoresVung',
+  'luykeStoresVung',
+  'realtimeDtStores',
+  'realtimeTcStores',
+  'luykeDtStores',
+  'luykeTcStores',
+  'bossAssignments',
+]);
 
 function localCacheKeyFor(field: keyof FirebaseDataPayload): string {
   return `tnb_c_${field}`;

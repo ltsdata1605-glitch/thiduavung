@@ -26,7 +26,7 @@ import { CloudSyncModal } from './components/CloudSyncModal';
 import { ExportLoadingModal } from './components/ExportLoadingModal';
 import { ExportSuccessModal } from './components/ExportSuccessModal';
 import { RefreshCw, AlertTriangle, CheckCircle2, X } from 'lucide-react';
-import { getCurrentSession, logoutUser } from './services/authService';
+import { getCurrentSession, getCurrentSessionAsync, logoutUser } from './services/authService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './services/firebase';
 import {
@@ -1025,6 +1025,33 @@ function AppInner() {
       if (!cachedData.luykeStoresVung?.length && idbCache.luykeStoresVung?.length) {
         setLuyKeStoresVung(idbCache.luykeStoresVung);
       }
+      if (!cachedData.realtimeDtStores?.length && idbCache.realtimeDtStores?.length) {
+        setRealtimeDtStores(idbCache.realtimeDtStores);
+      }
+      if (!cachedData.realtimeTcStores?.length && idbCache.realtimeTcStores?.length) {
+        setRealtimeTcStores(idbCache.realtimeTcStores);
+      }
+      if (!cachedData.luykeDtStores?.length && idbCache.luykeDtStores?.length) {
+        setLuyKeDtStores(idbCache.luykeDtStores);
+      }
+      if (!cachedData.luykeTcStores?.length && idbCache.luykeTcStores?.length) {
+        setLuyKeTcStores(idbCache.luykeTcStores);
+      }
+      if (!cachedData.lastUpdateRealtimeDt && idbCache.lastUpdateRealtimeDt) {
+        setLastUpdateRealtimeDt(idbCache.lastUpdateRealtimeDt);
+      }
+      if (!cachedData.lastUpdateRealtimeTc && idbCache.lastUpdateRealtimeTc) {
+        setLastUpdateRealtimeTc(idbCache.lastUpdateRealtimeTc);
+      }
+      if (!cachedData.lastUpdateLuyKeDt && idbCache.lastUpdateLuyKeDt) {
+        setLastUpdateLuyKeDt(idbCache.lastUpdateLuyKeDt);
+      }
+      if (!cachedData.lastUpdateLuyKeTc && idbCache.lastUpdateLuyKeTc) {
+        setLastUpdateLuyKeTc(idbCache.lastUpdateLuyKeTc);
+      }
+      if (!cachedData.lastUpdateRevenueCungKy && idbCache.lastUpdateRevenueCungKy) {
+        setLastUpdateRevenueCungKy(idbCache.lastUpdateRevenueCungKy);
+      }
       if (!cachedData.bossAssignments?.length && idbCache.bossAssignments?.length) {
         setBossAssignments(idbCache.bossAssignments);
       }
@@ -1051,6 +1078,10 @@ function AppInner() {
       }
       if (!cachedData.categoryHiddenMap && idbCache.categoryHiddenMap) {
         setCategoryHiddenMap(idbCache.categoryHiddenMap);
+      }
+      if (!currentUser) {
+        const idbUser = await getCurrentSessionAsync();
+        if (idbUser) setCurrentUser(idbUser);
       }
     })();
   }, []);

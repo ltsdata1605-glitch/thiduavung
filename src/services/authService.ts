@@ -7,7 +7,7 @@ import {
   updatePassword,
 } from 'firebase/auth';
 import { UserAccount } from '../types';
-import { idbGet, idbSet } from './indexedDbCache';
+import { idbGet, idbSet, idbDelete } from './indexedDbCache';
 
 const USERS_COLLECTION = 'users';
 const CURRENT_USER_KEY = 'tnb_authenticated_user';
@@ -589,7 +589,10 @@ export function saveSession(user: UserAccount) {
   const safeUser = { ...user };
   delete safeUser.password;
   delete (safeUser as any).passwordHash;
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(safeUser));
+  try {
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(safeUser));
+  } catch (e) {}
+  void idbSet(CURRENT_USER_KEY, safeUser);
 }
 
 export function getCurrentSession(): UserAccount | null {
@@ -602,8 +605,26 @@ export function getCurrentSession(): UserAccount | null {
   }
 }
 
+export async function getCurrentSessionAsync(): Promise<UserAccount | null> {
+  const syncSession = getCurrentSession();
+  if (syncSession) return syncSession;
+  try {
+    const idbSession = await idbGet<UserAccount>(CURRENT_USER_KEY);
+    if (idbSession) {
+      try {
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(idbSession));
+      } catch (e) {}
+      return idbSession;
+    }
+  } catch (e) {}
+  return null;
+}
+
 export function logoutUser() {
-  localStorage.removeItem(CURRENT_USER_KEY);
+  try {
+    localStorage.removeItem(CURRENT_USER_KEY);
+  } catch (e) {}
+  void idbDelete(CURRENT_USER_KEY);
   if (auth) {
     signOut(auth).catch(() => {});
   }
