@@ -664,18 +664,33 @@ export const ReportView: React.FC<ReportViewProps> = ({
     const byMst = new Map<string, BossAssignmentRecord>();
     const byCode = new Map<string, BossAssignmentRecord>();
     const byNormName = new Map<string, BossAssignmentRecord>();
+    const codeOwnerNormName = new Map<string, string>();
+    const ambiguousCodes = new Set<string>();
 
     bossAssignments.forEach((b) => {
       if (b.mst) byMst.set(b.mst.trim(), b);
       const mstFromSieuthi = extractMst(b.sieuthi);
       if (mstFromSieuthi) byMst.set(mstFromSieuthi, b);
 
-      const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '');
-      if (code) byCode.set(code, b);
+      const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '') || extractStoreCode(b.sieuthiNgan || '');
+      if (code) {
+        const normB = normalizeVietnameseForMatch(b.sieuthi);
+        const ownerNormName = codeOwnerNormName.get(code);
+        if (!ownerNormName) {
+          codeOwnerNormName.set(code, normB);
+          byCode.set(code, b);
+        } else if (ownerNormName !== normB) {
+          ambiguousCodes.add(code);
+        }
+      }
 
       if (b.sieuthi) byNormName.set(normalizeVietnameseForMatch(b.sieuthi), b);
       if (b.sieuthiBase) byNormName.set(normalizeVietnameseForMatch(b.sieuthiBase), b);
+      if (b.sieuthiNgan) byNormName.set(normalizeVietnameseForMatch(b.sieuthiNgan), b);
     });
+
+    // Remove ambiguous codes that map to multiple different stores
+    ambiguousCodes.forEach((code) => byCode.delete(code));
 
     return { byMst, byCode, byNormName };
   }, [bossAssignments]);
