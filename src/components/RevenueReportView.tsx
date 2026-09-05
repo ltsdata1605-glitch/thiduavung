@@ -85,6 +85,8 @@ export function getChannelBadgeStyle(kenh: string): string {
 export interface RevenueRecordItem {
   stt: number;
   id: string;
+  storeCode?: string;
+  mst?: string;
   tinh: string;
   sieuthi: string;
   boss: string;
@@ -661,6 +663,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       items.push({
         stt: idx + 1,
         id: dt.id || `DT_${idx}`,
+        storeCode,
+        mst: mst || '',
         tinh: dt.tinh || 'Khác',
         sieuthi: dt.sieuthi,
         boss: effectiveBoss,
@@ -691,10 +695,14 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const targetTc = tc.target || 0;
         const achievedTc = tc.achieved || 0;
         const rateTc = tc.rate ?? (targetTc > 0 ? (achievedTc / targetTc) * 100 : 0);
+        const tcCode = extractStoreCode(tc.sieuthi);
+        const tcMst = extractMst(tc.sieuthi);
 
         items.push({
           stt: items.length + 1,
           id: tc.id || `TC_${items.length}`,
+          storeCode: tcMst || tcCode || tc.id || '',
+          mst: tcMst || '',
           tinh: tc.tinh || 'Khác',
           sieuthi: tc.sieuthi,
           boss: effectiveBoss,

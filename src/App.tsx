@@ -496,6 +496,9 @@ function AppInner() {
   const [revenueCungKy, setRevenueCungKy] = useState<RevenueCungKyRecord[]>(
     () => (cachedData.revenueCungKy?.length ? cachedData.revenueCungKy : [])
   );
+  const [lastUpdateRevenueCungKy, setLastUpdateRevenueCungKy] = useState<string>(
+    () => cachedData.lastUpdateRevenueCungKy || ''
+  );
 
   // Settings (global, shared by every account) & User Profile (per-account
   // display info — name/title/region/avatar shown in the header). All
@@ -854,6 +857,9 @@ function AppInner() {
             }
             if (payload.revenueCungKy && payload.revenueCungKy.length > 0) {
               setRevenueCungKy(payload.revenueCungKy);
+            }
+            if (payload.lastUpdateRevenueCungKy) {
+              setLastUpdateRevenueCungKy(payload.lastUpdateRevenueCungKy);
             }
             if (payload.settings) {
               setSettings((prev) => ({ ...prev, ...payload.settings }));
