@@ -1668,7 +1668,9 @@ ${allProvinceLines || 'Đang cập nhật'}
       const topLines = topProvinces
         .map((p, idx) => {
           const prefix = `${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🔹'} #${idx + 1}`;
-          return `${prefix}. Tỉnh ${p.tinh}: ${formatVND(p.achievedDt)} / ${formatVND(p.targetDt)} (${p.rateDt}%) | TC: ${formatVND(p.achievedTc)} (${p.tcRatio}%)`;
+          const projRate = thoiGianSdPercent > 0 ? p.rateDt / (thoiGianSdPercent / 100) : p.rateDt;
+          const tinhName = p.tinh.startsWith('Tỉnh ') ? p.tinh : `Tỉnh ${p.tinh}`;
+          return `${prefix}. ${tinhName}: DKHT: ${projRate.toFixed(1)}% | TC: ${p.tcRatio.toFixed(1)}%`;
         })
         .join('\n');
 
@@ -1676,7 +1678,9 @@ ${allProvinceLines || 'Đang cập nhật'}
         .map((p, idx) => {
           const rank = totalProvincesCount - idx;
           const prefix = `🔻 #${rank}`;
-          return `${prefix}. Tỉnh ${p.tinh}: ${formatVND(p.achievedDt)} / ${formatVND(p.targetDt)} (${p.rateDt}%) | TC: ${formatVND(p.achievedTc)} (${p.tcRatio}%)`;
+          const projRate = thoiGianSdPercent > 0 ? p.rateDt / (thoiGianSdPercent / 100) : p.rateDt;
+          const tinhName = p.tinh.startsWith('Tỉnh ') ? p.tinh : `Tỉnh ${p.tinh}`;
+          return `${prefix}. ${tinhName}: DKHT: ${projRate.toFixed(1)}% | TC: ${p.tcRatio.toFixed(1)}%`;
         })
         .join('\n');
 
