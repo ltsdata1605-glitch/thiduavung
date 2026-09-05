@@ -37,6 +37,11 @@ export interface StoreRecord {
   stt: number;
   id: string;
   tinh: string;
+  tinhMoi?: string;      // TỈNH MỚI 2026 — đồng bộ từ file BOSS
+  phanLoaiShop?: string; // PHÂN LOẠI SHOP — đồng bộ từ file BOSS
+  storeCode?: string;    // Mã kho, tách từ tên siêu thị trong file BOSS
+  mst?: string;          // Mã số thuế / mã kho gốc trong file BOSS
+  dtQdTb?: number;       // DTQĐ trung bình tham chiếu từ file BOSS
   boss: string;
   kenh: Channel | string;
   sieuthi: string;

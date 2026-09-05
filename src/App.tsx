@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount, RevenueCungKyRecord } from './types';
 import { getBossForStore, findBossAssignmentRecord, BossAssignmentRecord, enrichStoreWithBossAssignments, getProvinceForStore } from './utils/parser';
+import { initialUserProfile, initialSettings } from './data/sampleData';
 import { Sidebar } from './components/Sidebar';
 import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
@@ -419,6 +420,16 @@ function AppInner() {
     setValueDisplayMode(getSavedReportValueDisplayMode(newScope, currentSavedFilters));
   };
 
+  // BOSS assignment list, hydrated from local cache first. Declared BEFORE
+  // activeStores/provinceList below: those are useMemo calls whose dependency
+  // arrays name bossAssignments and are evaluated during render, so a
+  // declaration placed after them is a temporal-dead-zone crash
+  // ("Cannot access 'bossAssignments' before initialization"), not just a
+  // staleness bug.
+  const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
+    cachedData.bossAssignments?.length ? cachedData.bossAssignments : []
+  );
+
   // Stores Data
   const [realtimeStoresVung, setRealtimeStoresVung] = useState<StoreRecord[]>(cachedData.realtimeStoresVung?.length ? cachedData.realtimeStoresVung : []);
   const [luykeStoresVung, setLuyKeStoresVung] = useState<StoreRecord[]>(cachedData.luykeStoresVung?.length ? cachedData.luykeStoresVung : []);
@@ -486,11 +497,6 @@ function AppInner() {
   );
   const [lastUpdateLuyKeTc, setLastUpdateLuyKeTc] = useState<string>(
     () => cachedData.lastUpdateLuyKeTc || readLegacyPersisted('tnb_last_update_luyke_tc', '')
-  );
-
-  // BOSS assignment list, hydrated from local cache first
-  const [bossAssignments, setBossAssignments] = useState<BossAssignmentRecord[]>(
-    cachedData.bossAssignments?.length ? cachedData.bossAssignments : []
   );
 
   // Revenue Cùng Kỳ Năm list, hydrated from local cache first
