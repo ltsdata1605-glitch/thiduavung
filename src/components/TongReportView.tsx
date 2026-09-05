@@ -122,18 +122,12 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
   };
 
   // 3. Extract all unique category names (excluding hidden ones).
-  // Always includes the 38 canonical ngành hàng (DEFAULT_CATEGORY_GROUP_MAP
-  // — a fixed constant, unlike the user-editable categoryGroupMap prop) plus
-  // whatever the currently loaded stores actually carry. Deliberately does
-  // NOT union Object.keys(categoryGroupMap) — that state accumulates every
-  // category ever group-assigned (e.g. old BI-numeric-prefixed keys from a
-  // prior paste format) and never prunes stale ones, which used to leave
-  // always-0% zombie columns for categories no store's categoryMap matches anymore.
+  // 3. Extract all unique category names (excluding hidden ones).
+  // Matches tab "Siêu thị": only extract category names that actually have data
+  // in the currently loaded stores (liveCategoryNames). Falls back to
+  // DEFAULT_CATEGORY_GROUP_MAP only if no store has category data loaded yet.
   const allCategoryNames = useMemo(() => {
     const set = new Set<string>();
-    Object.keys(DEFAULT_CATEGORY_GROUP_MAP).forEach((c) => {
-      if (!isHiddenCat(c)) set.add(c);
-    });
     stores.forEach((s) => {
       if (s.categoryMap) {
         Object.keys(s.categoryMap).forEach((c) => {
@@ -141,6 +135,12 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
         });
       }
     });
+    // Fallback only if no store has category data loaded yet
+    if (set.size === 0) {
+      Object.keys(DEFAULT_CATEGORY_GROUP_MAP).forEach((c) => {
+        if (!isHiddenCat(c)) set.add(c);
+      });
+    }
     return Array.from(set);
   }, [stores, categoryHiddenMap]);
 
@@ -188,60 +188,62 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
         (cat) => getCategoryGroup(cat, categoryGroupMap) === groupName
       );
 
-      const items: CategoryItemMetric[] = catsInGroup.map((catName) => {
-        let totalTarget = 0;
-        let totalAchieved = 0;
-        let rateSum = 0;
-        let count = 0;
+      const items: CategoryItemMetric[] = catsInGroup
+        .map((catName) => {
+          let totalTarget = 0;
+          let totalAchieved = 0;
+          let rateSum = 0;
+          let count = 0;
 
-        targetStores.forEach((s) => {
-          const data = getCategoryData(s, catName);
-          if (data.target > 0 || data.achieved > 0 || data.rate > 0) {
-            totalTarget += data.target;
-            totalAchieved += data.achieved;
-            rateSum += data.rate || 0;
-            count += 1;
-          }
-        });
+          targetStores.forEach((s) => {
+            const data = getCategoryData(s, catName);
+            if (data.target > 0 || data.achieved > 0 || data.rate > 0) {
+              totalTarget += data.target;
+              totalAchieved += data.achieved;
+              rateSum += data.rate || 0;
+              count += 1;
+            }
+          });
 
-        // Realtime: DT Realtime / Target Ngày (target already = LK Target / daysInMonth)
-        //   → totalAchieved / totalTarget * 100
-        // Luỹ Kế: ((DTLK / daysElapsed) * daysInMonth) / Target LK * 100
-        //   → projects full-month achievement from accumulated data
-        let rate: number;
-        if (timeMode === 'realtime') {
-          rate = totalTarget > 0
-            ? Math.round((totalAchieved / totalTarget) * 100)
-            : count > 0
-            ? Math.round(rateSum / count)
-            : 0;
-        } else {
-          // Luỹ Kế mode
-          const dim = propDaysInMonth || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-          const de = propDaysElapsed || new Date().getDate();
-          if (totalTarget > 0 && de > 0) {
-            const projectedAchieved = (totalAchieved / de) * dim;
-            rate = Math.round((projectedAchieved / totalTarget) * 100);
-          } else if (count > 0) {
-            rate = Math.round(rateSum / count);
+          // Realtime: DT Realtime / Target Ngày (target already = LK Target / daysInMonth)
+          //   → totalAchieved / totalTarget * 100
+          // Luỹ Kế: ((DTLK / daysElapsed) * daysInMonth) / Target LK * 100
+          //   → projects full-month achievement from accumulated data
+          let rate: number;
+          if (timeMode === 'realtime') {
+            rate = totalTarget > 0
+              ? Math.round((totalAchieved / totalTarget) * 100)
+              : count > 0
+              ? Math.round(rateSum / count)
+              : 0;
           } else {
-            rate = 0;
+            // Luỹ Kế mode
+            const dim = propDaysInMonth || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+            const de = propDaysElapsed || new Date().getDate();
+            if (totalTarget > 0 && de > 0) {
+              const projectedAchieved = (totalAchieved / de) * dim;
+              rate = Math.round((projectedAchieved / totalTarget) * 100);
+            } else if (count > 0) {
+              rate = Math.round(rateSum / count);
+            } else {
+              rate = 0;
+            }
           }
-        }
 
-        const hasActivity = totalTarget > 0 || totalAchieved > 0 || count > 0 || rate > 0;
-        const displayName = resolveCategoryDisplayName(catName, categoryDisplayNameMap);
+          const hasActivity = totalTarget > 0 || totalAchieved > 0 || count > 0 || rate > 0;
+          const displayName = resolveCategoryDisplayName(catName, categoryDisplayNameMap);
 
-        return {
-          catName,
-          displayName,
-          group: groupName,
-          totalTarget,
-          totalAchieved,
-          rate,
-          hasActivity,
-        };
-      });
+          return {
+            catName,
+            displayName,
+            group: groupName,
+            totalTarget,
+            totalAchieved,
+            rate,
+            hasActivity,
+          };
+        })
+        .filter((item) => item.hasActivity);
 
       // Sort items within group strictly descending by rate
       items.sort((a, b) => {
@@ -253,20 +255,21 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
       const achievedCount = items.filter((item) => item.rate >= 100).length;
 
       // Active items count (denominator)
-      const activeCount = items.filter((item) => item.hasActivity).length;
-      const totalCount = activeCount > 0 ? activeCount : items.length;
+      const totalCount = items.length;
       const ratePercent = totalCount > 0 ? Math.round((achievedCount / totalCount) * 100) : 0;
 
-      grandAchieved += achievedCount;
-      grandTotal += totalCount;
+      if (items.length > 0) {
+        grandAchieved += achievedCount;
+        grandTotal += totalCount;
 
-      sections.push({
-        groupName: isCe(groupName) ? 'C.E & GD' : groupName,
-        items,
-        achievedCount,
-        totalCount,
-        ratePercent,
-      });
+        sections.push({
+          groupName: isCe(groupName) ? 'C.E & GD' : groupName,
+          items,
+          achievedCount,
+          totalCount,
+          ratePercent,
+        });
+      }
     });
 
     const totalRate = grandTotal > 0 ? Math.round((grandAchieved / grandTotal) * 100) : 0;
