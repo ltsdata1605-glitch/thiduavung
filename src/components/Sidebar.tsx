@@ -52,7 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuItems = [
     {
       id: 'report' as ViewTab,
-      label: 'Report',
+      label: 'Thi đua',
       subLabel: 'Báo cáo & Thi đua',
       icon: BarChart3,
       badge: 'HOT',
