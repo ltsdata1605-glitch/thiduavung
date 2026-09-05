@@ -63,8 +63,25 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
 
-  // Template configuration state
-  const [config, setConfig] = useState<RemarkTemplateConfig>(() => getLocalRemarkConfig(currentUser?.accountId));
+  // Template configuration state.
+  //
+  // displayMode luôn khởi tạo là "Bỏ Tag TOP" chứ không lấy theo cấu hình đã
+  // lưu: modal này chỉ hiện SAU KHI xuất ảnh, mà văn bản tự động chép lúc xuất
+  // ảnh luôn ở chế độ "Bỏ Tag TOP" (xem EXPORT_REMARK_DISPLAY_MODE ở App.tsx).
+  // Nếu để theo cấu hình đã lưu (mặc định 'user') thì phần nhận xét hiển thị
+  // và nút COPY NHẬN XÉT ở đây lại ra bản có @tag TOP — lệch với ảnh vừa xuất.
+  // Người dùng vẫn đổi được sang mẫu khác trong phần cài đặt ngay bên dưới.
+  const [config, setConfig] = useState<RemarkTemplateConfig>(() => ({
+    ...getLocalRemarkConfig(currentUser?.accountId),
+    displayMode: 'no_tag_top',
+  }));
+
+  // Mỗi lần mở lại modal đều đưa về "Bỏ Tag TOP", kể cả khi lần trước người
+  // dùng đã đổi sang mẫu khác.
+  useEffect(() => {
+    if (!isOpen) return;
+    setConfig((prev) => (prev.displayMode === 'no_tag_top' ? prev : { ...prev, displayMode: 'no_tag_top' }));
+  }, [isOpen]);
 
   // Compute active remark text based on config & context
   const activeRemarkText = useMemo(() => {

@@ -1002,6 +1002,10 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                     isExcludedChannel,
                     daysInMonth,
                     daysElapsed,
+                    // Xuất ảnh thì LUÔN "Bỏ Tag TOP". Thiếu dòng này thì hàm
+                    // rơi về giá trị mặc định của tham số là 'user' và phần
+                    // TOP bị @tag từng người — đúng lỗi đã gặp.
+                    remarkDisplayMode: 'no_tag_top',
                   });
                   handleExportCard('nhom-card-province-detail', `Chi_Tiet_${selectedProvinceCard}_${activeCategory}.png`, remarkText);
                 }}
@@ -1177,6 +1181,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
 
               <button
                 onClick={() => {
+                  // botCount vẫn lấy theo cấu hình người dùng đã lưu, riêng
+                  // displayMode thì xuất ảnh luôn là "Bỏ Tag TOP".
                   const savedRemarkConfig = getLocalRemarkConfig(accountId);
                   const remarkText = generateTopBotRemarksText({
                     provinceScope: selectedProvinceCard3,
@@ -1191,7 +1197,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                     isExcludedChannel,
                     daysInMonth,
                     daysElapsed,
-                    remarkDisplayMode: savedRemarkConfig.displayMode,
+                    remarkDisplayMode: 'no_tag_top',
                     botCount: savedRemarkConfig.botCount,
                   });
                   handleExportCard('nhom-card-topbot-leaderboard', `TopBot_${selectedProvinceCard3}_${topBotMode}_${topBotValue}_${activeCategory}.png`, remarkText);

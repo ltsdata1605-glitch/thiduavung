@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount, RevenueCungKyRecord } from './types';
+import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount, RevenueCungKyRecord, RemarkDisplayMode } from './types';
 import { getBossForStore, findBossAssignmentRecord, BossAssignmentRecord, enrichStoreWithBossAssignments, getProvinceForStore } from './utils/parser';
 import { initialUserProfile, initialSettings } from './data/sampleData';
 import { Sidebar } from './components/Sidebar';
@@ -56,6 +56,20 @@ import { idbGet, idbSet } from './services/indexedDbCache';
 import { usePersistedState } from './hooks/usePersistedState';
 import { exportElementAsImage, exportGroupSpecificElement, exportCategoryGroupImages } from './services/imageExport';
 import confetti from 'canvas-confetti';
+
+/**
+ * MỌI tính năng xuất ảnh đều sao chép nhận xét ở chế độ "Bỏ Tag TOP".
+ *
+ * Ảnh xuất ra là để gửi vào nhóm chung, nên phần TOP chỉ in "Tên_mãUser"
+ * (vd: Luân_55810) thay vì @tag từng người, còn phần BOT vẫn @tag để người
+ * cần biết nhận được thông báo.
+ *
+ * Trước đây các hàm xuất ảnh đọc displayMode từ cấu hình đã lưu
+ * (getLocalRemarkConfig), mà mặc định của cấu hình đó là 'user' — nên nếu
+ * tài khoản chưa từng bấm đổi mẫu trong modal thì nhận xét tự động chép khi
+ * xuất ảnh vẫn @tag cả phần TOP. Ép cứng ở đây để không phụ thuộc cấu hình.
+ */
+const EXPORT_REMARK_DISPLAY_MODE: RemarkDisplayMode = 'no_tag_top';
 
 // Helper lấy bộ lọc độc lập cho từng tab của chức năng "Thi đua" (TỔNG, VÙNG, SIÊU THỊ, NHÓM)
 const ALL_REPORT_CHANNELS: Channel[] = ['DML', 'DMM', 'DMS', 'TGD', 'TopZone'];
@@ -1611,7 +1625,7 @@ function AppInner() {
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
-        remarkDisplayMode: remarkConfig.displayMode,
+        remarkDisplayMode: EXPORT_REMARK_DISPLAY_MODE,
         templateType: remarkConfig.templateType,
         includeEmoji: remarkConfig.includeEmoji,
         includeCallToAction: remarkConfig.includeCallToAction,
@@ -1662,7 +1676,7 @@ function AppInner() {
         timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
         lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
         entityScope,
-        remarkDisplayMode: remarkConfig.displayMode,
+        remarkDisplayMode: EXPORT_REMARK_DISPLAY_MODE,
         templateType: remarkConfig.templateType,
         includeEmoji: remarkConfig.includeEmoji,
         includeCallToAction: remarkConfig.includeCallToAction,
@@ -1720,7 +1734,7 @@ function AppInner() {
       timeModeName: timeMode === 'realtime' ? 'Realtime' : 'Luỹ Kế',
       lastUpdated: timeMode === 'realtime' ? settings.lastUpdateRealtime : settings.lastUpdateLuyKe,
       entityScope,
-      remarkDisplayMode: remarkConfig.displayMode,
+      remarkDisplayMode: EXPORT_REMARK_DISPLAY_MODE,
       templateType: remarkConfig.templateType,
       includeEmoji: remarkConfig.includeEmoji,
       includeCallToAction: remarkConfig.includeCallToAction,
