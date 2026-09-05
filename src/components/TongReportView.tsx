@@ -339,7 +339,7 @@ export const TongReportView: React.FC<TongReportViewProps> = ({
 
       await new Promise((r) => setTimeout(r, 150));
       await exportElementAsImage(el, filename, {
-        scale: 2.5,
+        scale: 3.5,
         remarkTextToCopy,
       });
     } catch (err) {

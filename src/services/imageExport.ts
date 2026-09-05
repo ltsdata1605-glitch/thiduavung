@@ -254,16 +254,16 @@ function suppressScrollbars(container: HTMLElement) {
  * Compute the highest possible scale that will not exceed mobile/browser
  * GPU texture limits (which otherwise turns the canvas 100% pitch black on iOS/Android).
  */
-function computeSafeScale(targetWidth: number, targetHeight: number, requestedScale: number = 2.5): number {
+function computeSafeScale(targetWidth: number, targetHeight: number, requestedScale: number = 3.5): number {
   const isMobile =
     typeof navigator !== 'undefined' &&
     (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       (typeof window !== 'undefined' && window.innerWidth < 768));
 
-  // Mobile WebKit / Safari limits: 4096px max dimension or ~12.5 Megapixels total area.
-  // Desktop browsers support up to 14000px and 64 Megapixels.
-  const maxDim = isMobile ? 4096 : 14000;
-  const maxArea = isMobile ? 12 * 1024 * 1024 : 64 * 1024 * 1024;
+  // Mobile WebKit / Safari limits: 4096px max dimension or ~14 Megapixels total area.
+  // Desktop modern browsers support up to 16384px and 80 Megapixels.
+  const maxDim = isMobile ? 4096 : 16384;
+  const maxArea = isMobile ? 14 * 1024 * 1024 : 80 * 1024 * 1024;
 
   let safeScale = requestedScale;
 
@@ -507,6 +507,8 @@ function cropCanvasBottom(canvas: HTMLCanvasElement, maxPaddingPx: number = 2): 
       croppedCanvas.height = targetHeight;
       const croppedCtx = croppedCanvas.getContext('2d');
       if (croppedCtx) {
+        croppedCtx.imageSmoothingEnabled = true;
+        croppedCtx.imageSmoothingQuality = 'high';
         croppedCtx.drawImage(canvas, 0, 0, width, targetHeight, 0, 0, width, targetHeight);
         return croppedCanvas;
       }
@@ -536,8 +538,9 @@ async function rasterizeToBlob(
   const finalScale = computeSafeScale(width, height, requestedScale);
   const scalesToTry = [
     finalScale,
-    Math.round(finalScale * 0.75 * 100) / 100,
-    Math.round(finalScale * 0.5 * 100) / 100,
+    Math.round(finalScale * 0.8 * 100) / 100,
+    Math.round(finalScale * 0.6 * 100) / 100,
+    Math.round(finalScale * 0.45 * 100) / 100,
     0.35,
   ].filter((s, idx, arr) => s >= 0.3 && (idx === 0 || s < arr[idx - 1]));
 
@@ -551,6 +554,7 @@ async function rasterizeToBlob(
         windowWidth: Math.max(typeof window !== 'undefined' ? window.innerWidth : 1200, width, 1024),
         useCORS: true,
         allowTaint: false,
+        imageTimeout: 15000,
         logging: false,
         onclone: (clonedDoc) => {
           // 1. Inject base URL to resolve relative fonts and stylesheets inside iframe
@@ -590,7 +594,20 @@ async function rasterizeToBlob(
             console.warn('onclone CSS inlining notice:', err);
           }
 
-          // 4. Ensure Tab TỔNG tables in clonedDoc have exact synchronized column widths & exact height
+          // 4. Inject high quality font antialiasing and text rendering styles
+          try {
+            const fontQualityStyle = clonedDoc.createElement('style');
+            fontQualityStyle.textContent = `
+              * {
+                -webkit-font-smoothing: antialiased !important;
+                -moz-osx-font-smoothing: grayscale !important;
+                text-rendering: optimizeLegibility !important;
+              }
+            `;
+            clonedDoc.head.appendChild(fontQualityStyle);
+          } catch {}
+
+          // 5. Ensure Tab TỔNG tables in clonedDoc have exact synchronized column widths & exact height
           try {
             const clonedTongCard = (clonedDoc.getElementById('revenue-tong-card') || clonedDoc.querySelector('#revenue-tong-card')) as HTMLElement | null;
             if (clonedTongCard) {
@@ -628,6 +645,8 @@ async function rasterizeToBlob(
         framedCanvas.height = trimmedCanvas.height + border * 2;
         const ctx = framedCanvas.getContext('2d');
         if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, framedCanvas.width, framedCanvas.height);
           ctx.drawImage(trimmedCanvas, border, border);
@@ -661,7 +680,7 @@ export async function exportElementAsImage(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12, quickHideColumns = false } = options;
+  const { elementsToHide = ['.export-hide'], scale = 3.5, borderWidth = 12, quickHideColumns = false } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
@@ -1127,7 +1146,7 @@ export async function exportGroupSpecificElement(
   filename: string,
   options: ExportElementOptions = {}
 ): Promise<Blob | null> {
-  const { elementsToHide = ['.export-hide'], scale = 2.5, borderWidth = 12 } = options;
+  const { elementsToHide = ['.export-hide'], scale = 3.5, borderWidth = 12 } = options;
 
   const clone = element.cloneNode(true) as HTMLElement;
 
