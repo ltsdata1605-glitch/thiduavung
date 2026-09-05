@@ -15,6 +15,9 @@ import {
   BossAssignmentRecord,
   getFormattedNow,
   checkDataFreshness,
+  findBossAssignmentRecord,
+  getProvinceForStore,
+  parseChannelValue,
 } from '../utils/parser';
 import { idbGet, idbSet } from '../services/indexedDbCache';
 import {
@@ -568,15 +571,18 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         (code ? tcMap.get(code.toLowerCase()) : undefined) ||
         (mst ? tcMap.get(mst.toLowerCase()) : undefined);
 
-      const effectiveBoss = getBossForStore(dt.sieuthi, bossAssignments, dt.boss);
-      const effectiveKenh = getChannelForStore(dt.sieuthi, bossAssignments, dt.kenh);
-      const phanLoaiShop = getPhanLoaiShopForStore(dt.sieuthi, bossAssignments);
-      const tinhMoi = getTinhMoiForStore(dt.sieuthi, bossAssignments);
+      const matchedBoss = findBossAssignmentRecord(dt.sieuthi, bossAssignments);
+      const effectiveTinh = matchedBoss?.tinh || getProvinceForStore(dt.sieuthi, bossAssignments, dt.tinh);
+      const effectiveBoss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : getBossForStore(dt.sieuthi, bossAssignments, dt.boss);
+      const effectiveKenh = matchedBoss?.kenh ? parseChannelValue(matchedBoss.kenh) : getChannelForStore(dt.sieuthi, bossAssignments, dt.kenh);
+      const phanLoaiShop = matchedBoss?.phanLoaiShop || getPhanLoaiShopForStore(dt.sieuthi, bossAssignments);
+      const tinhMoi = matchedBoss?.tinhMoi || getTinhMoiForStore(dt.sieuthi, bossAssignments);
 
       // Base Target computation: Mặc định vs Cùng Kỳ Năm
-      const storeCode = mst || extractStoreCode(dt.sieuthi) || dt.id || '';
-      const cleanMst = String(parseInt(storeCode, 10) || storeCode).trim();
-      const rawMst = storeCode.trim();
+      const effectiveStoreCode = (matchedBoss ? (extractStoreCode(matchedBoss.sieuthi) || matchedBoss.mst) : '') || extractStoreCode(dt.sieuthi) || mst || dt.id || '';
+      const effectiveMst = matchedBoss?.mst || mst || '';
+      const cleanMst = String(parseInt(effectiveMst || effectiveStoreCode, 10) || effectiveStoreCode).trim();
+      const rawMst = (effectiveMst || effectiveStoreCode).trim();
 
       let baseTarget = dt.target || 0;
 
@@ -664,9 +670,9 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       items.push({
         stt: idx + 1,
         id: dt.id || `DT_${idx}`,
-        storeCode,
-        mst: mst || '',
-        tinh: dt.tinh || 'Khác',
+        storeCode: effectiveStoreCode,
+        mst: effectiveMst,
+        tinh: effectiveTinh,
         sieuthi: dt.sieuthi,
         boss: effectiveBoss,
         kenh: effectiveKenh,
@@ -689,22 +695,26 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     activeTcStores.forEach((tc) => {
       const key = (tc.sieuthi || tc.tinh || '').trim().toLowerCase();
       if (!processedKeys.has(key) && !isExcludedStore(tc, bossAssignments)) {
-        const effectiveBoss = getBossForStore(tc.sieuthi, bossAssignments, tc.boss);
-        const effectiveKenh = getChannelForStore(tc.sieuthi, bossAssignments, tc.kenh);
-        const phanLoaiShop = getPhanLoaiShopForStore(tc.sieuthi, bossAssignments);
-        const tinhMoi = getTinhMoiForStore(tc.sieuthi, bossAssignments);
+        const matchedBoss = findBossAssignmentRecord(tc.sieuthi, bossAssignments);
+        const effectiveTinh = matchedBoss?.tinh || getProvinceForStore(tc.sieuthi, bossAssignments, tc.tinh);
+        const effectiveBoss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : getBossForStore(tc.sieuthi, bossAssignments, tc.boss);
+        const effectiveKenh = matchedBoss?.kenh ? parseChannelValue(matchedBoss.kenh) : getChannelForStore(tc.sieuthi, bossAssignments, tc.kenh);
+        const phanLoaiShop = matchedBoss?.phanLoaiShop || getPhanLoaiShopForStore(tc.sieuthi, bossAssignments);
+        const tinhMoi = matchedBoss?.tinhMoi || getTinhMoiForStore(tc.sieuthi, bossAssignments);
         const targetTc = tc.target || 0;
         const achievedTc = tc.achieved || 0;
         const rateTc = tc.rate ?? (targetTc > 0 ? (achievedTc / targetTc) * 100 : 0);
         const tcCode = extractStoreCode(tc.sieuthi);
         const tcMst = extractMst(tc.sieuthi);
+        const effectiveStoreCode = (matchedBoss ? (extractStoreCode(matchedBoss.sieuthi) || matchedBoss.mst) : '') || tcCode || tcMst || tc.id || '';
+        const effectiveMst = matchedBoss?.mst || tcMst || '';
 
         items.push({
           stt: items.length + 1,
           id: tc.id || `TC_${items.length}`,
-          storeCode: tcMst || tcCode || tc.id || '',
-          mst: tcMst || '',
-          tinh: tc.tinh || 'Khác',
+          storeCode: effectiveStoreCode,
+          mst: effectiveMst,
+          tinh: effectiveTinh,
           sieuthi: tc.sieuthi,
           boss: effectiveBoss,
           kenh: effectiveKenh,

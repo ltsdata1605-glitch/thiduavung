@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord, getCategoryData } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord, getCategoryData, getProvinceForStore, getBossForStore, getChannelForStore } from '../utils/parser';
 // Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
 // instead of shipping ~1300 lines of Nhóm-only report code in the bundle
 // every user downloads to see the default VÙNG/SIÊU THỊ view.
@@ -672,91 +672,23 @@ export const ReportView: React.FC<ReportViewProps> = ({
     });
   };
 
-  // MST -> BossAssignmentRecord lookup, built once per bossAssignments change.
-  // The Siêu Thị view renders/filters/sorts up to ~700+ store rows against a
-  const bossMap = useMemo(() => {
-    const byMst = new Map<string, BossAssignmentRecord>();
-    const byCode = new Map<string, BossAssignmentRecord>();
-    const byNormName = new Map<string, BossAssignmentRecord>();
-    const codeOwnerNormName = new Map<string, string>();
-    const ambiguousCodes = new Set<string>();
-
-    bossAssignments.forEach((b) => {
-      if (b.mst) {
-        const trimmed = b.mst.trim();
-        byMst.set(trimmed, b);
-        const numStr = String(parseInt(trimmed, 10));
-        if (numStr !== 'NaN' && numStr !== trimmed) {
-          byMst.set(numStr, b);
-        }
-      }
-      const mstFromSieuthi = extractMst(b.sieuthi);
-      if (mstFromSieuthi) {
-        const trimmed = mstFromSieuthi.trim();
-        byMst.set(trimmed, b);
-        const numStr = String(parseInt(trimmed, 10));
-        if (numStr !== 'NaN' && numStr !== trimmed) {
-          byMst.set(numStr, b);
-        }
-      }
-
-      const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '') || extractStoreCode(b.sieuthiNgan || '');
-      if (code) {
-        const normB = normalizeVietnameseForMatch(b.sieuthi);
-        const ownerNormName = codeOwnerNormName.get(code);
-        if (!ownerNormName) {
-          codeOwnerNormName.set(code, normB);
-          byCode.set(code, b);
-        } else if (ownerNormName !== normB) {
-          ambiguousCodes.add(code);
-        }
-      }
-
-      if (b.sieuthi) byNormName.set(normalizeVietnameseForMatch(b.sieuthi), b);
-      if (b.sieuthiBase) byNormName.set(normalizeVietnameseForMatch(b.sieuthiBase), b);
-      if (b.sieuthiNgan) byNormName.set(normalizeVietnameseForMatch(b.sieuthiNgan), b);
-    });
-
-    // Remove ambiguous codes that map to multiple different stores
-    ambiguousCodes.forEach((code) => byCode.delete(code));
-
-    return { byMst, byCode, byNormName };
-  }, [bossAssignments]);
-
   const findBossRecord = useCallback((sieuthi: string): BossAssignmentRecord | undefined => {
     if (!sieuthi) return undefined;
-    const mst = extractMst(sieuthi);
-    if (mst) {
-      if (bossMap.byMst.has(mst)) return bossMap.byMst.get(mst);
-      const numMst = String(parseInt(mst, 10));
-      if (bossMap.byMst.has(numMst)) return bossMap.byMst.get(numMst);
-    }
+    return findBossAssignmentRecord(sieuthi, bossAssignments) || undefined;
+  }, [bossAssignments]);
 
-    const code = extractStoreCode(sieuthi);
-    if (code && bossMap.byCode.has(code)) return bossMap.byCode.get(code);
-
-    const norm = normalizeVietnameseForMatch(sieuthi);
-    if (bossMap.byNormName.has(norm)) return bossMap.byNormName.get(norm);
-
-    return undefined;
-  }, [bossMap]);
+  const resolveProvince = useCallback((sieuthi: string, fallbackProvince: string = 'Khác'): string => {
+    return getProvinceForStore(sieuthi, bossAssignments, fallbackProvince);
+  }, [bossAssignments]);
 
   const resolveBoss = useCallback((sieuthi: string, fallbackBoss: string = 'Chưa phân công'): string => {
-    const rawFallback = (fallbackBoss || '').replace(/^Boss\s+/i, '').trim();
-    const match = findBossRecord(sieuthi);
-    if (match && match.boss) {
-      const cleaned = match.boss.replace(/^Boss\s+/i, '').trim();
-      if (cleaned) return cleaned;
-    }
-    return rawFallback || 'Chưa phân công';
-  }, [findBossRecord]);
+    return getBossForStore(sieuthi, bossAssignments, fallbackBoss);
+  }, [bossAssignments]);
 
   // KÊNH strictly from Column N of the BOSS file:
   const resolveKenh = useCallback((sieuthi: string, fallbackKenh: Channel | string = 'DML'): Channel | string => {
-    const match = findBossRecord(sieuthi);
-    if (match && match.kenh) return parseChannelValue(match.kenh);
-    return fallbackKenh;
-  }, [findBossRecord]);
+    return getChannelForStore(sieuthi, bossAssignments, fallbackKenh);
+  }, [bossAssignments]);
 
   const resolveDtQd = useCallback((sieuthi: string): string => {
     const match = findBossRecord(sieuthi);
@@ -874,7 +806,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
     // Province filter: ONLY applied when NOT searching
     // ("khi gõ tìm kiếm sẽ tìm kiếm all dữ liệu tỉnh, không bị giới hạn bởi bộ lọc tỉnh")
-    if (!hasSearch && selectedProvince !== 'ALL' && s.tinh !== selectedProvince) {
+    const effectiveTinh = resolveProvince(s.sieuthi, s.tinh);
+    if (!hasSearch && selectedProvince !== 'ALL' && effectiveTinh !== selectedProvince) {
       return false;
     }
 
@@ -911,6 +844,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     bossAssignments,
     resolveKenh,
     resolveBoss,
+    resolveProvince,
     findBossRecord,
     isProvinceView,
   ]);
@@ -926,7 +860,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
           catTotals: Record<string, { target: number; achieved: number; rateSum: number; count: number }>
         }>();
         filteredStores.forEach((s) => {
-          const cur = byTinh.get(s.tinh) || { target: 0, achieved: 0, dtQdTbVal: 0, rateSum: 0, rateCount: 0, catTotals: {} };
+          const prov = resolveProvince(s.sieuthi, s.tinh);
+          const cur = byTinh.get(prov) || { target: 0, achieved: 0, dtQdTbVal: 0, rateSum: 0, rateCount: 0, catTotals: {} };
           cur.target += s.target;
           cur.achieved += s.achieved;
           cur.dtQdTbVal += parseDtQdTbNum(resolveDtQd(s.sieuthi));
@@ -2056,7 +1991,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
                     {/* Tỉnh — sticky (frozen) column */}
                     <td style={!isMobileScreen ? { left: FROZEN_LEFT.tinh } : undefined} className={`${!isMobileScreen ? 'sticky z-10' : ''} py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 font-sans ${rowBgClass}`}>
-                      {store.tinh}
+                      {resolveProvince(store.sieuthi, store.tinh)}
                     </td>
 
                     {!isProvinceView && (

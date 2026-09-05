@@ -13,6 +13,7 @@ import {
   isExcludedChannel,
   getFormattedNow,
   BossAssignmentRecord,
+  getProvinceForStore,
 } from '../utils/parser';
 import { exportElementAsImage } from '../services/imageExport';
 import { saveGroupSummaryCardsToFirebase, getLocalCache, getLocalRemarkConfig } from '../services/storeService';
@@ -362,11 +363,12 @@ const ProvinceSummaryCard: React.FC<{
       if (config.channels.length > 0 && !config.channels.includes(effectiveKenh as Channel)) return;
 
       const data = getCategoryData(s, config.category);
-      const current = map.get(s.tinh) || { target: 0, achieved: 0, rate: 0 };
+      const prov = getProvinceForStore(s.sieuthi, bossAssignments, s.tinh);
+      const current = map.get(prov) || { target: 0, achieved: 0, rate: 0 };
       const newTarget = current.target + data.target;
       const newAchieved = current.achieved + data.achieved;
       const newRate = computeCompletionRate(newTarget, newAchieved, timeMode, daysInMonth, daysElapsed);
-      map.set(s.tinh, { target: newTarget, achieved: newAchieved, rate: newRate });
+      map.set(prov, { target: newTarget, achieved: newAchieved, rate: newRate });
     });
 
     const rows = Array.from(map.entries()).map(([tinh, data]) => ({
@@ -789,7 +791,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   // 2. Province Detailed Breakout for Card 2 (Bottom Left)
   const provinceDetailedStores = useMemo(() => {
     return stores.filter((s) => {
-      if (s.tinh !== selectedProvinceCard) return false;
+      const effectiveTinh = getProvinceForStore(s.sieuthi, bossAssignments, s.tinh);
+      if (effectiveTinh !== selectedProvinceCard) return false;
       if (isExcludedStore(s, bossAssignments)) return false;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
       if (channelsCard2.length > 0 && !channelsCard2.includes(effectiveKenh as Channel)) return false;
@@ -820,7 +823,8 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
   // 3. Dynamic Top / Bot Leaderboard for Card 3 based on User Percent / Count & Province criteria
   const topBotLeaderboard = useMemo(() => {
     const valid = stores.filter((s) => {
-      if (selectedProvinceCard3 !== 'ALL' && s.tinh !== selectedProvinceCard3) return false;
+      const effectiveTinh = getProvinceForStore(s.sieuthi, bossAssignments, s.tinh);
+      if (selectedProvinceCard3 !== 'ALL' && effectiveTinh !== selectedProvinceCard3) return false;
       if (isExcludedStore(s, bossAssignments)) return false;
       const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
       if (channelsCard3.length > 0 && !channelsCard3.includes(effectiveKenh as Channel)) return false;

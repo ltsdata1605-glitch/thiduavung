@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { ViewTab, TimeMode, EntityScope, Channel, StoreRecord, UserProfile, AppSettings, UserAccount, RevenueCungKyRecord } from './types';
-import { initialUserProfile, initialSettings } from './data/sampleData';
-import { getBossForStore, findBossAssignmentRecord, BossAssignmentRecord } from './utils/parser';
+import { getBossForStore, findBossAssignmentRecord, BossAssignmentRecord, enrichStoreWithBossAssignments, getProvinceForStore } from './utils/parser';
 import { Sidebar } from './components/Sidebar';
 import { HeaderBanner } from './components/HeaderBanner';
 import { ReportView, DEFAULT_CATEGORY_GROUP_MAP } from './components/ReportView';
@@ -432,8 +431,10 @@ function AppInner() {
   // target ÷ số ngày trong tháng like the previous (Thi Đua Tỉnh/Vùng) source
   // required.
   const activeStores = useMemo(() => {
-    return timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
-  }, [timeMode, realtimeStoresVung, luykeStoresVung]);
+    const rawList = timeMode === 'realtime' ? realtimeStoresVung : luykeStoresVung;
+    if (!bossAssignments || bossAssignments.length === 0) return rawList;
+    return rawList.map((s) => enrichStoreWithBossAssignments(s, bossAssignments));
+  }, [timeMode, realtimeStoresVung, luykeStoresVung, bossAssignments]);
 
   // Extract unique provinces for filter dropdowns — declared this early
   // (right next to its own source data) because several filter-restore
@@ -441,7 +442,7 @@ function AppInner() {
   // evaluated during render; declaring it later than its first use would be
   // a temporal-dead-zone crash, not just a staleness bug.
   const provinceList = useMemo(
-    () => Array.from(new Set(activeStores.map((s) => s.tinh))).sort(),
+    () => Array.from(new Set(activeStores.map((s) => s.tinh).filter(Boolean))).sort(),
     [activeStores]
   );
 
@@ -1294,79 +1295,75 @@ function AppInner() {
 
   // Handler to update Realtime dataset from Update tab & sync Firebase
   const handleUpdateRealtimeData = async (newStores: StoreRecord[], rawText: string) => {
-    setRealtimeStoresVung(newStores);
+    const enriched = bossAssignments?.length ? newStores.map((s) => enrichStoreWithBossAssignments(s, bossAssignments)) : newStores;
+    setRealtimeStoresVung(enriched);
     const timestamp = extractTimestampFromRawText(rawText);
     const newSettings = { ...settings, lastUpdateRealtime: timestamp };
     setSettings(newSettings);
     setTimeMode('realtime');
 
     const [res1, res2] = await Promise.all([
-      saveRealtimeStoresToFirebase(newStores, currentUser.name),
+      saveRealtimeStoresToFirebase(enriched, currentUser.name),
       saveSettingsToFirebase(newSettings, currentUser.name),
     ]);
     if (!res1.success || !res2.success) {
       showErrorToast(res1.error || res2.error || 'Đồng bộ lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} siêu thị Realtime lúc ${timestamp}!`);
+    showToast(`Đã đồng bộ ${enriched.length} siêu thị Realtime lúc ${timestamp}!`);
   };
 
   // Handler to update Luỹ Kế dataset from Update tab & sync Firebase
   const handleUpdateLuyKeData = async (newStores: StoreRecord[], rawText: string) => {
-    setLuyKeStoresVung(newStores);
+    const enriched = bossAssignments?.length ? newStores.map((s) => enrichStoreWithBossAssignments(s, bossAssignments)) : newStores;
+    setLuyKeStoresVung(enriched);
     const timestamp = extractTimestampFromRawText(rawText);
     const newSettings = { ...settings, lastUpdateLuyKe: timestamp };
     setSettings(newSettings);
     setTimeMode('luyke');
 
     const [res1, res2] = await Promise.all([
-      saveLuyKeStoresToFirebase(newStores, currentUser.name),
+      saveLuyKeStoresToFirebase(enriched, currentUser.name),
       saveSettingsToFirebase(newSettings, currentUser.name),
     ]);
     if (!res1.success || !res2.success) {
       showErrorToast(res1.error || res2.error || 'Đồng bộ lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} siêu thị Luỹ kế lúc ${timestamp}!`);
+    showToast(`Đã đồng bộ ${enriched.length} siêu thị Luỹ kế lúc ${timestamp}!`);
   };
 
   // Handler to update Boss assignments across both Realtime & Luỹ kế datasets & sync Firebase
   const handleUpdateBossData = async (newBossAssignments: BossAssignmentRecord[]) => {
     if (newBossAssignments.length === 0) return;
 
-    // Keeps the SAME object reference for a store whose boss/tinh/kenh didn't
-    // actually change — a BOSS file upload typically reassigns only a
-    // handful of stores, not all of them. saveChunkedStoreDataset below uses
-    // that reference identity to skip re-uploading any 100-store chunk
-    // that's untouched, instead of always rewriting all ~9 chunks per
-    // dataset (x4 datasets) on every single BOSS import.
     const updateStores = (stores: StoreRecord[]) =>
-      stores.map((s) => {
-        const found = findBossAssignmentRecord(s.sieuthi, newBossAssignments);
-        if (found) {
-          const newBoss = found.boss || s.boss;
-          const newTinh = found.tinh || s.tinh;
-          const newKenh = (found.kenh as Channel) || s.kenh;
-          if (newBoss === s.boss && newTinh === s.tinh && newKenh === s.kenh) {
-            return s;
-          }
-          return { ...s, boss: newBoss, tinh: newTinh, kenh: newKenh };
-        }
-        return s;
-      });
+      stores.map((s) => enrichStoreWithBossAssignments(s, newBossAssignments));
 
     const updatedRealtimeVung = updateStores(realtimeStoresVung);
     const updatedLuyKeVung = updateStores(luykeStoresVung);
+    const updatedRealtimeDt = updateStores(realtimeDtStores);
+    const updatedRealtimeTc = updateStores(realtimeTcStores);
+    const updatedLuyKeDt = updateStores(luykeDtStores);
+    const updatedLuyKeTc = updateStores(luykeTcStores);
 
     setRealtimeStoresVung(updatedRealtimeVung);
     setLuyKeStoresVung(updatedLuyKeVung);
+    setRealtimeDtStores(updatedRealtimeDt);
+    setRealtimeTcStores(updatedRealtimeTc);
+    setLuyKeDtStores(updatedLuyKeDt);
+    setLuyKeTcStores(updatedLuyKeTc);
 
     setBossAssignments(newBossAssignments);
 
-    // Sync to Firebase — Realtime & Luỹ Kế are each their own document
+    // Sync to Firebase — all datasets updated
     const results = await Promise.all([
       saveRealtimeStoresToFirebase(updatedRealtimeVung, currentUser.name),
       saveLuyKeStoresToFirebase(updatedLuyKeVung, currentUser.name),
+      saveRealtimeDtToFirebase(updatedRealtimeDt, lastUpdateRealtimeDt || '', currentUser.name),
+      saveRealtimeTcToFirebase(updatedRealtimeTc, lastUpdateRealtimeTc || '', currentUser.name),
+      saveLuyKeDtToFirebase(updatedLuyKeDt, lastUpdateLuyKeDt || '', currentUser.name),
+      saveLuyKeTcToFirebase(updatedLuyKeTc, lastUpdateLuyKeTc || '', currentUser.name),
       saveBossAssignmentsToFirebase(newBossAssignments, currentUser.name),
     ]);
     const failed = results.find((r) => !r.success);
@@ -1380,51 +1377,55 @@ function AppInner() {
 
   // Handlers to update & sync Revenue & Installment (Doanh thu & Trả chậm) to Firebase
   const handleUpdateRealtimeDt = async (newStores: StoreRecord[], timestamp: string = '') => {
-    setRealtimeDtStores(newStores);
+    const enriched = bossAssignments?.length ? newStores.map((s) => enrichStoreWithBossAssignments(s, bossAssignments)) : newStores;
+    setRealtimeDtStores(enriched);
     if (timestamp) setLastUpdateRealtimeDt(timestamp);
     const ts = timestamp || lastUpdateRealtimeDt || '';
-    const res = await saveRealtimeDtToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    const res = await saveRealtimeDtToFirebase(enriched, ts, currentUser?.name || 'Super Admin');
     if (!res.success) {
       showErrorToast(res.error || 'Đồng bộ Doanh thu Realtime lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} dòng Doanh thu Realtime lên Firebase!`);
+    showToast(`Đã đồng bộ ${enriched.length} dòng Doanh thu Realtime lên Firebase!`);
   };
 
   const handleUpdateRealtimeTc = async (newStores: StoreRecord[], timestamp: string = '') => {
-    setRealtimeTcStores(newStores);
+    const enriched = bossAssignments?.length ? newStores.map((s) => enrichStoreWithBossAssignments(s, bossAssignments)) : newStores;
+    setRealtimeTcStores(enriched);
     if (timestamp) setLastUpdateRealtimeTc(timestamp);
     const ts = timestamp || lastUpdateRealtimeTc || '';
-    const res = await saveRealtimeTcToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    const res = await saveRealtimeTcToFirebase(enriched, ts, currentUser?.name || 'Super Admin');
     if (!res.success) {
       showErrorToast(res.error || 'Đồng bộ Trả chậm Realtime lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} dòng Trả chậm Realtime lên Firebase!`);
+    showToast(`Đã đồng bộ ${enriched.length} dòng Trả chậm Realtime lên Firebase!`);
   };
 
   const handleUpdateLuyKeDt = async (newStores: StoreRecord[], timestamp: string = '') => {
-    setLuyKeDtStores(newStores);
+    const enriched = bossAssignments?.length ? newStores.map((s) => enrichStoreWithBossAssignments(s, bossAssignments)) : newStores;
+    setLuyKeDtStores(enriched);
     if (timestamp) setLastUpdateLuyKeDt(timestamp);
     const ts = timestamp || lastUpdateLuyKeDt || '';
-    const res = await saveLuyKeDtToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    const res = await saveLuyKeDtToFirebase(enriched, ts, currentUser?.name || 'Super Admin');
     if (!res.success) {
       showErrorToast(res.error || 'Đồng bộ Doanh thu Luỹ kế lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} dòng Doanh thu Luỹ kế lên Firebase!`);
+    showToast(`Đã đồng bộ ${enriched.length} dòng Doanh thu Luỹ kế lên Firebase!`);
   };
 
   const handleUpdateLuyKeTc = async (newStores: StoreRecord[], timestamp: string = '') => {
-    setLuyKeTcStores(newStores);
+    const enriched = bossAssignments?.length ? newStores.map((s) => enrichStoreWithBossAssignments(s, bossAssignments)) : newStores;
+    setLuyKeTcStores(enriched);
     if (timestamp) setLastUpdateLuyKeTc(timestamp);
     const ts = timestamp || lastUpdateLuyKeTc || '';
-    const res = await saveLuyKeTcToFirebase(newStores, ts, currentUser?.name || 'Super Admin');
+    const res = await saveLuyKeTcToFirebase(enriched, ts, currentUser?.name || 'Super Admin');
     if (!res.success) {
       showErrorToast(res.error || 'Đồng bộ Trả chậm Luỹ kế lên Firebase thất bại!');
       return;
     }
-    showToast(`Đã đồng bộ ${newStores.length} dòng Trả chậm Luỹ kế lên Firebase!`);
+    showToast(`Đã đồng bộ ${enriched.length} dòng Trả chậm Luỹ kế lên Firebase!`);
   };
 
   const handleUpdateRevenueCungKy = async (records: RevenueCungKyRecord[]) => {

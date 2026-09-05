@@ -1326,12 +1326,15 @@ export function parsePastedData(
     if (tinhRaw.trim().toLowerCase() === 'tổng' || sieuthiRaw.trim().toLowerCase() === 'tổng') continue;
     if (!sieuthiRaw.trim()) continue;
 
-    const tinh = tinhRaw;
-    const boss = colBoss >= 0 ? cells[colBoss] : 'Boss Quản Lý';
+    const matchedBoss = bossAssignments.length > 0 ? findBossAssignmentRecord(sieuthiRaw, bossAssignments) : null;
+    const tinh = matchedBoss?.tinh || tinhRaw || inferProvinceFromStoreName(sieuthiRaw) || 'Cần Thơ';
+    const boss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : (colBoss >= 0 ? cells[colBoss] : 'Boss Quản Lý');
 
     let rawKenh = colKenh >= 0 ? normVN(cells[colKenh] || '').toUpperCase() : '';
     let kenh: Channel | string;
-    if (rawKenh.includes('LƯU ĐỘNG') || rawKenh.includes('LUU DONG') || rawKenh === 'LUUDONG') kenh = 'LƯU ĐỘNG';
+    if (matchedBoss?.kenh) {
+      kenh = parseChannelValue(matchedBoss.kenh);
+    } else if (rawKenh.includes('LƯU ĐỘNG') || rawKenh.includes('LUU DONG') || rawKenh === 'LUUDONG') kenh = 'LƯU ĐỘNG';
     else if (rawKenh.includes('OFF') || rawKenh.includes('OFFLINE')) kenh = 'OFF';
     else if (normVN(sieuthiRaw).toUpperCase().includes('LƯU ĐỘNG') || sieuthiRaw.toUpperCase().includes('LUU DONG') || sieuthiRaw.toUpperCase().includes('LUUDONG')) kenh = 'LƯU ĐỘNG';
     else if (rawKenh.includes('TOPZONE') || rawKenh.includes('TOP ZONE') || rawKenh.includes('TZ') || rawKenh.includes('AAR')) kenh = 'TopZone';
@@ -1372,7 +1375,7 @@ export function parsePastedData(
         };
       }
     } else {
-const baseTarget = currentCategoryIsRevenue ? target : 0;
+      const baseTarget = currentCategoryIsRevenue ? target : 0;
       const baseAchieved = currentCategoryIsRevenue ? achieved : 0;
       const baseRate = currentCategoryIsRevenue ? rate : 0;
       const catMap: Record<string, { target: number; achieved: number; rate: number }> = {};
@@ -1397,6 +1400,8 @@ const baseTarget = currentCategoryIsRevenue ? target : 0;
         rank: 0,
         categoryMap: catMap,
         lastUpdated: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        tinhMoi: matchedBoss?.tinhMoi || '-',
+        phanLoaiShop: matchedBoss?.phanLoaiShop || '-',
       });
     }
   }
@@ -1455,7 +1460,8 @@ export function inferProvinceFromStoreName(sieuthi: string): string {
 export function parseRevenuePastedData(
   text: string,
   isRealtime: boolean = false,
-  dataType: 'doanhthu' | 'tracham' = 'doanhthu'
+  dataType: 'doanhthu' | 'tracham' = 'doanhthu',
+  bossAssignments: BossAssignmentRecord[] = []
 ): StoreRecord[] {
   if (!text || !text.trim()) return [];
 
@@ -1541,8 +1547,13 @@ export function parseRevenuePastedData(
           ? Number(((achieved / target) * 100).toFixed(1))
           : (isRealtime ? 0 : htTargetRaw);
 
-        const tinh = inferProvinceFromStoreName(sieuthi);
-        const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+        const matchedBoss = bossAssignments.length > 0 ? findBossAssignmentRecord(sieuthi, bossAssignments) : null;
+        const tinh = matchedBoss?.tinh || inferProvinceFromStoreName(sieuthi);
+        const mst = matchedBoss?.mst || extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+        const boss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : '';
+        const kenh = matchedBoss?.kenh ? parseChannelValue(matchedBoss.kenh) : inferKenhFromSieuThiName(sieuthi);
+        const tinhMoi = matchedBoss?.tinhMoi || '-';
+        const phanLoaiShop = matchedBoss?.phanLoaiShop || '-';
 
         results.push({
           stt: results.length + 1,
@@ -1562,8 +1573,10 @@ export function parseRevenuePastedData(
           growthRate,
           targetThang: rawTarget,
           htTargetRate: htTargetRaw,
-          kenh: inferKenhFromSieuThiName(sieuthi),
-          boss: '',
+          kenh,
+          boss,
+          tinhMoi,
+          phanLoaiShop,
           categoryMap: {},
         });
         continue;
@@ -1593,8 +1606,13 @@ export function parseRevenuePastedData(
             ? Number(((achieved / target) * 100).toFixed(1))
             : (isRealtime ? 0 : htTargetRaw);
 
-          const tinh = inferProvinceFromStoreName(sieuthi);
-          const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+          const matchedBoss = bossAssignments.length > 0 ? findBossAssignmentRecord(sieuthi, bossAssignments) : null;
+          const tinh = matchedBoss?.tinh || inferProvinceFromStoreName(sieuthi);
+          const mst = matchedBoss?.mst || extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+          const boss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : '';
+          const kenh = matchedBoss?.kenh ? parseChannelValue(matchedBoss.kenh) : inferKenhFromSieuThiName(sieuthi);
+          const tinhMoi = matchedBoss?.tinhMoi || '-';
+          const phanLoaiShop = matchedBoss?.phanLoaiShop || '-';
 
           results.push({
             stt: results.length + 1,
@@ -1614,8 +1632,10 @@ export function parseRevenuePastedData(
             growthRate,
             targetThang: rawTarget,
             htTargetRate: htTargetRaw,
-            kenh: inferKenhFromSieuThiName(sieuthi),
-            boss: '',
+            kenh,
+            boss,
+            tinhMoi,
+            phanLoaiShop,
             categoryMap: {},
           });
           i++; // Skip the numbers row
@@ -1744,21 +1764,29 @@ export function parseRevenuePastedData(
       }
     }
 
-    const mst = extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+    const matchedBoss = bossAssignments.length > 0 ? findBossAssignmentRecord(sieuthi, bossAssignments) : null;
+    const effectiveTinh = matchedBoss?.tinh || tinh || inferProvinceFromStoreName(sieuthi) || 'Khác';
+    const mst = matchedBoss?.mst || extractMst(sieuthi) || extractStoreCode(sieuthi) || `REV_${results.length + 1}`;
+    const boss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : '';
+    const kenh = matchedBoss?.kenh ? parseChannelValue(matchedBoss.kenh) : inferKenhFromSieuThiName(sieuthi);
+    const tinhMoi = matchedBoss?.tinhMoi || '-';
+    const phanLoaiShop = matchedBoss?.phanLoaiShop || '-';
 
     results.push({
       stt: results.length + 1,
       rank: results.length + 1,
       id: mst,
       sieuthi,
-      tinh: tinh || inferProvinceFromStoreName(sieuthi) || 'Khác',
+      tinh: effectiveTinh,
       target: Math.round(target * 100) / 100,
       achieved: Math.round(achieved * 100) / 100,
       rate: Number(rate.toFixed(1)),
       dtThuc: dataType === 'doanhthu' ? (dtThuc || 0) : undefined,
       dtQd: dataType === 'doanhthu' ? (dtQd || 0) : undefined,
-      kenh: inferKenhFromSieuThiName(sieuthi),
-      boss: '',
+      kenh,
+      boss,
+      tinhMoi,
+      phanLoaiShop,
       categoryMap: {},
     });
   }
@@ -1820,13 +1848,23 @@ export function normalizeVietnameseForMatch(str: string = ''): string {
 export function extractMst(sieuthi: string = ''): string | null {
   if (!sieuthi) return null;
   const str = sieuthi.trim();
-  // 1. Chuỗi bắt đầu bằng mã số (ví dụ: "1165 - ĐML_LAN_BLU..." hoặc "1165")
-  const mLeading = str.match(/^(\d{2,6})/);
+
+  // 1. Chuỗi bắt đầu bằng mã số: "1165 - ĐML_LAN_BLU...", "1165 - ...", "1165"
+  // Phải có ký tự phân cách (-, –, /, :) hoặc khoảng trắng theo sau hoặc là toàn bộ chuỗi
+  const mLeading = str.match(/^(\d{2,6})(?:\s*[-–/:]|\s+|$)/);
   if (mLeading) return mLeading[1];
 
-  // 2. Mã số đứng riêng lẻ bên trong chuỗi (ví dụ: "... - 1165 - ..." hoặc "(1165)")
-  const mMiddle = str.match(/(?:^|\s|-|_|\[|\()(\d{3,6})(?:\s|-|_|\]|\)|$)/);
-  if (mMiddle) return mMiddle[1];
+  // 2. Mã số trong ngoặc đơn hoặc ngoặc vuông: "(1165)", "[1165]"
+  const mBracket = str.match(/[\(\[]\s*(\d{2,6})\s*[\)\]]/);
+  if (mBracket) return mBracket[1];
+
+  // 3. Đứng sau nhãn rõ ràng: "MST: 1165", "Mã kho: 1165", "Mã ST: 1165"
+  const mLabel = str.match(/(?:MST|MÃ\s*(?:KHO|ST|SIÊU\s*THỊ)|MA\s*(?:KHO|ST|SIEU\s*THI))[\s:]*(\d{2,6})(?!\d)/i);
+  if (mLabel) return mLabel[1];
+
+  // 4. Mã số đứng riêng lẻ giữa 2 dấu gạch nối (ví dụ: "ĐML_LAN_BLU - 1165 - Nguyễn Hữu Thọ")
+  const mBetweenDashes = str.match(/(?:^|\s)[-–]\s*(\d{2,6})\s*[-–](?:\s|$)/);
+  if (mBetweenDashes) return mBetweenDashes[1];
 
   return null;
 }
@@ -1846,19 +1884,6 @@ export function extractStoreCode(sieuthi: string = ''): string | null {
  * Ưu tiên 2: Dò tìm bằng Mã kho (Store Code ví dụ: DML_LAN_BLU, TGD_CTH_NKI)
  * Ưu tiên 3: Dò tìm bằng Tên Siêu Thị chuẩn hóa
  */
-// findBossAssignmentRecord used to do up to 3 full linear .find() scans of
-// bossAssignments on EVERY call — and it's called once per store from ~8
-// call sites across the app (GroupReportView, TagBossModal, ReportView,
-// TopBotRemarksModal, ProvinceDetailRemarksModal, App.tsx's bossList, ...),
-// each iterating the full store list (700-900 rows). That's O(stores ×
-// bossAssignments) — both sides routinely in the hundreds — repeated in
-// several unmemoized/re-triggered places. The exact-match tiers (MST, store
-// code, exact normalized name — which cover the overwhelming majority of
-// real lookups) are trivially indexable into Maps; only the final fuzzy
-// substring fallback genuinely requires a scan, and it only runs when every
-// exact tier already missed. Cached per bossAssignments array identity via
-// WeakMap, so a fresh paste (new array reference) naturally invalidates the
-// old index instead of ever going stale.
 interface BossAssignmentIndex {
   byMst: Map<string, BossAssignmentRecord>;
   byCode: Map<string, BossAssignmentRecord>;
@@ -1874,22 +1899,7 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
   const byMst = new Map<string, BossAssignmentRecord>();
   const byCode = new Map<string, BossAssignmentRecord>();
   const byNormName = new Map<string, BossAssignmentRecord>();
-  // A "mã kho" code (extractStoreCode, e.g. "DML_LAN_BLU") is sometimes
-  // shared by more than one DISTINCT store — a fixed branch and a companion
-  // "Lưu Động" mobile unit warehoused under the same code are a real,
-  // observed case (same Boss/Tỉnh, different KÊNH). "First occurrence wins"
-  // would then silently misattribute every field but Boss/Tỉnh to whichever
-  // row happens to appear first in the BOSS file. Track codes seen from more
-  // than one distinct sieuthi name here so they can be dropped from byCode
-  // entirely afterwards, forcing lookup to fall through to the exact-name
-  // tier below instead — which the store-name-only BI format always has
-  // enough text (the full "ĐML_LAN_BLU - Phước Lợi (Gò Đen)") to resolve
-  // correctly.
-  const codeOwnerNormName = new Map<string, string>();
-  const ambiguousCodes = new Set<string>();
 
-  // First occurrence wins for a given key — matches Array.find()'s
-  // "first match in array order" semantics exactly.
   bossAssignments.forEach((b) => {
     const mstDirect = b.mst ? b.mst.trim() : '';
     if (mstDirect && !byMst.has(mstDirect)) byMst.set(mstDirect, b);
@@ -1898,13 +1908,10 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
 
     const code = extractStoreCode(b.sieuthi) || extractStoreCode(b.sieuthiBase || '') || extractStoreCode(b.sieuthiNgan || '');
     if (code) {
-      const normB = normalizeVietnameseForMatch(b.sieuthi);
-      const ownerNormName = codeOwnerNormName.get(code);
-      if (!ownerNormName) {
-        codeOwnerNormName.set(code, normB);
+      const existing = byCode.get(code);
+      const isLuuDong = String(b.kenh || '').toUpperCase().includes('LƯU ĐỘNG') || String(b.kenh || '').toUpperCase().includes('LUU DONG');
+      if (!existing || (!isLuuDong && String(existing.kenh || '').toUpperCase().includes('LƯU ĐỘNG'))) {
         byCode.set(code, b);
-      } else if (ownerNormName !== normB) {
-        ambiguousCodes.add(code);
       }
     }
 
@@ -1912,14 +1919,9 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
     if (normB && !byNormName.has(normB)) byNormName.set(normB, b);
     const normBase = normalizeVietnameseForMatch(b.sieuthiBase || '');
     if (normBase && !byNormName.has(normBase)) byNormName.set(normBase, b);
-    // Cột J (SIÊU THỊ) — một số nguồn BI mới (VD: BCDT theo Siêu thị) chỉ cho
-    // "ĐML_STR_STR - 99 Hùng Vương" (không kèm MST), khớp đúng định dạng cột
-    // này thay vì cột O (MST – TÊN SIÊU THỊ).
     const normNgan = normalizeVietnameseForMatch(b.sieuthiNgan || '');
     if (normNgan && !byNormName.has(normNgan)) byNormName.set(normNgan, b);
   });
-
-  ambiguousCodes.forEach((code) => byCode.delete(code));
 
   const index: BossAssignmentIndex = { byMst, byCode, byNormName };
   bossIndexCache.set(bossAssignments, index);
@@ -1934,16 +1936,31 @@ export function findBossAssignmentRecord(
 
   const raw = storeSieuThi.trim();
   const index = getBossAssignmentIndex(bossAssignments);
+  const storeCodeKey = extractStoreCode(raw);
 
   // 1. Dò tìm chính xác bằng MST (Mã Siêu Thị / Mã Kho)
   const storeMst = extractMst(raw);
   if (storeMst) {
     const matchByMst = index.byMst.get(storeMst);
-    if (matchByMst) return matchByMst;
+    if (matchByMst) {
+      // Kiểm tra xung đột tỉnh: Nếu chuỗi raw có mã kho rõ ràng (ví dụ chứa "_CMA_") mà MST lại trỏ sang tỉnh khác (ví dụ "Long An"),
+      // thì MST này bị xung đột do số nhà, ưu tiên dò theo mã kho.
+      if (storeCodeKey) {
+        const rawProv = inferProvinceFromStoreName(raw);
+        const mstProv = matchByMst.tinh || inferProvinceFromStoreName(matchByMst.sieuthi);
+        if (rawProv !== 'Khác' && mstProv !== 'Khác' && rawProv !== mstProv) {
+          const matchByCode = index.byCode.get(storeCodeKey);
+          if (matchByCode) return matchByCode;
+        } else {
+          return matchByMst;
+        }
+      } else {
+        return matchByMst;
+      }
+    }
   }
 
-  // 2. Dò tìm chính xác bằng Mã Kho (ví dụ: DML_LAN_BLU, TGD_CTH_NKI, DML_AGI_CDO)
-  const storeCodeKey = extractStoreCode(raw);
+  // 2. Dò tìm chính xác bằng Mã Kho (ví dụ: DML_LAN_BLU, TGD_CTH_NKI, TGD_CMA_CMA)
   if (storeCodeKey) {
     const matchByCode = index.byCode.get(storeCodeKey);
     if (matchByCode) return matchByCode;
@@ -1954,10 +1971,7 @@ export function findBossAssignmentRecord(
   const matchByExactName = index.byNormName.get(normStore);
   if (matchByExactName) return matchByExactName;
 
-  // 3b. Fallback cuối: so khớp một phần (substring) — không thể index hoá vì
-  // đây là quan hệ "chứa nhau", không phải bằng nhau, nên vẫn cần quét tuyến
-  // tính, nhưng chỉ chạy khi cả 3 tầng khớp chính xác ở trên đều không tìm
-  // thấy (trường hợp hiếm trong thực tế).
+  // 3b. Fallback cuối: so khớp một phần (substring)
   if (normStore.length > 6) {
     const matchByName = bossAssignments.find((b) => {
       const normB = normalizeVietnameseForMatch(b.sieuthi);
@@ -2119,6 +2133,96 @@ export function getTinhMoiForStore(
   }
 
   return '-';
+}
+
+/**
+ * Lấy chính xác TỈNH từ file BOSS thông qua dò tìm MST / Mã kho / Tên siêu thị.
+ */
+export function getProvinceForStore(
+  storeSieuThi: string,
+  bossAssignments: BossAssignmentRecord[] = [],
+  fallbackProvince: string = 'Khác'
+): string {
+  if (!storeSieuThi) return fallbackProvince;
+  if (bossAssignments && bossAssignments.length > 0) {
+    const match = findBossAssignmentRecord(storeSieuThi, bossAssignments);
+    if (match && match.tinh) {
+      return match.tinh;
+    }
+  }
+  const inferred = inferProvinceFromStoreName(storeSieuThi);
+  return (fallbackProvince && fallbackProvince !== 'Khác') ? fallbackProvince : (inferred !== 'Khác' ? inferred : fallbackProvince);
+}
+
+/**
+ * Lấy chính xác MÃ KHO (Store Code hoặc MST) từ file BOSS.
+ */
+export function getStoreCodeForStore(
+  storeSieuThi: string,
+  bossAssignments: BossAssignmentRecord[] = []
+): string {
+  if (!storeSieuThi) return '';
+  if (bossAssignments && bossAssignments.length > 0) {
+    const match = findBossAssignmentRecord(storeSieuThi, bossAssignments);
+    if (match) {
+      const code = extractStoreCode(match.sieuthi) || match.mst;
+      if (code) return code;
+    }
+  }
+  return extractStoreCode(storeSieuThi) || extractMst(storeSieuThi) || '';
+}
+
+/**
+ * Đồng bộ toàn bộ thông tin chuẩn: Mã kho, BOSS, Kênh, Tỉnh mới, Tỉnh
+ * dựa vào dữ liệu file BOSS (bossAssignments).
+ */
+export function enrichStoreWithBossAssignments<T extends {
+  sieuthi: string;
+  tinh?: string;
+  boss?: string;
+  kenh?: any;
+  tinhMoi?: string;
+  phanLoaiShop?: string;
+  storeCode?: string;
+  mst?: string;
+  dtQdTb?: any;
+}>(store: T, bossAssignments: BossAssignmentRecord[]): T {
+  if (!store || !bossAssignments || bossAssignments.length === 0) return store;
+
+  const match = findBossAssignmentRecord(store.sieuthi, bossAssignments);
+  if (!match) return store;
+
+  const newTinh = match.tinh || store.tinh || 'Khác';
+  const newBoss = match.boss ? match.boss.replace(/^Boss\s+/i, '').trim() : (store.boss || 'Chưa phân công');
+  const newKenh = match.kenh ? (parseChannelValue(match.kenh) as any) : store.kenh;
+  const newTinhMoi = match.tinhMoi || store.tinhMoi || '-';
+  const newPhanLoai = match.phanLoaiShop || store.phanLoaiShop || '-';
+  const newStoreCode = extractStoreCode(match.sieuthi) || match.mst || (store as any).storeCode;
+  const newMst = match.mst || (store as any).mst;
+
+  if (
+    store.tinh === newTinh &&
+    store.boss === newBoss &&
+    store.kenh === newKenh &&
+    store.tinhMoi === newTinhMoi &&
+    store.phanLoaiShop === newPhanLoai &&
+    (store as any).storeCode === newStoreCode &&
+    (store as any).mst === newMst
+  ) {
+    return store;
+  }
+
+  return {
+    ...store,
+    tinh: newTinh,
+    boss: newBoss,
+    kenh: newKenh,
+    tinhMoi: newTinhMoi,
+    phanLoaiShop: newPhanLoai,
+    storeCode: newStoreCode,
+    mst: newMst,
+    dtQdTb: match.dtQdTb || (store as any).dtQdTb,
+  };
 }
 
 export function parseDtQdTbNum(val: string | number | undefined): number {

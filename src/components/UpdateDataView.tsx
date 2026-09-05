@@ -378,8 +378,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
 
     await new Promise((r) => setTimeout(r, 20));
 
-    const tParseStart = performance.now();
-    const parsed = parseRevenuePastedData(text, isRealtime, dataType);
+    const bossListToUse = parsedBossItems.length > 0 ? parsedBossItems : currentBossAssignments;
+    const parsed = parseRevenuePastedData(text, isRealtime, dataType, bossListToUse);
     const tParseMs = performance.now() - tParseStart;
     console.log(`${perfTag} — parse xong ${parsed.length} dòng trong ${tParseMs.toFixed(0)}ms`);
 
@@ -1063,8 +1063,8 @@ export const UpdateDataView: React.FC<UpdateDataViewProps> = ({
     // before the parse runs; parsing itself is the actual work, not this wait.
     await new Promise((r) => setTimeout(r, 15));
 
-    const tParseStart = performance.now();
-    const parsed = parsePastedData(text, isRealtime, parsedBossItems);
+    const bossListToUse = parsedBossItems.length > 0 ? parsedBossItems : currentBossAssignments;
+    const parsed = parsePastedData(text, isRealtime, bossListToUse);
     const tParseMs = performance.now() - tParseStart;
     console.log(`${perfTag} — parse xong ${parsed.length} siêu thị trong ${tParseMs.toFixed(0)}ms`);
     setParsed(parsed);
