@@ -961,8 +961,9 @@ export async function exportElementAsImage(
     const borderRight = parseFloat(computedStyle.borderRightWidth) || 0;
     const totalRequiredWidth = Math.ceil(maxTableContentWidth + padLeft + padRight + borderLeft + borderRight + 12);
 
-    // Tab TỔNG card has exact fixed width 580px matching on-screen design
-    const finalWidth = isTongCard ? 580 : Math.ceil(Math.max(totalRequiredWidth, 360));
+    const isSingleTopBotCard = clone.id === 'topbot-card-dtqd' || clone.id === 'topbot-card-rate';
+    // Tab TỔNG card has exact fixed width 580px, single TopBot card has 620px
+    const finalWidth = isTongCard ? 580 : isSingleTopBotCard ? 620 : Math.ceil(Math.max(totalRequiredWidth, 360));
 
     // Apply exact width to clone, captureContainer and all full-width headers (outside tables)
     clone.style.setProperty('width', `${finalWidth}px`, 'important');
@@ -1012,8 +1013,10 @@ export async function exportElementAsImage(
 
     const isRevenueExport =
       isTongCard ||
+      isSingleTopBotCard ||
       clone.id === 'revenue-report-export-root' ||
       clone.id === 'revenue-tong-card' ||
+      clone.id.startsWith('topbot-card-') ||
       !!clone.querySelector('#revenue-tong-card, #topbot-report-container');
 
     if (isRevenueExport) {

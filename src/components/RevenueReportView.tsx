@@ -46,6 +46,7 @@ import {
   Calendar,
   Percent,
   RotateCcw,
+  Camera,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { exportElementAsImage, copyTextToClipboard } from '../services/imageExport';
@@ -1562,6 +1563,32 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
     }
   };
 
+  const handleExportSingleCard = async (elementId: string, filename: string, cardName: string) => {
+    const el = document.getElementById(elementId);
+    if (!el) {
+      alert(`Không tìm thấy ${cardName} để xuất ảnh!`);
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const remarkText = generateRevenueRemarks('template_1', 'no_tag_top');
+      const blob = await exportElementAsImage(el, filename, {
+        remarkTextToCopy: remarkText,
+        borderWidth: 0,
+      });
+      if (blob) {
+        confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+      } else {
+        alert(`Không thể xuất ảnh ${cardName}. Vui lòng thử lại!`);
+      }
+    } catch (err) {
+      console.error(`Lỗi khi xuất ảnh ${cardName}:`, err);
+      alert('Có lỗi xảy ra trong quá trình xuất ảnh. Vui lòng thử lại!');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const generateRevenueRemarks = (
     template: 'template_1' | 'template_2' | 'template_3' = activeRemarkTemplate,
     mode: RemarkDisplayMode = remarkDisplayMode
@@ -2232,10 +2259,21 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
             className="w-full max-w-xl mx-auto bg-white border border-slate-300 font-sans select-none overflow-hidden my-2 shadow-xs rounded-none"
           >
             {/* Header: Main Title */}
-            <div className="py-4 px-4 text-center bg-white border-b border-slate-300">
+            <div className="py-4 px-4 text-center bg-white border-b border-slate-300 relative">
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase text-black font-sans">
                 {mainTitleStr}
               </h1>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleExport('all');
+                }}
+                disabled={isExporting}
+                title="Xuất ảnh bảng Tổng (Camera)"
+                className="absolute top-3.5 right-3.5 p-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl border border-slate-300 export-hide cursor-pointer transition-all shadow-xs disabled:opacity-50"
+              >
+                <Camera className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Sub-Header Bar: REALTIME / LUỸ KẾ & THỜI GIAN SD */}
@@ -2515,9 +2553,9 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
           /* TAB TOP/BOT: EXACT MATCH DESIGN WITH 2 SEPARATE COLUMNS (GAP IN BETWEEN) */
           <div id="topbot-report-container" className="w-full max-w-full xl:max-w-7xl 2xl:max-w-[1440px] mx-auto grid grid-cols-1 xl:grid-cols-2 gap-3.5 my-2 select-none">
             {/* LEFT COLUMN: CHANNEL HEADER & TOP/BOT D.THU TABLE */}
-            <div className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-xs flex flex-col">
+            <div id="topbot-card-dtqd" className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-xs flex flex-col relative">
               {/* Channel Big Banner */}
-              <div className="bg-[#1e40af] text-white flex items-center justify-center p-4 border-b border-slate-300 h-[132px] box-border">
+              <div className="bg-[#1e40af] text-white flex flex-col items-center justify-center p-4 border-b border-slate-300 h-[132px] box-border relative">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-wider uppercase text-white font-sans drop-shadow-sm text-center">
                   {selectedChannels.length === 1
                     ? (selectedChannels[0] === 'DML' ? 'ĐML' : selectedChannels[0] === 'DMM' ? 'ĐMM' : selectedChannels[0] === 'DMS' ? 'ĐMS' : selectedChannels[0] === 'TGD' ? 'TGD' : 'TOPZONE')
@@ -2525,6 +2563,25 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                     ? 'TỔNG'
                     : selectedChannels.map((c) => (c === 'DML' ? 'ĐML' : c === 'DMM' ? 'ĐMM' : c === 'DMS' ? 'ĐMS' : c === 'TGD' ? 'TGD' : 'TOPZONE')).join(', ')}
                 </h1>
+                <p className="text-[11px] font-bold text-blue-200 mt-1 uppercase tracking-wide">
+                  {timeMode === 'realtime' ? `REALTIME - ${realtimeTimeStr}` : `LUỸ KẾ - ${realtimeTimeAndDateStr || realtimeTimeStr}`}
+                </p>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const chName = selectedChannels.length === 1 ? selectedChannels[0] : selectedChannels.length === 5 ? 'Tong' : selectedChannels.join('_');
+                    handleExportSingleCard(
+                      'topbot-card-dtqd',
+                      `${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_TopBot_DTQD_${removeVietnameseTones(chName)}.png`,
+                      'bảng Top & Bottom Doanh thu'
+                    );
+                  }}
+                  disabled={isExporting}
+                  title="Xuất ảnh bảng Doanh thu quy đổi (Camera)"
+                  className="absolute top-2.5 right-2.5 p-2 bg-white/20 hover:bg-white/30 active:scale-95 text-white rounded-xl transition-all flex items-center justify-center border border-white/40 cursor-pointer shadow-xs export-hide hover:shadow-md disabled:opacity-50"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
               </div>
 
               {/* Table: Top & Bottom DTQD */}
@@ -2607,9 +2664,26 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
             </div>
 
             {/* RIGHT COLUMN: TIME INFO & TOP/BOT % HT TABLE */}
-            <div className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-xs flex flex-col">
+            <div id="topbot-card-rate" className="bg-white border border-slate-300 rounded-none overflow-hidden shadow-xs flex flex-col relative">
               {/* Right Time Info Block */}
-              <div className="flex flex-col bg-white h-[132px] border-b border-slate-300 box-border">
+              <div className="flex flex-col bg-white h-[132px] border-b border-slate-300 box-border relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const chName = selectedChannels.length === 1 ? selectedChannels[0] : selectedChannels.length === 5 ? 'Tong' : selectedChannels.join('_');
+                    handleExportSingleCard(
+                      'topbot-card-rate',
+                      `${timeMode === 'realtime' ? 'Realtime' : 'LuyKe'}_TopBot_TiLe_${removeVietnameseTones(chName)}.png`,
+                      'bảng Top & Bottom % Hoàn thành'
+                    );
+                  }}
+                  disabled={isExporting}
+                  title="Xuất ảnh bảng % Hoàn thành (Camera)"
+                  className="absolute top-2.5 right-2.5 p-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl transition-all flex items-center justify-center border border-slate-300 cursor-pointer shadow-xs export-hide hover:shadow-md disabled:opacity-50 z-10"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+
                 <div className="grid grid-cols-2 border-b border-slate-300 divide-x divide-slate-300 h-[44px]">
                   <div className="px-3 font-black text-black text-xs sm:text-sm uppercase flex items-center pl-4">
                     {timeMode === 'realtime' ? 'REALTIME' : 'LUỸ KẾ'}
