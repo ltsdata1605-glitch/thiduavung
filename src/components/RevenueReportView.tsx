@@ -2256,58 +2256,58 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
             {/* TABLE 1: THEO KÊNH */}
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
+              <table className="w-full table-fixed text-left border-collapse text-xs font-sans border-b border-slate-300">
                 <colgroup>
-                  <col style={{ width: '26%' }} width="26%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '21.6%' }} width="21.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
                 </colgroup>
                 <thead>
                   {/* Top Banner Row */}
                   <tr>
                     <th
                       colSpan={3}
-                      style={{ width: '63%' }}
-                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight w-[63%]"
+                      style={{ width: '60.8%' }}
+                      className="bg-[#00b074] text-black font-black p-2.5 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-tight leading-tight w-[60.8%]"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      style={{ width: '18.5%' }}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
+                      style={{ width: '19.6%' }}
+                      className="bg-[#fcd34d] text-black font-black p-1.5 text-center border-r border-b border-slate-300 text-xs leading-tight w-[19.6%] align-middle"
                     >
-                      <div className="font-black text-black">HIỆU QUẢ</div>
-                      <div className="font-black text-black">QUY ĐỔI</div>
-                      <div className="text-[10px] sm:text-[11px] font-black mt-1 text-black uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] sm:text-[11px] font-black text-black">MIN = 50%</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">HIỆU QUẢ</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">QUY ĐỔI</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black mt-1 text-black uppercase tracking-tight whitespace-nowrap">MỤC TIÊU</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black text-black whitespace-nowrap">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      style={{ width: '18.5%' }}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
+                      style={{ width: '19.6%' }}
+                      className="bg-[#fcd34d] text-black font-black p-1.5 text-center border-b border-slate-300 text-xs leading-tight w-[19.6%] align-middle"
                     >
-                      <div className="font-black text-black">TỈ TRỌNG</div>
-                      <div className="font-black text-black">TRẢ CHẬM</div>
-                      <div className="text-[10px] sm:text-[11px] font-black mt-1 text-black uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] sm:text-[11px] font-black text-black">MIN = 50%</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">TỈ TRỌNG</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">TRẢ CHẬM</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black mt-1 text-black uppercase tracking-tight whitespace-nowrap">MỤC TIÊU</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black text-black whitespace-nowrap">MIN = 50%</div>
                     </th>
                   </tr>
 
                   {/* Sub Header Row */}
                   <tr>
-                    <th style={{ width: '26%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                    <th style={{ width: '21.6%' }} className="py-2 pl-3 pr-1.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[21.6%] uppercase tracking-wider font-black text-black text-xs">
                       KÊNH
                     </th>
-                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
-                      <div>HOÀN THÀNH</div>
-                      <div>HIỆN TẠI</div>
+                    <th style={{ width: '19.6%' }} className="py-2 px-1 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-tight font-black text-black leading-tight text-xs w-[19.6%]">
+                      <div className="whitespace-nowrap">HOÀN THÀNH</div>
+                      <div className="whitespace-nowrap">HIỆN TẠI</div>
                     </th>
-                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
-                      <div>HOÀN THÀNH</div>
-                      <div>DỰ KIẾN</div>
+                    <th style={{ width: '19.6%' }} className="py-2 px-1 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-tight font-black text-black leading-tight text-xs w-[19.6%]">
+                      <div className="whitespace-nowrap">HOÀN THÀNH</div>
+                      <div className="whitespace-nowrap">DỰ KIẾN</div>
                     </th>
                   </tr>
                 </thead>
@@ -2324,20 +2324,20 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                     return (
                       <tr key={ch.kenh} className="font-bold">
-                        <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 border-r border-b border-slate-300 text-black font-bold w-[26%]">
+                        <td style={{ width: '21.6%' }} className="py-2 pl-3 pr-1.5 text-left border-r border-b border-slate-300 text-black font-bold text-xs w-[21.6%]">
                           {ch.kenh}
                         </td>
                         <td
-                          style={{ width: '18.5%' }}
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
+                          style={{ width: '19.6%' }}
+                          className={`py-2 px-1 text-center border-r border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${
                             isUnderPerforming ? 'bg-[#fecdd3] text-[#b91c1c]' : 'bg-white text-black'
                           }`}
                         >
                           {fmt(ch.rateDt)}
                         </td>
                         <td
-                          style={{ width: '18.5%' }}
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
+                          style={{ width: '19.6%' }}
+                          className={`py-2 px-1 text-center border-r border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${
                             isProjectedGreen
                               ? 'bg-[#dcfce7] text-[#16a34a]'
                               : isUnderPerforming
@@ -2347,10 +2347,10 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                         >
                           {fmt(projected)}
                         </td>
-                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center border-r border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(ch.qdEff)}
                         </td>
-                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-b border-slate-300 font-black font-mono w-[18.5%] ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(ch.tcRatio)}
                         </td>
                       </tr>
@@ -2359,21 +2359,21 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Channel Summary Row */}
                   <tr className="font-black text-black">
-                    <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300 w-[26%]">
+                    <td style={{ width: '21.6%' }} className="py-2 pl-3 pr-1.5 text-left bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300 text-xs w-[21.6%]">
                       {summaryChannelLabel}
                     </td>
-                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
+                    <td style={{ width: '19.6%' }} className="py-2 px-1 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono text-xs w-[19.6%]">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
                     </td>
-                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
+                    <td style={{ width: '19.6%' }} className="py-2 px-1 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono text-xs w-[19.6%]">
                       {timeMode === 'realtime'
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono text-xs w-[19.6%] ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalQdEff.toFixed(1)}%` : `${Math.round(totalSummary.totalQdEff)}%`}
                     </td>
-                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono text-xs w-[19.6%] ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalTcRatio.toFixed(1)}%` : `${Math.round(totalSummary.totalTcRatio)}%`}
                     </td>
                   </tr>
@@ -2386,58 +2386,58 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
             {/* TABLE 2: THEO TỈNH */}
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed text-left border-collapse text-xs sm:text-sm font-sans border-b border-slate-300">
+              <table className="w-full table-fixed text-left border-collapse text-xs font-sans border-b border-slate-300">
                 <colgroup>
-                  <col style={{ width: '26%' }} width="26%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
-                  <col style={{ width: '18.5%' }} width="18.5%" />
+                  <col style={{ width: '21.6%' }} width="21.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
+                  <col style={{ width: '19.6%' }} width="19.6%" />
                 </colgroup>
                 <thead>
                   {/* Top Banner Row */}
                   <tr>
                     <th
                       colSpan={3}
-                      style={{ width: '63%' }}
-                      className="bg-[#00b074] text-black font-black p-2.5 sm:p-3 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-wide leading-tight w-[63%]"
+                      style={{ width: '60.8%' }}
+                      className="bg-[#00b074] text-black font-black p-2.5 text-center border-r border-b border-slate-300 text-xs sm:text-sm uppercase tracking-tight leading-tight w-[60.8%]"
                     >
                       {targetHeaderStr}
                     </th>
                     <th
                       rowSpan={2}
-                      style={{ width: '18.5%' }}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-r border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
+                      style={{ width: '19.6%' }}
+                      className="bg-[#fcd34d] text-black font-black p-1.5 text-center border-r border-b border-slate-300 text-xs leading-tight w-[19.6%] align-middle"
                     >
-                      <div className="font-black text-black">HIỆU QUẢ</div>
-                      <div className="font-black text-black">QUY ĐỔI</div>
-                      <div className="text-[10px] sm:text-[11px] font-black mt-1 text-black uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] sm:text-[11px] font-black text-black">MIN = 50%</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">HIỆU QUẢ</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">QUY ĐỔI</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black mt-1 text-black uppercase tracking-tight whitespace-nowrap">MỤC TIÊU</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black text-black whitespace-nowrap">MIN = 50%</div>
                     </th>
                     <th
                       rowSpan={2}
-                      style={{ width: '18.5%' }}
-                      className="bg-[#fcd34d] text-black font-black p-2 text-center border-b border-slate-300 text-xs sm:text-sm leading-tight w-[18.5%] align-middle"
+                      style={{ width: '19.6%' }}
+                      className="bg-[#fcd34d] text-black font-black p-1.5 text-center border-b border-slate-300 text-xs leading-tight w-[19.6%] align-middle"
                     >
-                      <div className="font-black text-black">TỈ TRỌNG</div>
-                      <div className="font-black text-black">TRẢ CHẬM</div>
-                      <div className="text-[10px] sm:text-[11px] font-black mt-1 text-black uppercase">MỤC TIÊU</div>
-                      <div className="text-[10px] sm:text-[11px] font-black text-black">MIN = 50%</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">TỈ TRỌNG</div>
+                      <div className="font-black text-black whitespace-nowrap tracking-tight">TRẢ CHẬM</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black mt-1 text-black uppercase tracking-tight whitespace-nowrap">MỤC TIÊU</div>
+                      <div className="text-[10px] sm:text-[10.5px] font-black text-black whitespace-nowrap">MIN = 50%</div>
                     </th>
                   </tr>
 
                   {/* Sub Header Row */}
                   <tr>
-                    <th style={{ width: '26%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[26%] pl-3 sm:pl-4 uppercase tracking-wider font-black text-black">
+                    <th style={{ width: '21.6%' }} className="py-2 pl-3 pr-1.5 border-r border-b border-slate-300 bg-[#00b074] text-left w-[21.6%] uppercase tracking-wider font-black text-black text-xs">
                       TỈNH
                     </th>
-                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
-                      <div>HOÀN THÀNH</div>
-                      <div>HIỆN TẠI</div>
+                    <th style={{ width: '19.6%' }} className="py-2 px-1 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-tight font-black text-black leading-tight text-xs w-[19.6%]">
+                      <div className="whitespace-nowrap">HOÀN THÀNH</div>
+                      <div className="whitespace-nowrap">HIỆN TẠI</div>
                     </th>
-                    <th style={{ width: '18.5%' }} className="p-2 sm:p-2.5 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-wider font-black text-black leading-tight w-[18.5%]">
-                      <div>HOÀN THÀNH</div>
-                      <div>DỰ KIẾN</div>
+                    <th style={{ width: '19.6%' }} className="py-2 px-1 border-r border-b border-slate-300 bg-[#00b074] text-center uppercase tracking-tight font-black text-black leading-tight text-xs w-[19.6%]">
+                      <div className="whitespace-nowrap">HOÀN THÀNH</div>
+                      <div className="whitespace-nowrap">DỰ KIẾN</div>
                     </th>
                   </tr>
                 </thead>
@@ -2454,20 +2454,20 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                     return (
                       <tr key={p.tinh} className="font-bold">
-                        <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 border-r border-b border-slate-300 text-black font-bold w-[26%]">
+                        <td style={{ width: '21.6%' }} className="py-2 pl-3 pr-1.5 text-left border-r border-b border-slate-300 text-black font-bold text-xs w-[21.6%]">
                           {p.tinh}
                         </td>
                         <td
-                          style={{ width: '18.5%' }}
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
+                          style={{ width: '19.6%' }}
+                          className={`py-2 px-1 text-center border-r border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${
                             isUnderPerforming ? 'bg-[#fecdd3] text-[#b91c1c]' : 'bg-white text-black'
                           }`}
                         >
                           {fmt(p.rateDt)}
                         </td>
                         <td
-                          style={{ width: '18.5%' }}
-                          className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${
+                          style={{ width: '19.6%' }}
+                          className={`py-2 px-1 text-center border-r border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${
                             isProjectedGreen
                               ? 'bg-[#dcfce7] text-[#16a34a]'
                               : isUnderPerforming
@@ -2477,10 +2477,10 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                         >
                           {fmt(projected)}
                         </td>
-                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-r border-b border-slate-300 font-black font-mono w-[18.5%] ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center border-r border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${isQdRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(p.qdEff)}
                         </td>
-                        <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center border-b border-slate-300 font-black font-mono w-[18.5%] ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
+                        <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center border-b border-slate-300 font-black font-mono text-xs w-[19.6%] ${isTcRed ? 'text-[#dc2626]' : 'text-black'}`}>
                           {fmt(p.tcRatio)}
                         </td>
                       </tr>
@@ -2489,21 +2489,21 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
 
                   {/* Province Summary Row at Bottom */}
                   <tr className="font-black text-black">
-                    <td style={{ width: '26%' }} className="p-2 sm:p-2.5 text-left pl-3 sm:pl-4 bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300 w-[26%]">
+                    <td style={{ width: '21.6%' }} className="py-2 pl-3 pr-1.5 text-left bg-[#00b074] text-black font-black uppercase tracking-wide border-r border-b border-slate-300 text-xs w-[21.6%]">
                       TOÀN VÙNG TNB
                     </td>
-                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
+                    <td style={{ width: '19.6%' }} className="py-2 px-1 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono text-xs w-[19.6%]">
                       {timeMode === 'realtime' ? `${totalSummary.totalRateDt.toFixed(1)}%` : `${Math.round(totalSummary.totalRateDt)}%`}
                     </td>
-                    <td style={{ width: '18.5%' }} className="p-2 sm:p-2.5 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono w-[18.5%]">
+                    <td style={{ width: '19.6%' }} className="py-2 px-1 text-center bg-[#00b074] text-black font-black border-r border-b border-slate-300 font-mono text-xs w-[19.6%]">
                       {timeMode === 'realtime'
                         ? `${(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0).toFixed(1)}%`
                         : `${Math.round(thoiGianSdPercent > 0 ? totalSummary.totalRateDt / (thoiGianSdPercent / 100) : 0)}%`}
                     </td>
-                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center bg-[#fcd34d] font-black border-r border-b border-slate-300 font-mono text-xs w-[19.6%] ${totalSummary.totalQdEff < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalQdEff.toFixed(1)}%` : `${Math.round(totalSummary.totalQdEff)}%`}
                     </td>
-                    <td style={{ width: '18.5%' }} className={`p-2 sm:p-2.5 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono w-[18.5%] ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
+                    <td style={{ width: '19.6%' }} className={`py-2 px-1 text-center bg-[#fcd34d] font-black border-b border-slate-300 font-mono text-xs w-[19.6%] ${totalSummary.totalTcRatio < 50 ? 'text-[#dc2626]' : 'text-black'}`}>
                       {timeMode === 'realtime' ? `${totalSummary.totalTcRatio.toFixed(1)}%` : `${Math.round(totalSummary.totalTcRatio)}%`}
                     </td>
                   </tr>
@@ -2967,28 +2967,28 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
               <thead>
                 {/* Group Band Headers */}
                 <tr>
-                  <th colSpan={3} data-quick-colspan="2" className="bg-[#0284c7] text-white font-black text-xs text-center p-2.5 border-r border-sky-600 uppercase tracking-wide">
+                  <th colSpan={3} data-quick-colspan="2" className="bg-[#0284c7] text-white font-black text-xs text-center p-2 border-r border-sky-600 uppercase tracking-wide align-middle">
                     TỈNH
                   </th>
-                  <th colSpan={3} data-quick-colspan="1" className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-500/40 uppercase tracking-wide">
-                    <div>{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
-                    <div className="text-[10px] font-bold">{targetSubHeaderStr}</div>
+                  <th colSpan={3} data-quick-colspan="1" className="bg-[#fbb040] text-slate-950 font-black text-xs text-center p-1.5 border-r border-amber-500/40 uppercase tracking-tight leading-tight align-middle min-w-[110px]">
+                    <div className="whitespace-nowrap">{timeMode === 'realtime' ? 'MỤC TIÊU HÔM NAY =' : 'MỤC TIÊU THÁNG ='}</div>
+                    <div className="text-[10px] font-bold mt-0.5 whitespace-nowrap">{targetSubHeaderStr}</div>
                   </th>
-                  <th colSpan={2} data-quick-colspan="1" className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-2.5 border-r border-amber-300 uppercase tracking-wide">
-                    <div>DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
-                    <div className="text-[9.5px] font-bold">THEO TỈ TRỌNG TỪNG GIỜ</div>
+                  <th colSpan={2} data-quick-colspan="1" className="bg-[#fde047] text-slate-950 font-black text-xs text-center p-1.5 border-r border-amber-300 uppercase tracking-tight leading-tight align-middle min-w-[115px]">
+                    <div className="whitespace-nowrap">DỰ KIẾN HẾT {timeMode === 'realtime' ? 'NGÀY' : 'THÁNG'}</div>
+                    <div className="text-[9.5px] font-bold mt-0.5 whitespace-nowrap">THEO TỈ TRỌNG TỪNG GIỜ</div>
                   </th>
-                  <th rowSpan={2} className="bg-[#fbb040] text-slate-950 font-black p-2 text-center border-r border-amber-500/40 text-xs leading-tight w-24 align-middle">
-                    <div>HIỆU QUẢ</div>
-                    <div>QUY ĐỔI</div>
-                    <div className="text-[9px] font-bold mt-0.5">MIN = 50%</div>
+                  <th rowSpan={2} className="bg-[#fbb040] text-slate-950 font-black p-1.5 text-center border-r border-amber-500/40 text-xs leading-tight w-24 min-w-[90px] align-middle">
+                    <div className="whitespace-nowrap tracking-tight">HIỆU QUẢ</div>
+                    <div className="whitespace-nowrap tracking-tight">QUY ĐỔI</div>
+                    <div className="text-[9px] font-bold mt-0.5 whitespace-nowrap">MIN = 50%</div>
                   </th>
-                  <th rowSpan={2} className="bg-[#fdbb84] text-slate-950 font-black p-2 text-center border-r border-orange-300 text-xs leading-tight w-24 align-middle">
-                    <div>TỈ TRỌNG</div>
-                    <div>TRẢ CHẬM</div>
-                    <div className="text-[9px] font-bold mt-0.5">MIN = 50%</div>
+                  <th rowSpan={2} className="bg-[#fdbb84] text-slate-950 font-black p-1.5 text-center border-r border-orange-300 text-xs leading-tight w-24 min-w-[90px] align-middle">
+                    <div className="whitespace-nowrap tracking-tight">TỈ TRỌNG</div>
+                    <div className="whitespace-nowrap tracking-tight">TRẢ CHẬM</div>
+                    <div className="text-[9px] font-bold mt-0.5 whitespace-nowrap">MIN = 50%</div>
                   </th>
-                  <th rowSpan={2} className="bg-[#6366f1] text-white font-black text-xs text-center p-2.5 uppercase tracking-wide align-middle w-28">
+                  <th rowSpan={2} className="bg-[#6366f1] text-white font-black text-xs text-center p-2 uppercase tracking-tight leading-tight align-middle w-28 min-w-[95px]">
                     TIẾN ĐỘ
                   </th>
                 </tr>
@@ -3000,9 +3000,9 @@ ${botCount > 0 ? `⚠️ BOT ${botCount} SIÊU THỊ CẦN TĂNG TỐC:\n${botLi
                   <th data-quick-hide="1" className="p-2 border-r border-slate-300 text-slate-800 font-black bg-sky-50">SỐ ST</th>
                   <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">MỤC TIÊU</th>
                   <th data-quick-hide="1" className="p-2 border-r border-amber-200 text-right bg-amber-100 text-amber-950 font-black">THỰC HIỆN</th>
-                  <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black">HOÀN THÀNH</th>
+                  <th className="p-2 border-r border-amber-200 text-center bg-amber-100 text-amber-950 font-black min-w-[110px]">HOÀN THÀNH</th>
                   <th data-quick-hide="1" className="p-2 border-r border-yellow-200 text-right bg-yellow-100 text-yellow-950 font-black">THỰC HIỆN</th>
-                  <th className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black">HOÀN THÀNH DỰ KIẾN</th>
+                  <th className="p-2 border-r border-yellow-200 text-center bg-yellow-100 text-yellow-950 font-black min-w-[115px]">HOÀN THÀNH DỰ KIẾN</th>
                 </tr>
               </thead>
 
