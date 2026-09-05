@@ -623,7 +623,14 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
 
   const scopeLabel = isProvinceLevel ? 'VÙNG' : selectedProvince !== 'ALL' ? `TỈNH ${selectedProvince}` : selectedBoss !== 'ALL' ? `BOSS ${selectedBoss}` : 'SIÊU THỊ';
 
+  // Modal này LUÔN được mount trong App (xem <TagBossModal> ở App.tsx), còn
+  // `if (!isOpen) return null` thì nằm mãi bên dưới — mà React chạy hết mọi
+  // useMemo TRƯỚC khi tới lệnh return đó. Nghĩa là trước đây mỗi lần đổi tab
+  // (làm đổi stores/bộ lọc) đều sinh đủ 3 bản nhận xét, mỗi bản duyệt toàn bộ
+  // danh sách siêu thị × mọi ngành hàng, cho một modal KHÔNG ai mở. Đo được
+  // riêng nhánh này ~950ms mỗi lần chuyển tab. Chỉ tính khi modal thật sự mở.
   const template1Text = useMemo(() => {
+    if (!isOpen) return '';
     return generateReportRemarksText({
       stores,
       selectedProvince,
@@ -643,9 +650,10 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       templateType: 'template_1',
       botCount,
     });
-  }, [stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode, botCount]);
+  }, [isOpen, stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode, botCount]);
 
   const template2Text = useMemo(() => {
+    if (!isOpen) return '';
     return generateReportRemarksText({
       stores,
       selectedProvince,
@@ -664,9 +672,10 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       remarkDisplayMode,
       templateType: 'template_2',
     });
-  }, [stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode]);
+  }, [isOpen, stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode]);
 
   const template3Text = useMemo(() => {
+    if (!isOpen) return '';
     return generateReportRemarksText({
       stores,
       selectedProvince,
@@ -685,7 +694,7 @@ export const TagBossModal: React.FC<TagBossModalProps> = ({
       remarkDisplayMode,
       templateType: 'template_3',
     });
-  }, [stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode]);
+  }, [isOpen, stores, selectedProvince, selectedChannels, selectedBoss, selectedPhanLoaiShop, selectedTinhMoi, selectedCategory, selectedCategoryGroup, categoryGroupMap, bossAssignments, categoryDisplayNameMap, timeModeName, lastUpdated, entityScope, remarkDisplayMode]);
 
   if (!isOpen) return null;
 

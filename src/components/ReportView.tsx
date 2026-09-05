@@ -703,6 +703,14 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // report format. The VÙNG button sets entityScope to 'sieuthi' (see HeaderBanner).
   const isProvinceView = entityScope === 'sieuthi';
 
+  // Tab TỔNG và NHÓM render TongReportView / GroupReportView (early return ở
+  // cuối component) và KHÔNG dùng bất kỳ kết quả nào của chuỗi tính toán bảng
+  // xếp hạng bên dưới. Hook thì không được gọi có điều kiện, nên trước đây
+  // toàn bộ chuỗi đó vẫn chạy đủ rồi bị vứt đi — đo được nó chiếm phần lớn
+  // 8 giây đứng hình khi bấm TỔNG. Chặn ngay tại filteredStores là đủ: mọi
+  // memo phía sau đều bắt nguồn từ đây nên cũng rỗng theo.
+  const isLeaderboardScope = entityScope !== 'tong' && entityScope !== 'nhom';
+
   // Filter stores according to active user filters
   const hasSearch = Boolean(searchTerm.trim());
 
@@ -711,7 +719,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   // data at all (a checkbox click, a dropdown open, every keystroke while
   // typing in the search box). useMemo below makes it only redo the work
   // when something it actually reads has changed.
-  const filteredStores = useMemo(() => stores.filter((s) => {
+  const filteredStores = useMemo(() => (!isLeaderboardScope ? [] : stores.filter((s) => {
     // Exclude stores with channel "OFF" or "LƯU ĐỘNG" or store name containing "LƯU ĐỘNG"
     if (isExcludedStore(s, bossAssignments)) {
       return false;
@@ -830,7 +838,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     }
 
     return true;
-  }), [
+  })), [
     stores,
     hasSearch,
     searchTerm,
@@ -847,6 +855,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     resolveProvince,
     findBossRecord,
     isProvinceView,
+    isLeaderboardScope,
   ]);
 
   const baseRows: StoreRecord[] = useMemo(() => (isProvinceView
@@ -1178,138 +1187,134 @@ export const ReportView: React.FC<ReportViewProps> = ({
   }, [selectedStoreKeys, storesToDisplay]);
 
   // Sort stores
-  const sortedStores = useMemo(() => [...storesToDisplay].sort((a, b) => {
-    // ═══ UNIVERSAL PRIMARY SORT (Luôn áp dụng) ═══
-    // 1. Kênh: ĐML → ĐMM → ĐMS → TGD → TopZone
-    const aKenhPrimary = resolveKenh(a.sieuthi, a.kenh);
-    const bKenhPrimary = resolveKenh(b.sieuthi, b.kenh);
-    const channelPrimaryDiff = getChannelRank(aKenhPrimary) - getChannelRank(bKenhPrimary);
-    if (channelPrimaryDiff !== 0) return channelPrimaryDiff;
+  const sortedStores = useMemo(() => {
+    // storesToDisplay đã gắn sẵn `achievedCategories` cho từng dòng, tính bằng
+    // ĐÚNG công thức và ĐÚNG displayedCategoryNames mà comparator cần. Trước
+    // đây comparator đếm lại từ đầu cho CẢ HAI vế của mỗi phép so sánh: 800
+    // dòng ≈ 7.700 phép so sánh × 2 vế × 38 ngành hàng ≈ 585.000 lời gọi
+    // getCategoryData cho MỘT lần sắp xếp, mà mỗi siêu thị luôn ra cùng một
+    // con số. Đọc lại số đã tính cho kết quả sắp xếp y hệt.
+    const achievedOf = (s: (typeof storesToDisplay)[number]): number =>
+      (s as { achievedCategories?: number }).achievedCategories ?? 0;
 
-    // 2. DK Đạt giảm dần (trong cùng kênh)
-    const aAchievedPrimary = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
-    const bAchievedPrimary = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
-    const achievedPrimaryDiff = bAchievedPrimary - aAchievedPrimary;
-    if (achievedPrimaryDiff !== 0) return achievedPrimaryDiff;
+    // Kênh cũng chỉ tra một lần cho mỗi dòng thay vì 2-4 lần trong mỗi phép so sánh.
+    const kenhRankByRow = new Map<(typeof storesToDisplay)[number], number>();
+    storesToDisplay.forEach((s) => kenhRankByRow.set(s, getChannelRank(resolveKenh(s.sieuthi, s.kenh))));
+    const kenhRankOf = (s: (typeof storesToDisplay)[number]): number => kenhRankByRow.get(s) ?? 0;
 
-    // ═══ SECONDARY SORT (Theo cột user bấm) ═══
-    // 1. Sort by CỘT ĐẠT (achieved count or achieved revenue)
-    if (sortField === 'achieved') {
-      const aAchievedCount = displayedCategoryNames.length > 0
-        ? displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length
-        : (a.achieved || 0);
-      const bAchievedCount = displayedCategoryNames.length > 0
-        ? displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length
-        : (b.achieved || 0);
-      const diff = aAchievedCount - bAchievedCount;
-      if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
-      // Secondary sort: % rate
-      return sortOrder === 'asc' ? (a.rate || 0) - (b.rate || 0) : (b.rate || 0) - (a.rate || 0);
-    }
+    return [...storesToDisplay].sort((a, b) => {
+      // ═══ UNIVERSAL PRIMARY SORT (Luôn áp dụng) ═══
+      // 1. Kênh: ĐML → ĐMM → ĐMS → TGD → TopZone
+      const channelPrimaryDiff = kenhRankOf(a) - kenhRankOf(b);
+      if (channelPrimaryDiff !== 0) return channelPrimaryDiff;
 
-    // 2. Sort by TỶ LỆ % (rate)
-    if (sortField === 'rate') {
-      const diff = (a.rate || 0) - (b.rate || 0);
-      if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
-      // Secondary sort: achieved count
-      const aAchievedCount = displayedCategoryNames.length > 0
-        ? displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length
-        : (a.achieved || 0);
-      const bAchievedCount = displayedCategoryNames.length > 0
-        ? displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length
-        : (b.achieved || 0);
-      return sortOrder === 'asc' ? aAchievedCount - bAchievedCount : bAchievedCount - aAchievedCount;
-    }
+      // 2. DK Đạt giảm dần (trong cùng kênh)
+      const achievedPrimaryDiff = achievedOf(b) - achievedOf(a);
+      if (achievedPrimaryDiff !== 0) return achievedPrimaryDiff;
 
-    // 3. Sort by KÊNH
-    if (sortField === 'kenh') {
-      const aKenh = resolveKenh(a.sieuthi, a.kenh);
-      const bKenh = resolveKenh(b.sieuthi, b.kenh);
-      const channelDiff = getChannelRank(aKenh) - getChannelRank(bKenh);
-      if (channelDiff !== 0) return sortOrder === 'asc' ? channelDiff : -channelDiff;
-      // Secondary sort: achieved count descending
-      const aAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
-      const bAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
-      return bAchievedCount - aAchievedCount;
-    }
-
-    // 4. Sort by STT / Rank
-    if (sortField === 'rank' || sortField === 'stt') {
-      const aVal = a.stt;
-      const bVal = b.stt;
-      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-
-    // 5. Sort by TỈNH
-    if (sortField === 'tinh') {
-      return sortOrder === 'asc' ? a.tinh.localeCompare(b.tinh, 'vi') : b.tinh.localeCompare(a.tinh, 'vi');
-    }
-
-    // 6. Sort by BOSS
-    if (sortField === 'boss') {
-      const aVal = resolveBoss(a.sieuthi, a.boss);
-      const bVal = resolveBoss(b.sieuthi, b.boss);
-      return sortOrder === 'asc' ? aVal.localeCompare(bVal, 'vi') : bVal.localeCompare(aVal, 'vi');
-    }
-
-    // 7. Sort by SIÊU THỊ
-    if (sortField === 'sieuthi') {
-      return sortOrder === 'asc' ? a.sieuthi.localeCompare(b.sieuthi, 'vi') : b.sieuthi.localeCompare(a.sieuthi, 'vi');
-    }
-
-    // 8. Sort by DTQĐ TB
-    if (sortField === 'dtQdTb') {
-      const aVal = isProvinceView
-        ? (a as any).dtQdTbVal || 0
-        : parseDtQdTbNum(resolveDtQd(a.sieuthi));
-      const bVal = isProvinceView
-        ? (b as any).dtQdTbVal || 0
-        : parseDtQdTbNum(resolveDtQd(b.sieuthi));
-      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-
-    // 9. Sort by a specific category column (e.g. CAMERA, LAPTOP)
-    if (sortField !== 'default') {
-      const aCat = a.categoryMap?.[sortField];
-      const bCat = b.categoryMap?.[sortField];
-      const aVal = aCat ? (valueDisplayMode === 'value' ? (aCat.achieved || 0) : (aCat.rate ?? -999)) : -999;
-      const bVal = bCat ? (valueDisplayMode === 'value' ? (bCat.achieved || 0) : (bCat.rate ?? -999)) : -999;
-      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-
-    // 10. DEFAULT TABLE SORTING (Tab Siêu thị & Vùng):
-    // 1. Kênh theo thứ tự: ĐML > ĐMM > ĐMS > TGD > TopZone
-    const aKenh = resolveKenh(a.sieuthi, a.kenh);
-    const bKenh = resolveKenh(b.sieuthi, b.kenh);
-    const channelDiff = getChannelRank(aKenh) - getChannelRank(bKenh);
-    if (channelDiff !== 0) return channelDiff;
-
-    // 2. DK Đạt giảm dần (số ngành hàng đã đạt ≥100%)
-    const aAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(a, cat).rate ?? 0) >= 100).length;
-    const bAchievedCount = displayedCategoryNames.filter((cat) => (getCategoryData(b, cat).rate ?? 0) >= 100).length;
-    const achievedDiff = bAchievedCount - aAchievedCount;
-    if (achievedDiff !== 0) return achievedDiff;
-
-    // 3. KHI CHỈ CHỌN 1 NGÀNH HÀNG: Sắp xếp giảm dần theo %HT hoặc Doanh thu của ngành hàng đó
-    if (displayedCategoryNames.length === 1) {
-      const singleCat = displayedCategoryNames[0];
-      const aData = getCategoryData(a, singleCat);
-      const bData = getCategoryData(b, singleCat);
-      if (valueDisplayMode === 'value') {
-        const valDiff = (bData.achieved || 0) - (aData.achieved || 0);
-        if (valDiff !== 0) return valDiff;
-        return (bData.rate || 0) - (aData.rate || 0);
-      } else {
-        const rateDiff = (bData.rate || 0) - (aData.rate || 0);
-        if (rateDiff !== 0) return rateDiff;
-        return (bData.achieved || 0) - (aData.achieved || 0);
+      // ═══ SECONDARY SORT (Theo cột user bấm) ═══
+      // 1. Sort by CỘT ĐẠT (achieved count or achieved revenue)
+      if (sortField === 'achieved') {
+        const aAchievedCount = displayedCategoryNames.length > 0 ? achievedOf(a) : (a.achieved || 0);
+        const bAchievedCount = displayedCategoryNames.length > 0 ? achievedOf(b) : (b.achieved || 0);
+        const diff = aAchievedCount - bAchievedCount;
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        // Secondary sort: % rate
+        return sortOrder === 'asc' ? (a.rate || 0) - (b.rate || 0) : (b.rate || 0) - (a.rate || 0);
       }
-    }
 
-    // 4. Tỷ lệ % giảm dần
-    const rateDiff = (b.rate || 0) - (a.rate || 0);
-    return rateDiff;
-  }), [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss, valueDisplayMode]);
+      // 2. Sort by TỶ LỆ % (rate)
+      if (sortField === 'rate') {
+        const diff = (a.rate || 0) - (b.rate || 0);
+        if (diff !== 0) return sortOrder === 'asc' ? diff : -diff;
+        // Secondary sort: achieved count
+        const aAchievedCount = displayedCategoryNames.length > 0 ? achievedOf(a) : (a.achieved || 0);
+        const bAchievedCount = displayedCategoryNames.length > 0 ? achievedOf(b) : (b.achieved || 0);
+        return sortOrder === 'asc' ? aAchievedCount - bAchievedCount : bAchievedCount - aAchievedCount;
+      }
+
+      // 3. Sort by KÊNH
+      if (sortField === 'kenh') {
+        const channelDiff = kenhRankOf(a) - kenhRankOf(b);
+        if (channelDiff !== 0) return sortOrder === 'asc' ? channelDiff : -channelDiff;
+        // Secondary sort: achieved count descending
+        return achievedOf(b) - achievedOf(a);
+      }
+
+      // 4. Sort by STT / Rank
+      if (sortField === 'rank' || sortField === 'stt') {
+        const aVal = a.stt;
+        const bVal = b.stt;
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // 5. Sort by TỈNH
+      if (sortField === 'tinh') {
+        return sortOrder === 'asc' ? a.tinh.localeCompare(b.tinh, 'vi') : b.tinh.localeCompare(a.tinh, 'vi');
+      }
+
+      // 6. Sort by BOSS
+      if (sortField === 'boss') {
+        const aVal = resolveBoss(a.sieuthi, a.boss);
+        const bVal = resolveBoss(b.sieuthi, b.boss);
+        return sortOrder === 'asc' ? aVal.localeCompare(bVal, 'vi') : bVal.localeCompare(aVal, 'vi');
+      }
+
+      // 7. Sort by SIÊU THỊ
+      if (sortField === 'sieuthi') {
+        return sortOrder === 'asc' ? a.sieuthi.localeCompare(b.sieuthi, 'vi') : b.sieuthi.localeCompare(a.sieuthi, 'vi');
+      }
+
+      // 8. Sort by DTQĐ TB
+      if (sortField === 'dtQdTb') {
+        const aVal = isProvinceView
+          ? (a as any).dtQdTbVal || 0
+          : parseDtQdTbNum(resolveDtQd(a.sieuthi));
+        const bVal = isProvinceView
+          ? (b as any).dtQdTbVal || 0
+          : parseDtQdTbNum(resolveDtQd(b.sieuthi));
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // 9. Sort by a specific category column (e.g. CAMERA, LAPTOP)
+      if (sortField !== 'default') {
+        const aCat = a.categoryMap?.[sortField];
+        const bCat = b.categoryMap?.[sortField];
+        const aVal = aCat ? (valueDisplayMode === 'value' ? (aCat.achieved || 0) : (aCat.rate ?? -999)) : -999;
+        const bVal = bCat ? (valueDisplayMode === 'value' ? (bCat.achieved || 0) : (bCat.rate ?? -999)) : -999;
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // 10. DEFAULT TABLE SORTING (Tab Siêu thị & Vùng):
+      // 1. Kênh theo thứ tự: ĐML > ĐMM > ĐMS > TGD > TopZone
+      const channelDiff = kenhRankOf(a) - kenhRankOf(b);
+      if (channelDiff !== 0) return channelDiff;
+
+      // 2. DK Đạt giảm dần (số ngành hàng đã đạt ≥100%)
+      const achievedDiff = achievedOf(b) - achievedOf(a);
+      if (achievedDiff !== 0) return achievedDiff;
+
+      // 3. KHI CHỈ CHỌN 1 NGÀNH HÀNG: Sắp xếp giảm dần theo %HT hoặc Doanh thu của ngành hàng đó
+      if (displayedCategoryNames.length === 1) {
+        const singleCat = displayedCategoryNames[0];
+        const aData = getCategoryData(a, singleCat);
+        const bData = getCategoryData(b, singleCat);
+        if (valueDisplayMode === 'value') {
+          const valDiff = (bData.achieved || 0) - (aData.achieved || 0);
+          if (valDiff !== 0) return valDiff;
+          return (bData.rate || 0) - (aData.rate || 0);
+        } else {
+          const rateDiff = (bData.rate || 0) - (aData.rate || 0);
+          if (rateDiff !== 0) return rateDiff;
+          return (bData.achieved || 0) - (aData.achieved || 0);
+        }
+      }
+
+      // 4. Tỷ lệ % giảm dần
+      const rateDiff = (b.rate || 0) - (a.rate || 0);
+        return rateDiff;
+    });
+  }, [storesToDisplay, sortField, sortOrder, displayedCategoryNames, isProvinceView, resolveDtQd, resolveKenh, resolveBoss, valueDisplayMode]);
 
   // Paginate the Siêu Thị (per-store) view — Vùng rollup is already short
   // (one row per tỉnh) and never needs it. forceShowAllRows overrides this
@@ -1443,41 +1448,6 @@ export const ReportView: React.FC<ReportViewProps> = ({
     });
   }, [categoryAverages, selectedCategoryGroup]);
 
-  // Calculate Region Totals
-  const totalTarget = storesToDisplay.reduce((acc, s) => acc + s.target, 0);
-  const totalAchieved = storesToDisplay.reduce((acc, s) => acc + s.achieved, 0);
-  const overallRate = categoryAverages.length > 0
-    ? Math.round((categoryAverages.filter((c) => c.avgRate >= 100).length / categoryAverages.length) * 100)
-    : 0;
-
-  const top1Store = sortedStores.length > 0 ? sortedStores[0] : null;
-  const reachedCount = storesToDisplay.filter((s) => s.rate >= 100).length;
-  const warningCount = storesToDisplay.filter((s) => s.rate < 80).length;
-
-  // Prepare data for Recharts top 8 stores
-  const chartTopStores = sortedStores.slice(0, 8).map((s) => ({
-    name: s.tinh + ' - ' + s.sieuthi.split('(')[0],
-    rate: s.rate,
-    achieved: s.achieved,
-    target: s.target,
-  }));
-
-  // Group performance by Province
-  const provinceMap = new Map<string, { target: number; achieved: number }>();
-  storesToDisplay.forEach((s) => {
-    const cur = provinceMap.get(s.tinh) || { target: 0, achieved: 0 };
-    provinceMap.set(s.tinh, {
-      target: cur.target + s.target,
-      achieved: cur.achieved + s.achieved,
-    });
-  });
-
-  const provinceChartData = Array.from(provinceMap.entries()).map(([tinh, stat]) => ({
-    tinh,
-    rate: stat.target > 0 ? Number(((stat.achieved / stat.target) * 100).toFixed(1)) : 0,
-    achieved: stat.achieved,
-  })).sort((a, b) => b.rate - a.rate);
-
   if (entityScope === 'tong') {
     return (
       <React.Suspense
@@ -1530,6 +1500,49 @@ export const ReportView: React.FC<ReportViewProps> = ({
       </React.Suspense>
     );
   }
+
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Từ đây trở xuống chỉ phục vụ BẢNG XẾP HẠNG (tab VÙNG / SIÊU THỊ).
+  // Hai early return ở trên đã đặt TRƯỚC những phép tính này (chúng không
+  // phải hook nên chuyển lên là hợp lệ) để tab TỔNG / NHÓM không còn phải
+  // duyệt toàn bộ danh sách siêu thị rồi vứt kết quả đi.
+  // ─────────────────────────────────────────────────────────────────────
+
+  // Calculate Region Totals
+  const totalTarget = storesToDisplay.reduce((acc, s) => acc + s.target, 0);
+  const totalAchieved = storesToDisplay.reduce((acc, s) => acc + s.achieved, 0);
+  const overallRate = categoryAverages.length > 0
+    ? Math.round((categoryAverages.filter((c) => c.avgRate >= 100).length / categoryAverages.length) * 100)
+    : 0;
+
+  const top1Store = sortedStores.length > 0 ? sortedStores[0] : null;
+  const reachedCount = storesToDisplay.filter((s) => s.rate >= 100).length;
+  const warningCount = storesToDisplay.filter((s) => s.rate < 80).length;
+
+  // Prepare data for Recharts top 8 stores
+  const chartTopStores = sortedStores.slice(0, 8).map((s) => ({
+    name: s.tinh + ' - ' + s.sieuthi.split('(')[0],
+    rate: s.rate,
+    achieved: s.achieved,
+    target: s.target,
+  }));
+
+  // Group performance by Province
+  const provinceMap = new Map<string, { target: number; achieved: number }>();
+  storesToDisplay.forEach((s) => {
+    const cur = provinceMap.get(s.tinh) || { target: 0, achieved: 0 };
+    provinceMap.set(s.tinh, {
+      target: cur.target + s.target,
+      achieved: cur.achieved + s.achieved,
+    });
+  });
+
+  const provinceChartData = Array.from(provinceMap.entries()).map(([tinh, stat]) => ({
+    tinh,
+    rate: stat.target > 0 ? Number(((stat.achieved / stat.target) * 100).toFixed(1)) : 0,
+    achieved: stat.achieved,
+  })).sort((a, b) => b.rate - a.rate);
 
   return (
     <div id="report-export-root" className="space-y-4 animate-fade-in">

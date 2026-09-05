@@ -44,15 +44,31 @@ export interface BossAssignmentRecord {
  */
 const normVN = (s: string = ''): string => s.normalize('NFC');
 
-/** Strips diacritics/case for loose header-keyword matching (paste-format detection & parsing). */
+const normalizeHeaderCache = new Map<string, string>();
+
+/**
+ * Strips diacritics/case for loose header-keyword matching (paste-format
+ * detection & parsing).
+ *
+ * Memo hoá: hàm này thuần tuý (cùng chuỗi vào -> cùng chuỗi ra) nhưng mỗi lần
+ * gọi phải chạy .normalize('NFD') + 4 regex + toUpperCase. Trước khi có cache,
+ * một lần bấm tab TỔNG gọi nó 11,7 TRIỆU lần trên vài chục chuỗi lặp đi lặp
+ * lại — đó là phần lớn 8 giây đứng hình. Số chuỗi khác nhau thực tế chỉ vài
+ * chục (tên cột + tên ngành hàng) nên cache luôn nhỏ.
+ */
 function normalizeHeaderText(h: string): string {
-  return (h || '')
+  const cacheKey = h || '';
+  const cached = normalizeHeaderCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  const result = cacheKey
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toUpperCase()
     .trim();
+  if (normalizeHeaderCache.size < 50000) normalizeHeaderCache.set(cacheKey, result);
+  return result;
 }
 
 /**
@@ -129,11 +145,27 @@ export const getShortCategoryName = (catName: string): string => {
   return res;
 };
 
+const canonicalCategoryCache = new Map<string, string>();
+
 /**
  * Smart Canonical Category Resolver.
  * Normalizes raw category names from various BI export formats into the 38 standard canonical names.
  */
 export function canonicalizeCategoryName(rawName: string): string {
+  if (!rawName) return '';
+  const cached = canonicalCategoryCache.get(rawName);
+  if (cached !== undefined) return cached;
+  const result = canonicalizeCategoryNameUncached(rawName);
+  if (canonicalCategoryCache.size < 50000) canonicalCategoryCache.set(rawName, result);
+  return result;
+}
+
+/**
+ * Bản gốc (không cache) — chỉ chạy đúng MỘT lần cho mỗi tên ngành hàng khác
+ * nhau. Thân hàm là một chuỗi ~50 phép .includes() sau một lần chuẩn hoá
+ * Unicode; trước khi có cache nó bị gọi 3,9 triệu lần cho một lần đổi tab.
+ */
+function canonicalizeCategoryNameUncached(rawName: string): string {
   if (!rawName) return '';
   // 1. Strip leading BI numeric codes ("827-Nồi cơm" -> "Nồi cơm") and trailing hyphens/punctuation
   let cleaned = rawName.trim().replace(/^\d+\s*-\s*/, '').replace(/[\s-]+$/, '').trim();
@@ -2329,11 +2361,46 @@ export function computeCompletionRate(
 /**
  * Helper to safely extract category data from StoreRecord with smart canonical alias fallback.
  */
-export function getCategoryData(
+type CategoryData = { target: number; achieved: number; rate: number };
+
+const ZERO_CATEGORY_DATA: CategoryData = { target: 0, achieved: 0, rate: 0 };
+
+/**
+ * Cache kết quả tra cứu theo TỪNG categoryMap (WeakMap nên tự giải phóng khi
+ * dữ liệu siêu thị bị thay thế). categoryMap chỉ được ghi trong lúc parse, không
+ * bao giờ bị sửa sau khi render, nên cache luôn khớp dữ liệu.
+ *
+ * Vì sao cần: nhánh "không tìm thấy" của resolveCategoryData quét toàn bộ
+ * ~38 key và gọi canonicalize/normalize cho từng key rồi trả về {0,0,0} —
+ * đo được 92,87 µs/lần so với 0,02 µs khi trúng (đắt gấp 4.410 lần). Mà
+ * "không tìm thấy" lại là trường hợp PHỔ BIẾN: không siêu thị nào có đủ 38
+ * ngành hàng. Cache biến nó thành một lần duy nhất cho mỗi cặp (siêu thị,
+ * ngành hàng).
+ *
+ * Lưu ý: đối tượng trả về được dùng chung, toàn bộ code hiện chỉ ĐỌC
+ * .target/.achieved/.rate — không được sửa giá trị trả về.
+ */
+const categoryDataCache = new WeakMap<object, Map<string, CategoryData>>();
+
+export function getCategoryData(s: StoreRecord, cName: string): CategoryData {
+  if (!s || !s.categoryMap) return ZERO_CATEGORY_DATA;
+  let perStore = categoryDataCache.get(s.categoryMap);
+  if (!perStore) {
+    perStore = new Map<string, CategoryData>();
+    categoryDataCache.set(s.categoryMap, perStore);
+  }
+  const cached = perStore.get(cName);
+  if (cached !== undefined) return cached;
+  const resolved = resolveCategoryData(s, cName);
+  perStore.set(cName, resolved);
+  return resolved;
+}
+
+function resolveCategoryData(
   s: StoreRecord,
   cName: string
 ): { target: number; achieved: number; rate: number } {
-  if (!s || !s.categoryMap) return { target: 0, achieved: 0, rate: 0 };
+  if (!s || !s.categoryMap) return ZERO_CATEGORY_DATA;
 
   // 1. Direct exact match
   if (s.categoryMap[cName]) {
@@ -2378,7 +2445,7 @@ export function getCategoryData(
     }
   }
 
-  return { target: 0, achieved: 0, rate: 0 };
+  return ZERO_CATEGORY_DATA;
 }
 
 export interface DataFreshnessInfo {

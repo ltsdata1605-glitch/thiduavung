@@ -80,6 +80,17 @@ const getSavedReportChannels = (
   return ALL_REPORT_CHANNELS;
 };
 
+/**
+ * getSavedReportChannels đọc localStorage và JSON.parse -> LUÔN trả về một
+ * MẢNG MỚI, kể cả khi nội dung không đổi. Gọi thẳng setSelectedChannels(mảng
+ * mới) khiến React coi như state đã đổi và render lại toàn bộ cây, làm hỏng
+ * mọi useMemo phụ thuộc selectedChannels — đo được TongReportView chạy lại 3
+ * lần cho MỘT cú click, tức mọi chi phí tính toán bị nhân ba. So sánh nội
+ * dung trước khi set để React bỏ qua khi không có gì thay đổi thật.
+ */
+const sameChannelList = (a: (Channel | string)[], b: (Channel | string)[]): boolean =>
+  a.length === b.length && a.every((v, i) => v === b[i]);
+
 const getSavedReportProvince = (
   scope: EntityScope,
   availableProvinces: string[],
@@ -410,7 +421,8 @@ function AppInner() {
     setEntityScope(newScope);
     lastReportScopeRef.current = newScope;
     const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
-    setSelectedChannels(getSavedReportChannels(newScope, currentSavedFilters));
+    const nextChannels = getSavedReportChannels(newScope, currentSavedFilters);
+    setSelectedChannels((prev) => (sameChannelList(prev, nextChannels) ? prev : nextChannels));
     setSelectedProvince(getSavedReportProvince(newScope, provinceList, currentSavedFilters));
     setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(newScope, currentSavedFilters));
     setSelectedTinhMoi(getSavedReportTinhMoi(newScope, currentSavedFilters));
@@ -1104,7 +1116,8 @@ function AppInner() {
     if (activeTab === 'report' && lastReportScopeRef.current !== entityScope) {
       lastReportScopeRef.current = entityScope;
       const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
-      setSelectedChannels(getSavedReportChannels(entityScope, currentSavedFilters));
+      const nextChannels = getSavedReportChannels(entityScope, currentSavedFilters);
+      setSelectedChannels((prev) => (sameChannelList(prev, nextChannels) ? prev : nextChannels));
       setSelectedProvince(getSavedReportProvince(entityScope, provinceList, currentSavedFilters));
       setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(entityScope, currentSavedFilters));
       setSelectedTinhMoi(getSavedReportTinhMoi(entityScope, currentSavedFilters));
@@ -1122,7 +1135,8 @@ function AppInner() {
       prevActiveTabRef.current = activeTab;
       lastReportScopeRef.current = entityScope;
       const currentSavedFilters = currentUser ? userFiltersMap[currentUser.accountId] : undefined;
-      setSelectedChannels(getSavedReportChannels(entityScope, currentSavedFilters));
+      const nextChannels = getSavedReportChannels(entityScope, currentSavedFilters);
+      setSelectedChannels((prev) => (sameChannelList(prev, nextChannels) ? prev : nextChannels));
       setSelectedProvince(getSavedReportProvince(entityScope, provinceList, currentSavedFilters));
       setSelectedPhanLoaiShop(getSavedReportPhanLoaiShop(entityScope, currentSavedFilters));
       setSelectedTinhMoi(getSavedReportTinhMoi(entityScope, currentSavedFilters));

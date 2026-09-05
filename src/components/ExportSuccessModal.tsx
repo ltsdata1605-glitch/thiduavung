@@ -68,6 +68,10 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
 
   // Compute active remark text based on config & context
   const activeRemarkText = useMemo(() => {
+    // Cùng lý do như TagBossModal: modal luôn được mount, `if (!isOpen) return
+    // null` nằm bên dưới nhưng useMemo thì chạy trước — nên trước đây mỗi lần
+    // đổi tab đều dựng lại toàn bộ văn bản nhận xét cho một modal đang đóng.
+    if (!isOpen) return '';
     if (remarkContext && remarkContext.stores && remarkContext.stores.length > 0) {
       try {
         return generateReportRemarksText({
@@ -96,7 +100,7 @@ export const ExportSuccessModal: React.FC<ExportSuccessModalProps> = ({
       }
     }
     return remarkText;
-  }, [remarkContext, remarkText, config]);
+  }, [isOpen, remarkContext, remarkText, config]);
 
   useEffect(() => {
     if (isOpen) {
