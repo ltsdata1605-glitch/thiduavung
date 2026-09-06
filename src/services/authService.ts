@@ -11,6 +11,17 @@ import { idbGet, idbSet, idbDelete } from './indexedDbCache';
 
 const USERS_COLLECTION = 'users';
 const CURRENT_USER_KEY = 'tnb_authenticated_user';
+
+/**
+ * Tăng số này lên là VÔ HIỆU HOÁ toàn bộ phiên đăng nhập đang tồn tại trên
+ * mọi máy, buộc mọi người nhập lại mật khẩu.
+ *
+ * v2: vá lỗ hổng giả mạo phiên — trước đây chỉ cần ghi tay
+ * localStorage['tnb_authenticated_user'] là vào thẳng app với quyền
+ * super_admin mà không cần mật khẩu. Mọi phiên tạo ra trước bản vá đều không
+ * đáng tin nên phải bị huỷ.
+ */
+const SESSION_VERSION = 2;
 const ACCOUNTS_CACHE_KEY = 'tnb_user_accounts';
 
 /**
@@ -31,12 +42,22 @@ function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
 }
 
 function writeAccountsCache(accounts: UserAccount[]) {
+  // Cache này chỉ để hiển thị nhanh màn hình Quản lý tài khoản, KHÔNG bao giờ
+  // dùng để xác thực. Tuyệt đối không lưu mật khẩu / hash xuống máy: bất kỳ ai
+  // mở DevTools trên máy đó đều đọc được, mà hash ở đây là SHA-256 salt cố
+  // định nên dò ngược rất nhanh.
+  const safe = accounts.map((u) => {
+    const clone: any = { ...u };
+    delete clone.password;
+    delete clone.passwordHash;
+    return clone as UserAccount;
+  });
   try {
-    localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(accounts));
+    localStorage.setItem(ACCOUNTS_CACHE_KEY, JSON.stringify(safe));
   } catch (e) {
     // ignore quota / serialization errors — IndexedDB below still gets it
   }
-  void idbSet(ACCOUNTS_CACHE_KEY, accounts);
+  void idbSet(ACCOUNTS_CACHE_KEY, safe);
 }
 
 async function readAccountsCache(): Promise<UserAccount[] | null> {
@@ -85,26 +106,19 @@ export async function hashPassword(password: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Password for the initial Super Admin seed account — read from the
-// environment, never hardcoded here. Anyone with access to this source file
-// (or its git history) would otherwise know the admin credentials for every
-// deployment built from it. Set VITE_SEED_ADMIN_PASSWORD in your local .env
-// (gitignored) before the very first run against a fresh Firestore project;
-// change it via "Đổi mật khẩu" immediately after logging in.
-const SEED_SUPER_ADMIN_PASSWORD = (import.meta as any).env?.VITE_SEED_ADMIN_PASSWORD as string | undefined;
+// KHÔNG đọc mật khẩu seed từ môi trường nữa.
+//
+// Vite thay `import.meta.env.VITE_*` thành CHUỖI CỐ ĐỊNH ngay lúc build, nên
+// mật khẩu Super Admin từng nằm nguyên văn trong file JS công khai trên
+// GitHub Pages — ai tải bundle về cũng đọc được. Tệ hơn, nhánh seed bên dưới
+// chạy ngay tại trình duyệt: gặp máy chưa có cache là nó tự dựng tài khoản
+// 3717 với mật khẩu đó rồi cho đăng nhập thẳng vào quyền super_admin.
+//
+// Tạo tài khoản quản trị đầu tiên cho một project Firestore trắng là việc làm
+// MỘT LẦN bằng tay (Firebase Console: tạo user trong Authentication, rồi tạo
+// document users/<accountId> với role 'super_admin'), không phải việc của mã
+// chạy trên máy người dùng.
 
-// Seed Super Admin account details. This is the only account ever auto-seeded
-// — everyone else should be created from the User Management screen once
-// logged in, not hardcoded here as a source-code default.
-export const SUPER_ADMIN_ACCOUNT: UserAccount = {
-  accountId: '3717',
-  name: 'Super Admin TNB',
-  role: 'super_admin',
-  createdAt: new Date().toISOString(),
-  isActive: true,
-};
-
-const DEFAULT_ACCOUNTS: UserAccount[] = [SUPER_ADMIN_ACCOUNT];
 
 /**
  * Instant-paint helper for the User Management screen: reads whatever
@@ -136,72 +150,34 @@ export async function getUsersFromCache(): Promise<UserAccount[]> {
  * login fallback (see loginUser). Once Firestore rules restrict `list` to
  * Super Admin, a non-admin calling this will simply get an empty/failed read.
  */
+/**
+ * Danh sách tài khoản cho màn hình "Quản Lý Tài Khoản".
+ *
+ * CHỈ dùng để hiển thị. Không bao giờ được dùng kết quả của hàm này để quyết
+ * định cho ai đăng nhập: firestore.rules chỉ cho Super Admin liệt kê
+ * collection `users`, nên với mọi vai trò khác hàm này trả về cache cục bộ —
+ * mà cache cục bộ thì người dùng tự sửa được.
+ */
 export async function initializeUsersCollection(): Promise<UserAccount[]> {
-  if (!SEED_SUPER_ADMIN_PASSWORD) {
-    console.error(
-      'VITE_SEED_ADMIN_PASSWORD is not set — cannot seed the initial Super Admin account. ' +
-      'Add it to your .env file (see .env.example) before the first run against a fresh Firestore project.'
-    );
-  }
-
   try {
     if (db) {
       const usersRef = collection(db, USERS_COLLECTION);
       const snapshot = await getDocs(usersRef);
-
-      if (snapshot.empty) {
-        if (!SEED_SUPER_ADMIN_PASSWORD) return [];
-        // Populate default accounts with hashed passwords
-        const seeded: UserAccount[] = [];
-        for (const user of DEFAULT_ACCOUNTS) {
-          const passHash = await hashPassword(SEED_SUPER_ADMIN_PASSWORD);
-          const userToSave: UserAccount = { ...user, passwordHash: passHash };
-          delete userToSave.password;
-          await setDoc(doc(db, USERS_COLLECTION, user.accountId), userToSave);
-          seeded.push(userToSave);
-        }
-        return seeded;
-      } else {
-        const users: UserAccount[] = [];
-        snapshot.forEach((docSnap) => {
-          users.push(docSnap.data() as UserAccount);
-        });
-
-        // Ensure Super Admin 3717 always exists (only if we have a seed
-        // password to give it — an account with no credential at all would
-        // be permanently unreachable, which is worse than not creating it).
-        const hasSuperAdmin = users.some((u) => u.accountId === '3717');
-        if (!hasSuperAdmin && SEED_SUPER_ADMIN_PASSWORD) {
-          const passHash = await hashPassword(SEED_SUPER_ADMIN_PASSWORD);
-          const adminToSave: UserAccount = { ...SUPER_ADMIN_ACCOUNT, passwordHash: passHash };
-          delete adminToSave.password;
-          await setDoc(doc(db, USERS_COLLECTION, '3717'), adminToSave);
-          users.push(adminToSave);
-        }
-
-        return users;
-      }
+      const users: UserAccount[] = [];
+      snapshot.forEach((docSnap) => {
+        users.push(docSnap.data() as UserAccount);
+      });
+      writeAccountsCache(users);
+      return users;
     }
   } catch (err) {
-    console.warn('Firestore offline/demo mode, using local memory storage for users:', err);
+    console.warn('Không đọc được danh sách tài khoản từ Firestore (chỉ Super Admin mới có quyền):', err);
   }
 
-  // Fallback to local cache (localStorage, or IndexedDB if that's empty)
   const cachedAccounts = await readAccountsCache();
-  if (cachedAccounts) return cachedAccounts;
-
-  if (!SEED_SUPER_ADMIN_PASSWORD) return [];
-
-  const seededLocal: UserAccount[] = [];
-  for (const user of DEFAULT_ACCOUNTS) {
-    const passHash = await hashPassword(SEED_SUPER_ADMIN_PASSWORD);
-    const userToSave: UserAccount = { ...user, passwordHash: passHash };
-    delete userToSave.password;
-    seededLocal.push(userToSave);
-  }
-  writeAccountsCache(seededLocal);
-  return seededLocal;
+  return cachedAccounts || [];
 }
+
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMsg: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -248,6 +224,7 @@ export async function loginUser(
   const normalizedId = cleanId.toLowerCase();
   const email = toSyntheticEmail(normalizedId);
   const authPass = toFirebaseAuthPassword(cleanPass);
+  let lastAuthErrorCode: string | undefined;
 
   // --- Path A: real Firebase Auth sign-in ---
   try {
@@ -274,27 +251,31 @@ export async function loginUser(
       }
     }
 
-    // If Firestore getDoc is slow/offline, try reading from local cache
+    // KHÔNG có hồ sơ thì KHÔNG cho vào (fail closed).
+    //
+    // Trước đây chỗ này lần lượt: đọc cache cục bộ, rồi nếu vẫn không có thì
+    // TỰ BỊA ra một hồ sơ với isActive: true (và role super_admin nếu là
+    // 3717). Hai đường đó đều là lỗ hổng:
+    //  - Cache cục bộ nằm trong localStorage, ai cũng sửa được.
+    //  - Khi Super Admin khoá một tài khoản (isActive: false), firestore.rules
+    //    chặn luôn quyền đọc hồ sơ của chính tài khoản đó -> getDoc ném lỗi ->
+    //    rơi vào nhánh bịa hồ sơ isActive: true -> TÀI KHOẢN ĐÃ KHOÁ VẪN VÀO
+    //    ĐƯỢC. Đúng thứ mà nút "khoá tài khoản" lẽ ra phải chặn.
+    // Đã qua được signInWithEmailAndPassword nghĩa là có mạng, nên đọc hồ sơ
+    // thất bại gần như luôn là bị rules từ chối, tức tài khoản đã bị khoá.
     if (!profile) {
-      const cached = await readAccountsCache();
-      const match = cached?.find((u) => u.accountId.toLowerCase() === normalizedId);
-      if (match) {
-        profile = match;
-      }
-    }
-
-    // Fallback profile if profile document is not found or still syncing
-    if (!profile) {
-      profile = {
-        accountId: normalizedId,
-        name: normalizedId === '3717' ? 'Super Admin TNB' : `Tài khoản ${normalizedId}`,
-        role: normalizedId === '3717' ? 'super_admin' : 'viewer',
-        isActive: true,
-        createdAt: new Date().toISOString(),
+      await signOut(auth).catch(() => {});
+      return {
+        success: false,
+        error:
+          'Không đọc được hồ sơ tài khoản. Tài khoản có thể đã bị khoá — vui lòng liên hệ Super Admin (3717).',
       };
     }
 
     if (!profile.isActive) {
+      // Đăng xuất khỏi Firebase Auth luôn, nếu không phiên xác thực vẫn sống
+      // và tài khoản bị khoá vẫn còn request.auth hợp lệ với Firestore.
+      await signOut(auth).catch(() => {});
       return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
     }
 
@@ -306,6 +287,7 @@ export async function loginUser(
     return { success: true, user: updatedUser };
   } catch (authErr: any) {
     const code = authErr?.code;
+    lastAuthErrorCode = code;
     if (code === 'auth/too-many-requests') {
       return { success: false, error: 'Đăng nhập thất bại quá nhiều lần. Vui lòng thử lại sau vài phút!' };
     }
@@ -316,58 +298,38 @@ export async function loginUser(
     // fall through to the legacy check, which is the authoritative answer.
   }
 
-  // --- Path B: legacy verification + lazy migration ---
-  try {
-    const inputHash = await hashPassword(cleanPass);
-    const allUsers = await withTimeout(
-      initializeUsersCollection(),
-      6000,
-      'Quá thời gian đồng bộ dữ liệu tài khoản.'
-    );
-    const matchedUser = allUsers.find((u) => u.accountId.toLowerCase() === normalizedId);
-
-    if (!matchedUser) {
-      return { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' };
-    }
-
-    const isMatch =
-      (matchedUser.passwordHash && matchedUser.passwordHash === inputHash) ||
-      matchedUser.password === cleanPass;
-
-    if (!isMatch) {
-      return { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' };
-    }
-
-    if (!matchedUser.isActive) {
-      return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
-    }
-
-    // Correct legacy password confirmed — lazily create the real Firebase Auth
-    // credential (padded to meet Firebase's 6-char minimum, see
-    // toFirebaseAuthPassword) so this account is fully migrated from here on,
-    // regardless of how short its legacy password is.
-    try {
-      await createUserWithEmailAndPassword(auth, email, authPass);
-    } catch (e: any) {
-      if (e?.code !== 'auth/email-already-in-use') {
-        console.warn('Lazy Firebase Auth migration failed:', e);
-      }
-    }
-
-    const updatedUser = { ...matchedUser, lastLogin: new Date().toISOString() };
-    saveSession(updatedUser);
-
-    if (db) {
-      updateDoc(doc(db, USERS_COLLECTION, normalizedId), { lastLogin: updatedUser.lastLogin }).catch(() => {});
-    }
-
-    return { success: true, user: updatedUser };
-  } catch (err: any) {
-    if (err?.message?.includes('Timeout') || err?.message?.includes('thời gian')) {
-      return { success: false, error: err.message };
-    }
-    return { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' };
+  // --- Không còn Path B ---
+  //
+  // Trước đây, khi Firebase Auth từ chối, code rơi xuống một đường "xác thực
+  // legacy" tự so khớp mật khẩu với danh sách tài khoản lấy từ
+  // initializeUsersCollection(). Đường đó có ba lỗ hổng nghiêm trọng:
+  //
+  //  1. Với người chưa đăng nhập, firestore.rules chặn quyền liệt kê
+  //     collection `users`, nên initializeUsersCollection() luôn rơi xuống
+  //     CACHE CỤC BỘ. Cache đó nằm trong localStorage — kẻ tấn công tự ghi
+  //     một tài khoản kèm passwordHash do mình chọn là đăng nhập được.
+  //  2. Khi cache rỗng, nó tự seed tài khoản 3717 ngay tại máy khách bằng
+  //     VITE_SEED_ADMIN_PASSWORD. Biến này bị Vite nhúng thành chuỗi cố định
+  //     trong file JS công khai, nên bất kỳ ai tải bundle về cũng đọc được
+  //     mật khẩu đó rồi đăng nhập với quyền super_admin.
+  //  3. Nó so sánh cả `matchedUser.password === cleanPass`, tức chấp nhận
+  //     mật khẩu lưu dạng văn bản thuần.
+  //
+  // Giờ Firebase Authentication là nguồn xác thực DUY NHẤT. Tài khoản nào
+  // chưa từng có chứng danh Firebase Auth thì Super Admin tạo lại trong màn
+  // hình "Quản Lý Tài Khoản" (createUserAccount tạo chứng danh trước, rồi
+  // mới ghi hồ sơ) — chứ không tự cấp quyền từ dữ liệu nằm ở máy người dùng.
+  const failCode = lastAuthErrorCode;
+  if (failCode === 'auth/user-not-found' || failCode === 'auth/invalid-credential') {
+    return {
+      success: false,
+      error: 'Tài khoản hoặc mật khẩu không chính xác!',
+    };
   }
+  if (failCode === 'auth/user-disabled') {
+    return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
+  }
+  return { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' };
 }
 
 /**
@@ -555,19 +517,18 @@ export async function changeOwnPassword(newPassword: string): Promise<{ success:
       return { success: false, error: 'Đổi mật khẩu thất bại!' };
     }
   } else {
-    // Legacy session, not yet migrated — this call IS the migration.
-    try {
-      await createUserWithEmailAndPassword(auth, toSyntheticEmail(session.accountId), newPassword);
-    } catch (e: any) {
-      if (e?.code === 'auth/email-already-in-use') {
-        return {
-          success: false,
-          error: 'Tài khoản này đã có mật khẩu đăng nhập thật. Vui lòng đăng xuất, đăng nhập lại bằng mật khẩu hiện tại, rồi thử đổi lại.',
-        };
-      }
-      console.error('changeOwnPassword (legacy migration) failed:', e);
-      return { success: false, error: 'Đổi mật khẩu thất bại!' };
-    }
+    // KHÔNG tự tạo chứng danh Firebase Auth từ accountId đọc ở localStorage.
+    //
+    // Nhánh cũ gọi createUserWithEmailAndPassword bằng session.accountId lấy
+    // từ localStorage — thứ mà người dùng tự sửa được. Kẻ tấn công chỉ cần
+    // ghi một phiên giả mang accountId của người khác rồi bấm "Đổi mật khẩu"
+    // là ĐẶT ĐƯỢC mật khẩu cho tài khoản đó (miễn là tài khoản đó chưa có
+    // chứng danh Firebase Auth), sau đó đăng nhập thật với đúng quyền hạn của
+    // nạn nhân. Đổi mật khẩu chỉ được phép trên phiên xác thực THẬT.
+    return {
+      success: false,
+      error: 'Phiên đăng nhập không hợp lệ. Vui lòng đăng xuất và đăng nhập lại bằng mật khẩu hiện tại.',
+    };
   }
 
   // Keep the Firestore hash mirror in sync for record-keeping (not used for
@@ -586,23 +547,52 @@ export async function changeOwnPassword(newPassword: string): Promise<{ success:
 
 // Session Helpers
 export function saveSession(user: UserAccount) {
-  const safeUser = { ...user };
+  const safeUser: any = { ...user };
   delete safeUser.password;
-  delete (safeUser as any).passwordHash;
+  delete safeUser.passwordHash;
+  safeUser.sessionVersion = SESSION_VERSION;
   try {
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(safeUser));
   } catch (e) {}
   void idbSet(CURRENT_USER_KEY, safeUser);
 }
 
+/**
+ * Phiên lưu ở máy chỉ là bản sao để vẽ giao diện cho nhanh — KHÔNG phải bằng
+ * chứng đăng nhập. Quyền thật luôn phải được xác minh lại bằng
+ * verifySession() với Firebase Auth + hồ sơ trên Firestore.
+ */
+function isSessionShapeValid(data: any): data is UserAccount {
+  return Boolean(
+    data &&
+    typeof data === 'object' &&
+    typeof data.accountId === 'string' &&
+    data.accountId.trim() &&
+    data.sessionVersion === SESSION_VERSION
+  );
+}
+
 export function getCurrentSession(): UserAccount | null {
   const data = localStorage.getItem(CURRENT_USER_KEY);
   if (!data) return null;
   try {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (isSessionShapeValid(parsed)) return parsed as UserAccount;
+    // Phiên hỏng / thuộc phiên bản cũ / bị giả mạo — dọn luôn thay vì để nằm
+    // lại trong máy gây nhầm lẫn khi chẩn đoán.
+    clearStoredSession();
+    return null;
   } catch (e) {
+    clearStoredSession();
     return null;
   }
+}
+
+function clearStoredSession() {
+  try {
+    localStorage.removeItem(CURRENT_USER_KEY);
+  } catch (e) {}
+  void idbDelete(CURRENT_USER_KEY);
 }
 
 export async function getCurrentSessionAsync(): Promise<UserAccount | null> {
@@ -610,7 +600,7 @@ export async function getCurrentSessionAsync(): Promise<UserAccount | null> {
   if (syncSession) return syncSession;
   try {
     const idbSession = await idbGet<UserAccount>(CURRENT_USER_KEY);
-    if (idbSession) {
+    if (idbSession && isSessionShapeValid(idbSession)) {
       try {
         localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(idbSession));
       } catch (e) {}
@@ -618,6 +608,82 @@ export async function getCurrentSessionAsync(): Promise<UserAccount | null> {
     }
   } catch (e) {}
   return null;
+}
+
+/**
+ * Xác minh phiên đang lưu ở máy bằng nguồn đáng tin: chứng danh Firebase Auth
+ * + hồ sơ trên Firestore.
+ *
+ * Vì sao cần: currentUser của App vốn đọc thẳng localStorage. Ai mở DevTools
+ * ghi tay một object {accountId:'3717', role:'super_admin'} là vào thẳng app
+ * với quyền cao nhất mà không cần mật khẩu. Đây là hàng rào bịt lỗ đó:
+ *
+ *  - 'rejected'   : không có phiên Firebase Auth thật, hoặc accountId không
+ *                   khớp chứng danh, hoặc hồ sơ đã bị khoá/không tồn tại.
+ *                   Người gọi phải đăng xuất ngay.
+ *  - 'verified'   : hợp lệ. `user` trả về lấy role/allowedChannels TỪ MÁY CHỦ,
+ *                   nên kẻ tấn công có sửa role trong localStorage cũng vô ích.
+ *  - 'unverified' : có chứng danh thật và đúng accountId, nhưng không đọc
+ *                   được hồ sơ (mất mạng). Cho xem dữ liệu đã tải, người gọi
+ *                   phải khoá các chức năng ghi / nhạy cảm.
+ */
+export async function verifySession(
+  fbUser: { email: string | null } | null
+): Promise<
+  | { status: 'rejected'; reason: string }
+  | { status: 'verified'; user: UserAccount }
+  | { status: 'unverified'; user: UserAccount }
+> {
+  const session = getCurrentSession();
+  if (!session) return { status: 'rejected', reason: 'Chưa đăng nhập.' };
+
+  if (!fbUser || !fbUser.email) {
+    return {
+      status: 'rejected',
+      reason: 'Phiên đăng nhập không hợp lệ hoặc đã hết hiệu lực. Vui lòng đăng nhập lại.',
+    };
+  }
+
+  const authAccountId = fbUser.email.split('@')[0].toLowerCase();
+  if (authAccountId !== session.accountId.trim().toLowerCase()) {
+    return {
+      status: 'rejected',
+      reason: 'Phiên đăng nhập không khớp với tài khoản đã xác thực. Vui lòng đăng nhập lại.',
+    };
+  }
+
+  if (!db) return { status: 'unverified', user: session };
+
+  try {
+    const snap = await withTimeout(
+      getDoc(doc(db, USERS_COLLECTION, authAccountId)),
+      10000,
+      'Quá thời gian đọc hồ sơ tài khoản.'
+    );
+    if (!snap.exists()) {
+      return { status: 'rejected', reason: 'Tài khoản không còn tồn tại. Vui lòng liên hệ Super Admin (3717).' };
+    }
+    const profile = snap.data() as UserAccount;
+    if (!profile.isActive) {
+      return { status: 'rejected', reason: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
+    }
+    // Quyền hạn LUÔN lấy từ máy chủ, không lấy từ bản sao ở localStorage.
+    const verified: UserAccount = {
+      ...session,
+      name: profile.name ?? session.name,
+      role: profile.role,
+      allowedChannels: profile.allowedChannels ?? [],
+      isActive: true,
+    };
+    saveSession(verified);
+    return { status: 'verified', user: verified };
+  } catch (e) {
+    // Đọc hồ sơ thất bại — có thể mất mạng, cũng có thể bị rules từ chối vì
+    // tài khoản vừa bị khoá. Không thể phân biệt ở client, nên hạ quyền chứ
+    // không đá người dùng ra: giữ nguyên dữ liệu đã tải, khoá chức năng ghi.
+    console.warn('verifySession: không đọc được hồ sơ tài khoản:', e);
+    return { status: 'unverified', user: session };
+  }
 }
 
 export function logoutUser() {

@@ -5,12 +5,15 @@ import { Trophy, User, Lock, ArrowRight } from 'lucide-react';
 
 interface LoginViewProps {
   onLoginSuccess: (user: UserAccount) => void;
+  // Lý do phiên trước bị chấm dứt (phiên không hợp lệ, tài khoản bị khoá...),
+  // hiện ngay trên form để người dùng biết vì sao phải đăng nhập lại.
+  notice?: string | null;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, notice }) => {
   const [accountId, setAccountId] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(notice || null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {

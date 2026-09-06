@@ -26,7 +26,7 @@ import { CloudSyncModal } from './components/CloudSyncModal';
 import { ExportLoadingModal } from './components/ExportLoadingModal';
 import { ExportSuccessModal } from './components/ExportSuccessModal';
 import { RefreshCw, AlertTriangle, CheckCircle2, X } from 'lucide-react';
-import { getCurrentSession, getCurrentSessionAsync, logoutUser } from './services/authService';
+import { getCurrentSession, getCurrentSessionAsync, logoutUser, verifySession } from './services/authService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './services/firebase';
 import {
@@ -186,6 +186,13 @@ const getSavedReportValueDisplayMode = (
 function AppInner() {
   // Authentication State — requires an actual login; no silent Super Admin bypass
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentSession());
+
+  // Phiên ở localStorage CHỈ để vẽ giao diện ngay lập tức, không phải bằng
+  // chứng đăng nhập. 'pending' -> chưa xác minh xong; 'verified' -> đã đối
+  // chiếu với Firebase Auth + hồ sơ Firestore; 'unverified' -> có chứng danh
+  // thật nhưng không đọc được hồ sơ (mất mạng) nên chỉ cho xem, khoá ghi.
+  const [authStatus, setAuthStatus] = useState<'pending' | 'verified' | 'unverified'>('pending');
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   // Last known dataset from localStorage, used to hydrate instantly on load
   // (before/without waiting on the live Firestore round-trip)
@@ -548,7 +555,10 @@ function AppInner() {
   // Only Super Admin accounts may see and access the "Doanh thu" feature —
   // was hardcoded to account 3717 specifically; now any account with role
   // 'super_admin' qualifies.
-  const isUser3717 = currentUser?.role === 'super_admin';
+  // Mọi quyền nhạy cảm đều đòi phiên ĐÃ XÁC MINH với máy chủ. Khi chỉ ở mức
+  // 'unverified' (mất mạng), người dùng vẫn xem được dữ liệu đã tải nhưng
+  // không mở được Doanh thu / Cập nhật / Quản lý tài khoản.
+  const isUser3717 = authStatus === 'verified' && currentUser?.role === 'super_admin';
 
   // Tự động giới hạn các kênh được phép xem theo tài khoản
   useEffect(() => {
@@ -828,6 +838,50 @@ function AppInner() {
       showInfoToast(`Đang tải dữ liệu mới... (${labels.join(', ')})`);
     }, 600);
   };
+
+  // Hàng rào chống giả mạo phiên.
+  //
+  // Trước bản vá này, chỉ cần ghi tay localStorage['tnb_authenticated_user']
+  // = {accountId:'3717', role:'super_admin'} rồi F5 là vào thẳng app với đầy
+  // đủ menu Doanh thu / Cập nhật / Quản lý tài khoản, không cần mật khẩu.
+  // firestore.rules vẫn chặn dữ liệu trên máy chủ, nhưng toàn bộ dữ liệu đã
+  // cache trong máy thì hiện ra hết.
+  //
+  // Giờ mọi phiên đều phải được Firebase Auth xác nhận, và role/isActive được
+  // đọc lại TỪ MÁY CHỦ nên sửa role trong localStorage không còn tác dụng.
+  //
+  // Phụ thuộc currentUser?.accountId là CỐ Ý: signInWithEmailAndPassword làm
+  // onAuthStateChanged nổ NGAY khi xác thực xong, tức TRƯỚC khi loginUser kịp
+  // ghi phiên xuống máy. Lần nổ đó thấy getCurrentSession() rỗng nên thoát
+  // sớm, và nếu chỉ đăng ký một lần thì người vừa đăng nhập hợp lệ sẽ kẹt ở
+  // 'pending' — mất luôn menu Cập nhật / Doanh thu. Đăng ký lại khi accountId
+  // đổi sẽ chạy verify lần nữa (onAuthStateChanged gọi callback ngay lúc
+  // đăng ký với trạng thái hiện tại), lần này phiên đã có.
+  useEffect(() => {
+    if (!auth) return;
+    return onAuthStateChanged(auth, (fbUser) => {
+      if (!getCurrentSession()) {
+        setAuthStatus('pending');
+        return;
+      }
+      void verifySession(fbUser).then((result) => {
+        if (result.status === 'rejected') {
+          logoutUser();
+          setCurrentUser(null);
+          setAuthStatus('pending');
+          setAuthNotice(result.reason);
+          return;
+        }
+        setCurrentUser(result.user);
+        setAuthStatus(result.status);
+        setAuthNotice(
+          result.status === 'unverified'
+            ? 'Không xác minh được tài khoản với máy chủ — đang xem dữ liệu đã tải. Các chức năng cập nhật tạm khoá.'
+            : null
+        );
+      });
+    });
+  }, [currentUser?.accountId]);
 
   // Subscribe to Firebase Firestore Realtime Database updates — gated on
   // Firebase Auth actually being ready (onAuthStateChanged), not on this
@@ -1293,13 +1347,13 @@ function AppInner() {
   // DT Luỹ Kế/Realtime value-display toggle are restricted to Super Admin
   // and Admin — Editor/Viewer accounts never see this figure anywhere
   // (Report tables, BOSS list, or the toolbar toggle).
-  const canViewDtQdTb = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+  const canViewDtQdTb = authStatus === 'verified' && (currentUser?.role === 'super_admin' || currentUser?.role === 'admin');
 
   // Only Super Admin / Admin may paste & sync new data — everyone else is
   // view-only. Mirrors the Sidebar's own menu-item gating as a render-time
   // guard, so the Update tab's content never even briefly flashes for a
   // role that shouldn't have it.
-  const canUpdateData = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+  const canUpdateData = authStatus === 'verified' && (currentUser?.role === 'super_admin' || currentUser?.role === 'admin');
 
   // Helper to format exact timestamp like "12:37:00 NGÀY 09/8/2026"
   const getFormattedNow = () => {
@@ -1828,7 +1882,9 @@ function AppInner() {
   if (!currentUser) {
     return (
       <LoginView
+        notice={authNotice}
         onLoginSuccess={(loggedInUser) => {
+          setAuthNotice(null);
           // Reset critical-sync tracking so the loading modal actually waits
           // for Firestore data to arrive fresh, instead of resolving
           // immediately from snapshots received while the login screen was
