@@ -268,7 +268,7 @@ export async function loginUser(
       return {
         success: false,
         error:
-          'Không đọc được hồ sơ tài khoản. Tài khoản có thể đã bị khoá — vui lòng liên hệ Super Admin (3717).',
+          'Không đọc được hồ sơ tài khoản. Tài khoản có thể đã bị khoá — vui lòng liên hệ 21707.',
       };
     }
 
@@ -276,7 +276,7 @@ export async function loginUser(
       // Đăng xuất khỏi Firebase Auth luôn, nếu không phiên xác thực vẫn sống
       // và tài khoản bị khoá vẫn còn request.auth hợp lệ với Firestore.
       await signOut(auth).catch(() => {});
-      return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
+      return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ 21707.' };
     }
 
     const updatedUser = { ...profile, lastLogin: new Date().toISOString() };
@@ -327,7 +327,7 @@ export async function loginUser(
     };
   }
   if (failCode === 'auth/user-disabled') {
-    return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
+    return { success: false, error: 'Tài khoản này đã bị khóa! Vui lòng liên hệ 21707.' };
   }
   return { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' };
 }
@@ -661,11 +661,11 @@ export async function verifySession(
       'Quá thời gian đọc hồ sơ tài khoản.'
     );
     if (!snap.exists()) {
-      return { status: 'rejected', reason: 'Tài khoản không còn tồn tại. Vui lòng liên hệ Super Admin (3717).' };
+      return { status: 'rejected', reason: 'Tài khoản không còn tồn tại. Vui lòng liên hệ 21707.' };
     }
     const profile = snap.data() as UserAccount;
     if (!profile.isActive) {
-      return { status: 'rejected', reason: 'Tài khoản này đã bị khóa! Vui lòng liên hệ Super Admin (3717).' };
+      return { status: 'rejected', reason: 'Tài khoản này đã bị khóa! Vui lòng liên hệ 21707.' };
     }
     // Quyền hạn LUÔN lấy từ máy chủ, không lấy từ bản sao ở localStorage.
     const verified: UserAccount = {

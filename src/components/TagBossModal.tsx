@@ -13,6 +13,7 @@ import {
   BossAssignmentRecord,
   getPhanLoaiShopForStore,
   getTinhMoiForStore,
+  getProvinceForStore,
 } from '../utils/parser';
 import { getCategoryGroup } from './ReportView';
 import { X, Copy, Check, MessageSquare, Flame, AlertCircle, Zap, Trophy, ListOrdered } from 'lucide-react';
@@ -133,7 +134,8 @@ export function generateReportRemarksText(params: {
   // 1. Filter stores based strictly on ALL active filters
   const filteredStores = safeStores.filter((s) => {
     if (isExcludedStore(s, bossAssignments)) return false;
-    if (isSpecificProvince && s.tinh !== selectedProvince) return false;
+    const effectiveTinh = getProvinceForStore(s.sieuthi, bossAssignments, s.tinh);
+    if (isSpecificProvince && effectiveTinh !== selectedProvince) return false;
     const effectiveKenh = getChannelForStore(s.sieuthi, bossAssignments, s.kenh);
     if (hasChannelFilter && !selectedChannels.includes(effectiveKenh as Channel)) return false;
     if (isSpecificBoss) {

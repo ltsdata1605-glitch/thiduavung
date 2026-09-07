@@ -564,13 +564,6 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       const key = (dt.sieuthi || dt.tinh || '').trim().toLowerCase();
       processedKeys.add(key);
 
-      const code = extractStoreCode(dt.sieuthi);
-      const mst = extractMst(dt.sieuthi);
-      const matchedTc =
-        tcMap.get(key) ||
-        (code ? tcMap.get(code.toLowerCase()) : undefined) ||
-        (mst ? tcMap.get(mst.toLowerCase()) : undefined);
-
       const matchedBoss = findBossAssignmentRecord(dt.sieuthi, bossAssignments);
       const effectiveTinh = matchedBoss?.tinh || getProvinceForStore(dt.sieuthi, bossAssignments, dt.tinh);
       const effectiveBoss = matchedBoss?.boss ? matchedBoss.boss.replace(/^Boss\s+/i, '').trim() : getBossForStore(dt.sieuthi, bossAssignments, dt.boss);
@@ -578,11 +571,14 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
       const phanLoaiShop = matchedBoss?.phanLoaiShop || getPhanLoaiShopForStore(dt.sieuthi, bossAssignments);
       const tinhMoi = matchedBoss?.tinhMoi || getTinhMoiForStore(dt.sieuthi, bossAssignments);
 
-      // Base Target computation: Mặc định vs Cùng Kỳ Năm
-      const effectiveStoreCode = (matchedBoss ? (extractStoreCode(matchedBoss.sieuthi) || matchedBoss.mst) : '') || extractStoreCode(dt.sieuthi) || mst || dt.id || '';
-      const effectiveMst = matchedBoss?.mst || mst || '';
+      const effectiveMst = matchedBoss?.mst || extractMst(dt.sieuthi) || '';
+      const effectiveStoreCode = effectiveMst || (matchedBoss ? extractStoreCode(matchedBoss.sieuthi) : '') || extractStoreCode(dt.sieuthi) || dt.id || '';
       const cleanMst = String(parseInt(effectiveMst || effectiveStoreCode, 10) || effectiveStoreCode).trim();
       const rawMst = (effectiveMst || effectiveStoreCode).trim();
+
+      const matchedTc =
+        tcMap.get(key) ||
+        (effectiveMst ? tcMap.get(effectiveMst.toLowerCase()) : undefined);
 
       let baseTarget = dt.target || 0;
 
@@ -601,9 +597,6 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
             `${rawMst}_${dKey3}`, `${cleanMst}_${dKey3}`,
             `${rawMst}_${dKey4}`, `${cleanMst}_${dKey4}`,
           ];
-          if (code) {
-            keysToTry.push(`${code}_${dKey1}`, `${code}_${dKey2}`, `${code}_${dKey3}`, `${code}_${dKey4}`);
-          }
 
           let matchedRow: RevenueCungKyRecord | undefined;
           for (const k of keysToTry) {
@@ -629,9 +622,6 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
             `${rawMst}_${mKey3}`, `${cleanMst}_${mKey3}`,
             `${rawMst}_${mKey4}`, `${cleanMst}_${mKey4}`,
           ];
-          if (code) {
-            mKeysToTry.push(`${code}_${mKey1}`, `${code}_${mKey2}`, `${code}_${mKey3}`, `${code}_${mKey4}`);
-          }
 
           let monthSum = 0;
           for (const k of mKeysToTry) {
@@ -704,10 +694,8 @@ export const RevenueReportView: React.FC<RevenueReportViewProps> = ({
         const targetTc = tc.target || 0;
         const achievedTc = tc.achieved || 0;
         const rateTc = tc.rate ?? (targetTc > 0 ? (achievedTc / targetTc) * 100 : 0);
-        const tcCode = extractStoreCode(tc.sieuthi);
-        const tcMst = extractMst(tc.sieuthi);
-        const effectiveStoreCode = (matchedBoss ? (extractStoreCode(matchedBoss.sieuthi) || matchedBoss.mst) : '') || tcCode || tcMst || tc.id || '';
-        const effectiveMst = matchedBoss?.mst || tcMst || '';
+        const effectiveMst = matchedBoss?.mst || extractMst(tc.sieuthi) || '';
+        const effectiveStoreCode = effectiveMst || (matchedBoss ? extractStoreCode(matchedBoss.sieuthi) : '') || extractStoreCode(tc.sieuthi) || tc.id || '';
 
         items.push({
           stt: items.length + 1,

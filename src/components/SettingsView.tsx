@@ -49,7 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onClick={onOpenUserManagement}
               className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
             >
-              <Shield className="w-4 h-4" /> Quản Lý Tài Khoản (3717)
+              <Shield className="w-4 h-4" /> Quản Lý Tài Khoản (21707)
             </button>
           )}
 

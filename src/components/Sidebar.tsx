@@ -246,7 +246,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {isSuperAdmin && <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
               </div>
               <div className="text-[10.5px] text-slate-500 font-mono truncate">
-                TK: {currentUser?.accountId || '3717'} ({currentUser?.role || 'Super Admin'})
+                TK: {currentUser?.accountId || '21707'} ({currentUser?.role || 'Super Admin'})
               </div>
             </div>
           )}

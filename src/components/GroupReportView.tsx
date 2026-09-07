@@ -1063,7 +1063,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                           return (
                             <tr key={s.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                               <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
-                              <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{s.tinh}</td>
+                              <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{getProvinceForStore(s.sieuthi, bossAssignments, s.tinh)}</td>
                               <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap truncate">
                                 {getBossForStore(s.sieuthi, bossAssignments, s.boss)}
                               </td>
@@ -1256,7 +1256,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       return (
                         <tr key={s.id || idx} className="bg-white">
                           <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
-                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{s.tinh}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{getProvinceForStore(s.sieuthi, bossAssignments, s.tinh)}</td>
                           <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap truncate">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
                           <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
@@ -1317,7 +1317,7 @@ export const GroupReportView: React.FC<GroupReportViewProps> = ({
                       return (
                         <tr key={s.id || idx} className="bg-slate-50">
                           <td className="py-1.5 px-1 text-center font-bold text-slate-500 border-r border-b border-slate-200 whitespace-nowrap">#{idx + 1}</td>
-                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{s.tinh}</td>
+                          <td className="py-1.5 px-2 font-bold text-slate-800 border-r border-b border-slate-200 whitespace-nowrap truncate">{getProvinceForStore(s.sieuthi, bossAssignments, s.tinh)}</td>
                           <td className="py-1.5 px-2 font-extrabold text-orange-600 border-r border-b border-slate-200 whitespace-nowrap truncate">{getBossForStore(s.sieuthi, bossAssignments, s.boss)}</td>
                           <td className="py-1.5 px-1 text-center border-r border-b border-slate-200 whitespace-nowrap">
                             <span className={`inline-block px-1.5 py-0.5 rounded-none text-[9.5px] font-extrabold ${getChannelBadgeStyle(effectiveKenh)}`}>
