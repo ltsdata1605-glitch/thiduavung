@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { StoreRecord, TimeMode, EntityScope, Channel, UserAccount } from '../types';
-import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord, getCategoryData, getProvinceForStore, getBossForStore, getChannelForStore } from '../utils/parser';
+import { formatVND, formatDtQdTb, getChannelRank, getDtQdTbForProvince, parseChannelValue, parseDtQdTbNum, extractMst, extractStoreCode, normalizeVietnameseForMatch, formatStoreDisplayName, getStoreCodeOnly, getStoreShortName, resolveCategoryDisplayName, formatCategoryHeaderTitle, checkDataFreshness, isExcludedStore, isExcludedChannel, findBossAssignmentRecord, getPhanLoaiShopForStore, getTinhMoiForStore, BossAssignmentRecord, getCategoryData, getProvinceForStore, getBossForStore, getChannelForStore, extractMonthYear } from '../utils/parser';
 // Lazy-loaded: only fetched the first time the NHÓM tab is actually opened,
 // instead of shipping ~1300 lines of Nhóm-only report code in the bundle
 // every user downloads to see the default VÙNG/SIÊU THỊ view.
@@ -1366,7 +1366,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
       const groupsStr = selectedCategoryGroupsList.map((g) => g.toUpperCase()).join(' + ');
       return `${modeStr} THI ĐUA NHÓM ${groupsStr}`;
     }
-    return `${modeStr} THI ĐUA NGÀNH HÀNG THÁNG 08/2026`;
+    const monthYearStr = extractMonthYear(lastUpdated);
+    return `${modeStr} THI ĐUA NGÀNH HÀNG THÁNG ${monthYearStr}`;
   })();
 
   const subHeaderTitle = (() => {

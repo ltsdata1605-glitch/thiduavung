@@ -2905,3 +2905,36 @@ export function parseRevenueCungKyExcelData(
 }
 
 
+
+/**
+ * Trích xuất tháng và năm từ chuỗi thời gian lastUpdated (ví dụ "21:30:26 - 21/10/2026", "19:10:51 NGÀY 12/09/2026").
+ * Tự động fallback về tháng/năm hiện tại của hệ thống nếu không có timestamp hoặc không parse được.
+ * Trả về định dạng: "MM/YYYY" (ví dụ "09/2026", "10/2026").
+ */
+export function extractMonthYear(timestamp?: string): string {
+  if (timestamp) {
+    // 1. Dạng DD/MM/YYYY hoặc D/M/YYYY (ví dụ: "21/10/2026", "12/09/2026", "9/8/2026")
+    const dmyMatch = timestamp.match(/(?:^|[^\d])\d{1,2}\/(\d{1,2})\/(\d{4})(?:$|[^\d])/);
+    if (dmyMatch) {
+      const m = parseInt(dmyMatch[1], 10);
+      const y = dmyMatch[2];
+      if (m >= 1 && m <= 12) {
+        return `${String(m).padStart(2, '0')}/${y}`;
+      }
+    }
+    // 2. Dạng MM/YYYY hoặc M/YYYY
+    const myMatch = timestamp.match(/(?:^|[^\d])(\d{1,2})\/(\d{4})(?:$|[^\d])/);
+    if (myMatch) {
+      const m = parseInt(myMatch[1], 10);
+      const y = myMatch[2];
+      if (m >= 1 && m <= 12) {
+        return `${String(m).padStart(2, '0')}/${y}`;
+      }
+    }
+  }
+
+  const now = new Date();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const y = String(now.getFullYear());
+  return `${m}/${y}`;
+}
