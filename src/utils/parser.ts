@@ -1974,7 +1974,9 @@ function getBossAssignmentIndex(bossAssignments: BossAssignmentRecord[]): BossAs
     //      Cột J (sieuthiNgan: "TGD_STR_STR - 50 Hai Bà Trưng")
     //      Cột G (sieuthiBase: "SIÊU THỊ BASE")
     // Và cả dạng tên đã loại bỏ tiền tố MST (để khớp 100% mọi định dạng từ BI)
-    const candidates = [b.sieuthi, b.sieuthiNgan, b.sieuthiBase];
+    // TUYỆT ĐỐI KHÔNG DÙNG Cột G (sieuthiBase) vì đó là Siêu Thị Mẹ/Base của các shop con DMS
+    // Nếu dùng sieuthiBase, các shop con DMS trỏ về Shop Base sẽ ghi đè tên của Shop Base và biến kênh thành DMS!
+    const candidates = [b.sieuthi, b.sieuthiNgan];
     candidates.forEach((name) => {
       if (!name) return;
       const norm = normalizeStoreNameForMatch(name);
@@ -2002,27 +2004,27 @@ export function findBossAssignmentRecord(
   const raw = storeSieuThi.trim();
   const index = getBossAssignmentIndex(bossAssignments);
 
-  // 1. Khớp CHÍNH XÁC THEO TÊN SIÊU THỊ (Ưu tiên số 1 - Khớp 100% tên siêu thị từ Cột J / Cột O / Cột G)
+  // 1. Khớp CHÍNH XÁC THEO MST (Mã Siêu Thị / Mã Kho từ Cột I) nếu chuỗi có chứa MST
+  // MST là định danh số duy nhất 100% của siêu thị (ví dụ "10550 - ĐMM_STR_STR - Phường 03" hoặc "10550")
+  const storeMst = extractMst(raw);
+  if (storeMst) {
+    const matchByMst = index.byMst.get(storeMst) || index.byMst.get(String(parseInt(storeMst, 10)));
+    if (matchByMst) return matchByMst;
+  }
+
+  // 2. Khớp CHÍNH XÁC THEO TÊN SIÊU THỊ chuẩn hóa từ file BOSS (Cột J / Cột O)
   const normStore = normalizeStoreNameForMatch(raw);
   if (normStore) {
-    // 1a. Khớp trực tiếp tên chuẩn hóa
+    // 2a. Khớp trực tiếp tên chuẩn hóa
     const matchByName = index.byNormName.get(normStore);
     if (matchByName) return matchByName;
 
-    // 1b. Khớp tên sau khi bỏ mã MST tiền tố (nếu chuỗi có "104 - TGD...")
+    // 2b. Khớp tên sau khi bỏ mã MST tiền tố (nếu chuỗi có "104 - TGD...")
     const normNoMst = stripMstPrefix(normStore);
     if (normNoMst && normNoMst !== normStore) {
       const matchByNoMst = index.byNormName.get(normNoMst);
       if (matchByNoMst) return matchByNoMst;
     }
-  }
-
-  // 2. Khớp CHÍNH XÁC THEO MST (Mã Siêu Thị / Mã Kho từ Cột I)
-  // Chỉ dò nếu chuỗi thực sự có mã số MST hợp lệ (bắt đầu bằng mã số kèm dấu gạch nối, hoặc pure number)
-  const storeMst = extractMst(raw);
-  if (storeMst) {
-    const matchByMst = index.byMst.get(storeMst) || index.byMst.get(String(parseInt(storeMst, 10)));
-    if (matchByMst) return matchByMst;
   }
 
   // 3. Fallback cuối: Chỉ khi chuỗi tên dài (> 10 ký tự) và có sự sai lệch nhỏ về đuôi địa chỉ (phường/xã/quận),
@@ -2031,7 +2033,8 @@ export function findBossAssignmentRecord(
     const cleanRaw = stripMstPrefix(normStore);
     if (cleanRaw.length > 8) {
       const matchByName = bossAssignments.find((b) => {
-        const normJ = normalizeStoreNameForMatch(b.sieuthiNgan || '');
+        const candidate = b.sieuthiNgan || b.sieuthi || '';
+        const normJ = normalizeStoreNameForMatch(candidate);
         const cleanJ = stripMstPrefix(normJ);
         if (cleanJ && cleanJ.length > 8) {
           if (cleanRaw === cleanJ) return true;
